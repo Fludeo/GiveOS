@@ -1,0 +1,326 @@
+import {
+	areUnitsCompatible,
+	convertQuantity,
+	getDirectUnitCost,
+	type Item
+} from '#lib/features/items/domain/item.entity';
+import type { IItemRepository } from '#lib/features/items/domain/item.repository';
+import type {
+	RecipeLine,
+	RecipeTree,
+	RecipeTreeNode,
+	CreateRecipeLineInput,
+	UpdateRecipeLineInput
+} from '../domain/recipe.entity';
+import type { IRecipeRepository } from '../domain/recipe.repository';
+
+export class RecipeService {
+	constructor(
+		private readonly recipeRepo: IRecipeRepository,
+		private readonly itemRepo: IItemRepository
+	) {}
+
+	async addLine(businessId: string, input: CreateRecipeLineInput): Promise<RecipeLine> {
+		if (input.parentItemId === input.componentItemId) {
+			throw new Error('Un ítem no puede ser ingrediente/componente de sí mismo.');
+		}
+		if (input.quantity <= 0) {
+			throw new Error('La cantidad debe ser mayor a 0.');
+		}
+
+		const [parent, component] = await Promise.all([
+			this.itemRepo.findById(input.parentItemId, businessId),
+			this.itemRepo.findById(input.componentItemId, businessId)
+		]);
+
+		if (!parent) throw new Error('El ítem padre no existe en este negocio.');
+		if (!component) throw new Error('El ingrediente o componente seleccionado no existe en este negocio.');
+
+		if (!areUnitsCompatible(input.unit, component.baseUnit)) {
+			throw new Error(
+				`La unidad seleccionada (${input.unit}) no es compatible con la unidad base del componente (${component.baseUnit}).`
+			);
+		}
+
+		const allLines = await this.recipeRepo.findAllLinesByBusiness(businessId);
+		if (this.wouldCreateCycle(input.parentItemId, input.componentItemId, allLines)) {
+			throw new Error(
+				'No se puede agregar este componente porque generaría una referencia circular en la Estructura de Recetas.'
+			);
+		}
+
+		return this.recipeRepo.createLine(input);
+	}
+
+	async updateLine(
+		businessId: string,
+		id: string,
+		input: UpdateRecipeLineInput
+	): Promise<RecipeLine> {
+		const existing = await this.recipeRepo.findLineById(id);
+		if (!existing) throw new Error('Línea de receta no encontrada.');
+
+		const parent = await this.itemRepo.findById(existing.parentItemId, businessId);
+		if (!parent) throw new Error('No tienes permiso para modificar esta línea de la receta.');
+
+		if (input.quantity !== undefined && input.quantity <= 0) {
+			throw new Error('La cantidad debe ser mayor a 0.');
+		}
+
+		if (input.unit) {
+			const component = await this.itemRepo.findById(existing.componentItemId, businessId);
+			if (component && !areUnitsCompatible(input.unit, component.baseUnit)) {
+				throw new Error(
+					`La unidad (${input.unit}) no es compatible con la unidad base del componente (${component.baseUnit}).`
+				);
+			}
+		}
+
+		const updated = await this.recipeRepo.updateLine(id, input);
+		if (!updated) throw new Error('No se pudo actualizar la línea de la receta.');
+		return updated;
+	}
+
+	async removeLine(businessId: string, id: string): Promise<void> {
+		const existing = await this.recipeRepo.findLineById(id);
+		if (!existing) throw new Error('Línea de receta no encontrada.');
+
+		const parent = await this.itemRepo.findById(existing.parentItemId, businessId);
+		if (!parent) throw new Error('No tienes permiso para eliminar esta línea de la receta.');
+
+		const ok = await this.recipeRepo.deleteLine(id);
+		if (!ok) throw new Error('No se pudo eliminar la línea de la receta.');
+	}
+
+	/**
+	 * Construye el árbol de receta multinivel completo de un ítem del negocio y calcula costos de referencia en cascada.
+	 */
+	async getRecipeTree(businessId: string, rootItemId: string): Promise<RecipeTree | null> {
+		const [allItems, allLines] = await Promise.all([
+			this.itemRepo.findAllByBusiness(businessId),
+			this.recipeRepo.findAllLinesByBusiness(businessId)
+		]);
+
+		const itemsById = new Map<string, Item>(allItems.map((item) => [item.id, item]));
+		const rootItem = itemsById.get(rootItemId);
+		if (!rootItem) return null;
+
+		const linesByParent = new Map<string, RecipeLine[]>();
+		for (const line of allLines) {
+			const list = linesByParent.get(line.parentItemId) ?? [];
+			list.push(line);
+			linesByParent.set(line.parentItemId, list);
+		}
+
+		const buildNodes = (
+			parentId: string,
+			depth: number,
+			visited: Set<string>
+		): RecipeTreeNode[] => {
+			const directLines = linesByParent.get(parentId) ?? [];
+			const nodes: RecipeTreeNode[] = [];
+
+			for (const line of directLines) {
+				const component = itemsById.get(line.componentItemId);
+				if (!component) continue;
+
+				const nextVisited = new Set(visited);
+				let children: RecipeTreeNode[] = [];
+				if (!nextVisited.has(component.id)) {
+					nextVisited.add(component.id);
+					children = buildNodes(component.id, depth + 1, nextVisited);
+				}
+
+				let componentUnitCost = getDirectUnitCost(component);
+				if (children.length > 0) {
+					const subRecipeTotalCost = children.reduce(
+						(acc, child) => acc + child.estimatedLineCost,
+						0
+					);
+					const yieldQty = component.yieldQuantity > 0 ? component.yieldQuantity : 1;
+					componentUnitCost = subRecipeTotalCost / yieldQty;
+				}
+
+				const quantityInComponentBaseUnit = convertQuantity(
+					line.quantity,
+					line.unit,
+					component.baseUnit
+				);
+				const estimatedLineCost = quantityInComponentBaseUnit * componentUnitCost;
+
+				nodes.push({
+					lineId: line.id,
+					parentItemId: parentId,
+					component,
+					quantity: line.quantity,
+					unit: line.unit,
+					notes: line.notes,
+					depth,
+					componentUnitCost,
+					estimatedLineCost,
+					children
+				});
+			}
+
+			return nodes;
+		};
+
+		const nodes = buildNodes(rootItem.id, 0, new Set([rootItem.id]));
+		const estimatedTotalCost =
+			nodes.length > 0
+				? nodes.reduce((sum, n) => sum + n.estimatedLineCost, 0)
+				: rootItem.referenceCost;
+		const yieldQty = rootItem.yieldQuantity > 0 ? rootItem.yieldQuantity : 1;
+		const estimatedUnitCost =
+			nodes.length > 0 ? estimatedTotalCost / yieldQty : getDirectUnitCost(rootItem);
+
+		return {
+			rootItem,
+			nodes,
+			estimatedTotalCost,
+			estimatedUnitCost
+		};
+	}
+
+	/**
+	 * Devuelve un resumen rápido del conteo de ingredientes directos y costo estimado para todos los ítems del negocio.
+	 */
+	async getAllRecipeSummaries(
+		businessId: string
+	): Promise<
+		Record<
+			string,
+			{
+				directComponentsCount: number;
+				estimatedTotalCost: number;
+				estimatedUnitCost: number;
+				nodes: RecipeTreeNode[];
+			}
+		>
+	> {
+		const [allItems, allLines] = await Promise.all([
+			this.itemRepo.findAllByBusiness(businessId),
+			this.recipeRepo.findAllLinesByBusiness(businessId)
+		]);
+
+		const summaries: Record<
+			string,
+			{
+				directComponentsCount: number;
+				estimatedTotalCost: number;
+				estimatedUnitCost: number;
+				nodes: RecipeTreeNode[];
+			}
+		> = {};
+
+		const directCounts = new Map<string, number>();
+		for (const line of allLines) {
+			directCounts.set(line.parentItemId, (directCounts.get(line.parentItemId) ?? 0) + 1);
+		}
+
+		for (const item of allItems) {
+			const tree = await this.getRecipeTree(businessId, item.id);
+			summaries[item.id] = {
+				directComponentsCount: directCounts.get(item.id) ?? 0,
+				estimatedTotalCost: tree?.estimatedTotalCost ?? item.referenceCost,
+				estimatedUnitCost: tree?.estimatedUnitCost ?? getDirectUnitCost(item),
+				nodes: tree?.nodes ?? []
+			};
+		}
+
+		return summaries;
+	}
+
+	/**
+	 * Produce `producedQty` (en la unidad base del ítem padre):
+	 * 1. Suma +producedQty al stock actual del ítem padre.
+	 * 2. Descuenta proporcionalmente el stock de todos sus ingredientes/componentes directos de la receta.
+	 */
+	async produceItemBatch(
+		businessId: string,
+		parentItemId: string,
+		producedQty: number
+	): Promise<{ parent: Item; consumedComponents: Array<{ item: Item; consumedQty: number }> }> {
+		if (producedQty <= 0) {
+			throw new Error('La cantidad a producir debe ser mayor a 0.');
+		}
+
+		const [allItems, allLines] = await Promise.all([
+			this.itemRepo.findAllByBusiness(businessId),
+			this.recipeRepo.findAllLinesByBusiness(businessId)
+		]);
+
+		const itemsById = new Map<string, Item>(allItems.map((i) => [i.id, i]));
+		const parent = itemsById.get(parentItemId);
+		if (!parent) {
+			throw new Error('El ítem a producir no existe en este negocio.');
+		}
+
+		const directLines = allLines.filter((l) => l.parentItemId === parentItemId);
+		const yieldQty = parent.yieldQuantity > 0 ? parent.yieldQuantity : 1;
+		const batchFactor = producedQty / yieldQty;
+
+		const consumedComponents: Array<{ item: Item; consumedQty: number }> = [];
+
+		for (const line of directLines) {
+			const comp = itemsById.get(line.componentItemId);
+			if (!comp) continue;
+
+			const requiredInCompBase = convertQuantity(
+				line.quantity * batchFactor,
+				line.unit,
+				comp.baseUnit
+			);
+			const nextStock = Math.max(0, Number((comp.currentStock - requiredInCompBase).toFixed(4)));
+			const updatedComp = await this.itemRepo.update(comp.id, businessId, {
+				currentStock: nextStock
+			});
+			if (updatedComp) {
+				itemsById.set(comp.id, updatedComp);
+				consumedComponents.push({ item: updatedComp, consumedQty: requiredInCompBase });
+			}
+		}
+
+		const nextParentStock = Number((parent.currentStock + producedQty).toFixed(4));
+		const updatedParent = await this.itemRepo.update(parent.id, businessId, {
+			currentStock: nextParentStock
+		});
+
+		return {
+			parent: updatedParent ?? parent,
+			consumedComponents
+		};
+	}
+
+	private wouldCreateCycle(
+		parentItemId: string,
+		candidateComponentId: string,
+		allLines: RecipeLine[]
+	): boolean {
+		if (parentItemId === candidateComponentId) return true;
+
+		const childrenMap = new Map<string, string[]>();
+		for (const line of allLines) {
+			const list = childrenMap.get(line.parentItemId) ?? [];
+			list.push(line.componentItemId);
+			childrenMap.set(line.parentItemId, list);
+		}
+
+		const stack = [candidateComponentId];
+		const visited = new Set<string>();
+
+		while (stack.length > 0) {
+			const current = stack.pop()!;
+			if (current === parentItemId) return true;
+			if (visited.has(current)) continue;
+			visited.add(current);
+
+			const children = childrenMap.get(current) ?? [];
+			for (const childId of children) {
+				stack.push(childId);
+			}
+		}
+
+		return false;
+	}
+}

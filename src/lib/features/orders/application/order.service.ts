@@ -1,0 +1,662 @@
+import { convertQuantity, getDirectUnitCost, type Item } from '#lib/features/items/domain/item.entity';
+import type { IItemRepository } from '#lib/features/items/domain/item.repository';
+import type { RecipeService } from '#lib/features/recipes/application/recipe.service';
+import type { RecipeTreeNode } from '#lib/features/recipes/domain/recipe.entity';
+import {
+	computeOrderStatusFromItems,
+	computePaymentStatus,
+	generateNextOrderNumber,
+	generateNextSalesProductCode,
+	type PriceTier,
+	type CreateOrderInput,
+	type CreateSalesProductInput,
+	type OrderWithItems,
+	type PaymentStatus,
+	type PreorderForecastLine,
+	type PreorderForecastSummary,
+	type SalesProduct,
+	type SalesProductComponentInput,
+	type SalesProductComponentWithItem,
+	type SalesProductWithItems,
+	type UpdateSalesProductInput
+} from '../domain/order.entity';
+import type { IOrderRepository } from '../domain/order.repository';
+
+export class OrderService {
+	constructor(
+		private readonly orderRepo: IOrderRepository,
+		private readonly itemRepo: IItemRepository,
+		private readonly recipeService: RecipeService
+	) {}
+
+	async listSalesProducts(businessId: string): Promise<SalesProductWithItems[]> {
+		const [products, items, recipeSummaries] = await Promise.all([
+			this.orderRepo.findSalesProductsByBusiness(businessId),
+			this.itemRepo.findAllByBusiness(businessId),
+			this.recipeService.getAllRecipeSummaries(businessId)
+		]);
+
+		const productIds = products.map((p) => p.id);
+		const allProductItems = await this.orderRepo.findSalesProductItemsByProductIds(productIds);
+
+		const itemsById = new Map<string, Item>(items.map((i) => [i.id, i]));
+		const productItemsByProductId = new Map<string, typeof allProductItems>();
+
+		for (const row of allProductItems) {
+			const list = productItemsByProductId.get(row.salesProductId) ?? [];
+			list.push(row);
+			productItemsByProductId.set(row.salesProductId, list);
+		}
+
+		return products.map((prod) => {
+			const rows = productItemsByProductId.get(prod.id) ?? [];
+			let estimatedRecipeCost = 0;
+
+			const components: SalesProductComponentWithItem[] = rows.map((row) => {
+				const item = itemsById.get(row.itemId) ?? null;
+				const unitCost = item
+					? (recipeSummaries[item.id]?.estimatedUnitCost ?? getDirectUnitCost(item))
+					: 0;
+				const lineRecipeCost = unitCost * row.quantity;
+				estimatedRecipeCost += lineRecipeCost;
+				return {
+					...row,
+					item,
+					lineRecipeCost
+				};
+			});
+
+			const totalQty = components.reduce((acc, c) => acc + c.quantity, 0);
+
+			let parsedTiers: PriceTier[] = [];
+			if (Array.isArray(prod.pricingTiers)) {
+				parsedTiers = prod.pricingTiers;
+			} else if (typeof prod.pricingTiers === 'string') {
+				try {
+					parsedTiers = JSON.parse(prod.pricingTiers);
+				} catch {
+					parsedTiers = [];
+				}
+			}
+
+			return {
+				...prod,
+				pricingTiers: parsedTiers,
+				components,
+				estimatedRecipeCost,
+				isCombo: components.length > 1 || totalQty > 1
+			};
+		});
+	}
+
+	private async validateAndNormalizeComponents(
+		businessId: string,
+		components: SalesProductComponentInput[]
+	): Promise<SalesProductComponentInput[]> {
+		if (!components || components.length === 0) {
+			throw new Error('Debes vincular al menos un Producto Final del inventario/recetas.');
+		}
+
+		const mergedMap = new Map<string, number>();
+
+		for (const comp of components) {
+			const itemId = comp.itemId?.trim();
+			const qty = Number(comp.quantity);
+			if (!itemId) {
+				throw new Error('Todos los componentes del producto deben tener un ítem seleccionado.');
+			}
+			if (!Number.isFinite(qty) || qty <= 0) {
+				throw new Error('La cantidad de cada Producto Final debe ser mayor a 0.');
+			}
+
+			const linkedItem = await this.itemRepo.findById(itemId, businessId);
+			if (!linkedItem) {
+				throw new Error('Uno de los ítems seleccionados no existe en el inventario.');
+			}
+			if (linkedItem.type !== 'finished_product') {
+				throw new Error(
+					`El ítem "${linkedItem.name}" no es un Producto Final. Solo se pueden asociar ítems de categoría "Producto Final" para la venta.`
+				);
+			}
+
+			mergedMap.set(itemId, Number(((mergedMap.get(itemId) ?? 0) + qty).toFixed(4)));
+		}
+
+		return Array.from(mergedMap.entries()).map(([itemId, quantity]) => ({
+			itemId,
+			quantity
+		}));
+	}
+
+	private normalizePricingTiers(tiers?: PriceTier[]): PriceTier[] {
+		if (!tiers || !Array.isArray(tiers)) return [];
+		return tiers
+			.filter((t) => Number(t.minQuantity) > 1 && Number(t.value) > 0)
+			.map((t) => ({
+				minQuantity: Number(t.minQuantity),
+				type: t.type === 'fixed_price' ? ('fixed_price' as const) : ('percentage' as const),
+				value: Number(t.value)
+			}))
+			.sort((a, b) => a.minQuantity - b.minQuantity);
+	}
+
+	async createSalesProduct(input: CreateSalesProductInput): Promise<SalesProduct> {
+		if (!input.name.trim()) {
+			throw new Error('El nombre comercial del producto es obligatorio.');
+		}
+
+		const normalizedComponents = await this.validateAndNormalizeComponents(
+			input.businessId,
+			input.components
+		);
+
+		let normalizedCode = (input.code ?? '').trim().toUpperCase();
+		if (!normalizedCode) {
+			const existing = await this.orderRepo.findSalesProductsByBusiness(input.businessId);
+			normalizedCode = generateNextSalesProductCode(existing.map((p) => p.code));
+		} else {
+			const duplicate = await this.orderRepo.findSalesProductByCode(
+				normalizedCode,
+				input.businessId
+			);
+			if (duplicate) {
+				throw new Error(
+					`Ya existe un producto de venta con el código "${normalizedCode}".`
+				);
+			}
+		}
+
+		return this.orderRepo.createSalesProduct({
+			...input,
+			code: normalizedCode,
+			components: normalizedComponents,
+			pricingTiers: this.normalizePricingTiers(input.pricingTiers)
+		});
+	}
+
+	async updateSalesProduct(
+		id: string,
+		businessId: string,
+		input: UpdateSalesProductInput
+	): Promise<SalesProduct> {
+		const existing = await this.orderRepo.findSalesProductById(id, businessId);
+		if (!existing) {
+			throw new Error('Producto de venta no encontrado.');
+		}
+
+		let normalizedComponents: SalesProductComponentInput[] | undefined = undefined;
+		if (input.components !== undefined) {
+			normalizedComponents = await this.validateAndNormalizeComponents(
+				businessId,
+				input.components
+			);
+		}
+
+		const updated = await this.orderRepo.updateSalesProduct(id, businessId, {
+			...input,
+			components: normalizedComponents,
+			pricingTiers: input.pricingTiers !== undefined ? this.normalizePricingTiers(input.pricingTiers) : undefined
+		});
+		if (!updated) {
+			throw new Error('No se pudo actualizar el producto de venta.');
+		}
+		return updated;
+	}
+
+	async deleteSalesProduct(id: string, businessId: string): Promise<void> {
+		const ok = await this.orderRepo.deleteSalesProduct(id, businessId);
+		if (!ok) {
+			throw new Error('No se pudo eliminar el producto de venta.');
+		}
+	}
+
+	async toggleSalesProductShortcut(id: string, businessId: string): Promise<SalesProduct> {
+		const existing = await this.orderRepo.findSalesProductById(id, businessId);
+		if (!existing) {
+			throw new Error('Producto de venta no encontrado.');
+		}
+		const updated = await this.orderRepo.updateSalesProduct(id, businessId, {
+			isShortcut: !existing.isShortcut
+		});
+		if (!updated) {
+			throw new Error('No se pudo actualizar el atajo del producto.');
+		}
+		return updated;
+	}
+
+	async listOrders(businessId: string): Promise<OrderWithItems[]> {
+		return this.orderRepo.findOrdersByBusiness(businessId);
+	}
+
+	async createOrder(input: CreateOrderInput): Promise<OrderWithItems> {
+		if (!input.lines || input.lines.length === 0) {
+			throw new Error('La orden debe contener al menos un producto.');
+		}
+
+		const [existingOrders, salesProducts, allItems] = await Promise.all([
+			this.orderRepo.findOrdersByBusiness(input.businessId),
+			this.listSalesProducts(input.businessId),
+			this.itemRepo.findAllByBusiness(input.businessId)
+		]);
+
+		const productsById = new Map(salesProducts.map((p) => [p.id, p]));
+		const itemsById = new Map(allItems.map((i) => [i.id, i]));
+
+		const orderNumber = generateNextOrderNumber(existingOrders.map((o) => o.orderNumber));
+
+		const preparedLines: Array<{
+			salesProductId: string;
+			productName: string;
+			quantity: number;
+			unitPrice: number;
+			fulfillmentType: 'immediate' | 'preorder';
+			status: 'delivered' | 'pending_delivery';
+			notes: string | null;
+		}> = [];
+
+		let totalAmount = 0;
+
+		for (const line of input.lines) {
+			if (line.quantity <= 0) {
+				throw new Error('La cantidad de cada producto en la orden debe ser mayor a 0.');
+			}
+			const salesProduct = productsById.get(line.salesProductId);
+			if (!salesProduct) {
+				throw new Error('Uno de los productos seleccionados no existe en el catálogo de venta.');
+			}
+			if (salesProduct.components.length === 0) {
+				throw new Error(
+					`El producto "${salesProduct.name}" no tiene ningún Producto Final vinculado en su configuración.`
+				);
+			}
+
+			const unitPrice =
+				line.unitPrice !== undefined && Number.isFinite(line.unitPrice) && line.unitPrice >= 0
+					? line.unitPrice
+					: salesProduct.salePrice;
+
+			const fulfillmentType =
+				line.fulfillmentType === 'preorder' ? 'preorder' : 'immediate';
+			const status = fulfillmentType === 'preorder' ? 'pending_delivery' : 'delivered';
+
+			totalAmount += line.quantity * unitPrice;
+
+			preparedLines.push({
+				salesProductId: salesProduct.id,
+				productName: salesProduct.name,
+				quantity: line.quantity,
+				unitPrice,
+				fulfillmentType,
+				status,
+				notes: line.notes?.trim() || null
+			});
+		}
+
+		// Descontar stock directamente para todos los componentes (Productos Finales) de las líneas que se venden/entregan en el momento ('immediate')
+		for (const line of preparedLines) {
+			if (line.fulfillmentType === 'immediate') {
+				const salesProduct = productsById.get(line.salesProductId);
+				if (!salesProduct) continue;
+
+				for (const comp of salesProduct.components) {
+					const targetItem = itemsById.get(comp.itemId);
+					if (targetItem) {
+						const consumeQty = line.quantity * comp.quantity;
+						const nextStock = Math.max(
+							0,
+							Number((targetItem.currentStock - consumeQty).toFixed(4))
+						);
+						const updatedItem = await this.itemRepo.update(
+							targetItem.id,
+							input.businessId,
+							{
+								currentStock: nextStock
+							}
+						);
+						if (updatedItem) {
+							itemsById.set(targetItem.id, updatedItem);
+						}
+					}
+				}
+			}
+		}
+
+		const status = computeOrderStatusFromItems(preparedLines);
+		const { paymentStatus, normalizedPaidAmount } = computePaymentStatus(
+			totalAmount,
+			input.paidAmount ?? 0,
+			input.paymentStatus
+		);
+
+		return this.orderRepo.createOrderWithItems(
+			{
+				businessId: input.businessId,
+				orderNumber,
+				customerName: input.customerName?.trim() || 'Cliente Mostrador',
+				status,
+				paymentStatus,
+				totalAmount: Number(totalAmount.toFixed(2)),
+				paidAmount: Number(normalizedPaidAmount.toFixed(2)),
+				deliveryDate: input.deliveryDate ?? null,
+				notes: input.notes?.trim() || null
+			},
+			preparedLines
+		);
+	}
+
+	/**
+	 * Completa/entrega una línea por encargo ("Just-In-Time"):
+	 * Para cada Producto Final que compone el producto de venta (sea individual o Combo):
+	 * 1. Suma +Q al ítem asociado produciéndolo mediante su Receta (lo cual consume sus sub-ensambles/insumos).
+	 * 2. Resta -Q al ítem asociado por la entrega al cliente, dejando su stock tal como estaba.
+	 */
+	async deliverOrderItemJustInTime(
+		businessId: string,
+		orderId: string,
+		lineId: string
+	): Promise<OrderWithItems> {
+		const order = await this.orderRepo.findOrderById(orderId, businessId);
+		if (!order) {
+			throw new Error('Orden no encontrada.');
+		}
+		if (order.status === 'cancelled') {
+			throw new Error('No se pueden entregar ítems de una orden cancelada.');
+		}
+
+		const line = order.items.find((i) => i.id === lineId);
+		if (!line) {
+			throw new Error('Línea de orden no encontrada.');
+		}
+		if (line.status === 'delivered') {
+			return order;
+		}
+
+		const productComponents = await this.orderRepo.findSalesProductItemsByProductIds([
+			line.salesProductId
+		]);
+
+		for (const comp of productComponents) {
+			const totalItemQty = Number((line.quantity * comp.quantity).toFixed(4));
+			if (totalItemQty <= 0) continue;
+
+			// Paso 1 (+Q): Producir el lote JIT (suma +totalItemQty al Producto Final y descuenta sus sub-ensambles/insumos directos de su Receta)
+			const { parent: afterProduce } = await this.recipeService.produceItemBatch(
+				businessId,
+				comp.itemId,
+				totalItemQty
+			);
+
+			// Paso 2 (-Q): Descontar -totalItemQty por la venta/entrega para que el stock del Producto Final quede igual que antes
+			const finalStock = Math.max(
+				0,
+				Number((afterProduce.currentStock - totalItemQty).toFixed(4))
+			);
+			await this.itemRepo.update(comp.itemId, businessId, {
+				currentStock: finalStock
+			});
+		}
+
+		await this.orderRepo.updateOrderItemStatus(line.id, 'delivered');
+
+		const updatedItems = order.items.map((i) =>
+			i.id === line.id ? { ...i, status: 'delivered' as const } : i
+		);
+		const nextOrderStatus = computeOrderStatusFromItems(updatedItems);
+
+		await this.orderRepo.updateOrder(order.id, businessId, {
+			status: nextOrderStatus
+		});
+
+		return (await this.orderRepo.findOrderById(order.id, businessId))!;
+	}
+
+	/**
+	 * Completa todas las líneas pendientes de una orden ejecutando el flujo JIT (+1 / -1) en cada encargo pendiente.
+	 */
+	async completeOrderJustInTime(businessId: string, orderId: string): Promise<OrderWithItems> {
+		const order = await this.orderRepo.findOrderById(orderId, businessId);
+		if (!order) {
+			throw new Error('Orden no encontrada.');
+		}
+		if (order.status === 'cancelled') {
+			throw new Error('No se puede completar una orden cancelada.');
+		}
+
+		const pendingLines = order.items.filter((i) => i.status === 'pending_delivery');
+		for (const line of pendingLines) {
+			await this.deliverOrderItemJustInTime(businessId, orderId, line.id);
+		}
+
+		await this.orderRepo.updateOrder(orderId, businessId, {
+			status: 'completed',
+			paymentStatus: 'paid',
+			paidAmount: order.totalAmount
+		});
+
+		return (await this.orderRepo.findOrderById(orderId, businessId))!;
+	}
+
+	async updateOrderPayment(
+		businessId: string,
+		orderId: string,
+		paidAmount: number,
+		explicitStatus?: PaymentStatus
+	): Promise<OrderWithItems> {
+		const order = await this.orderRepo.findOrderById(orderId, businessId);
+		if (!order) {
+			throw new Error('Orden no encontrada.');
+		}
+
+		const { paymentStatus, normalizedPaidAmount } = computePaymentStatus(
+			order.totalAmount,
+			paidAmount,
+			explicitStatus
+		);
+
+		await this.orderRepo.updateOrder(orderId, businessId, {
+			paymentStatus,
+			paidAmount: Number(normalizedPaidAmount.toFixed(2))
+		});
+
+		return (await this.orderRepo.findOrderById(orderId, businessId))!;
+	}
+
+	async cancelOrder(businessId: string, orderId: string): Promise<OrderWithItems> {
+		const order = await this.orderRepo.findOrderById(orderId, businessId);
+		if (!order) {
+			throw new Error('Orden no encontrada.');
+		}
+
+		for (const line of order.items) {
+			if (line.status === 'pending_delivery') {
+				await this.orderRepo.updateOrderItemStatus(line.id, 'cancelled');
+			}
+		}
+
+		await this.orderRepo.updateOrder(orderId, businessId, {
+			status: 'cancelled'
+		});
+
+		return (await this.orderRepo.findOrderById(orderId, businessId))!;
+	}
+
+	/**
+	 * Cruza las órdenes pendientes (pedidos a futuro / `pending_delivery`) con el árbol de Recetas
+	 * desglosando primero los componentes de cada producto de venta (incluyendo Combos)
+	 * para prever si alcanza el stock actual de Sub-ensambles y Materias Primas o si hay sobreventa/déficit.
+	 */
+	async getPreorderForecast(businessId: string): Promise<PreorderForecastSummary> {
+		const [orders, allItems, recipeSummaries, salesProducts] = await Promise.all([
+			this.orderRepo.findOrdersByBusiness(businessId),
+			this.itemRepo.findAllByBusiness(businessId),
+			this.recipeService.getAllRecipeSummaries(businessId),
+			this.listSalesProducts(businessId)
+		]);
+
+		const itemsById = new Map<string, Item>(allItems.map((i) => [i.id, i]));
+		const salesProductsById = new Map(salesProducts.map((sp) => [sp.id, sp]));
+		const pendingOrders = orders.filter((o) => o.status === 'pending');
+
+		const productDemandMap = new Map<string, number>();
+		let pendingPreorderLinesCount = 0;
+
+		for (const order of pendingOrders) {
+			for (const line of order.items) {
+				if (line.status === 'pending_delivery') {
+					pendingPreorderLinesCount++;
+					const sp = salesProductsById.get(line.salesProductId);
+					if (!sp) continue;
+
+					for (const comp of sp.components) {
+						const itemQty = line.quantity * comp.quantity;
+						productDemandMap.set(
+							comp.itemId,
+							(productDemandMap.get(comp.itemId) ?? 0) + itemQty
+						);
+					}
+				}
+			}
+		}
+
+		const productDemands: PreorderForecastSummary['productDemands'] = [];
+		const subAssemblyRequiredMap = new Map<string, number>();
+		const directRawRequiredMap = new Map<string, number>();
+
+		// 1. Explotar cada Producto Final demandado en pedidos futuros
+		for (const [itemId, totalOrderedQty] of productDemandMap.entries()) {
+			const productItem = itemsById.get(itemId);
+			if (!productItem) continue;
+
+			productDemands.push({
+				itemId: productItem.id,
+				code: productItem.code,
+				name: productItem.name,
+				baseUnit: productItem.baseUnit,
+				totalOrderedQty: Number(totalOrderedQty.toFixed(3)),
+				currentProductStock: productItem.currentStock
+			});
+
+			const summary = recipeSummaries[productItem.id];
+			const nodes = summary?.nodes ?? [];
+			const yieldQty = productItem.yieldQuantity > 0 ? productItem.yieldQuantity : 1;
+			const batchesNeeded = totalOrderedQty / yieldQty;
+
+			for (const node of nodes) {
+				const comp = node.component;
+				const reqInBase = convertQuantity(
+					node.quantity * batchesNeeded,
+					node.unit,
+					comp.baseUnit
+				);
+
+				if (comp.type === 'sub_assembly') {
+					subAssemblyRequiredMap.set(
+						comp.id,
+						(subAssemblyRequiredMap.get(comp.id) ?? 0) + reqInBase
+					);
+				} else if (comp.type === 'raw_material') {
+					directRawRequiredMap.set(
+						comp.id,
+						(directRawRequiredMap.get(comp.id) ?? 0) + reqInBase
+					);
+				}
+			}
+		}
+
+		// 2. Construir previsión de Sub-ensambles y calcular qué sub-ensambles faltan fabricar
+		const subAssemblyForecast: PreorderForecastLine[] = [];
+		const totalRawRequiredMap = new Map<string, number>(directRawRequiredMap);
+
+		const explodeSubAssemblyRawMaterials = (nodes: RecipeTreeNode[], multiplier: number) => {
+			for (const node of nodes) {
+				const comp = node.component;
+				const reqInBase = convertQuantity(
+					node.quantity * multiplier,
+					node.unit,
+					comp.baseUnit
+				);
+				if (comp.type === 'raw_material') {
+					totalRawRequiredMap.set(
+						comp.id,
+						(totalRawRequiredMap.get(comp.id) ?? 0) + reqInBase
+					);
+				} else if (comp.type === 'sub_assembly' && node.children.length > 0) {
+					const childYield = comp.yieldQuantity > 0 ? comp.yieldQuantity : 1;
+					explodeSubAssemblyRawMaterials(node.children, reqInBase / childYield);
+				}
+			}
+		};
+
+		for (const [subId, reqQty] of subAssemblyRequiredMap.entries()) {
+			const subItem = itemsById.get(subId);
+			if (!subItem) continue;
+
+			const projectedBalance = Number((subItem.currentStock - reqQty).toFixed(3));
+			const deficitQuantity = projectedBalance < 0 ? Math.abs(projectedBalance) : 0;
+
+			subAssemblyForecast.push({
+				itemId: subItem.id,
+				code: subItem.code,
+				name: subItem.name,
+				type: subItem.type,
+				baseUnit: subItem.baseUnit,
+				currentStock: subItem.currentStock,
+				minStock: subItem.minStock,
+				requiredQuantity: Number(reqQty.toFixed(3)),
+				projectedBalance,
+				deficitQuantity: Number(deficitQuantity.toFixed(3)),
+				isShortage: deficitQuantity > 0
+			});
+
+			// Si falta sub-ensamble (déficit > 0), explotamos sus materias primas para saber si alcanza la materia prima para producir el faltante
+			if (deficitQuantity > 0) {
+				const subSummary = recipeSummaries[subItem.id];
+				const subNodes = subSummary?.nodes ?? [];
+				const subYield = subItem.yieldQuantity > 0 ? subItem.yieldQuantity : 1;
+				explodeSubAssemblyRawMaterials(subNodes, deficitQuantity / subYield);
+			}
+		}
+
+		// Ordenar primero los que tienen déficit
+		subAssemblyForecast.sort((a, b) => {
+			if (a.isShortage !== b.isShortage) return a.isShortage ? -1 : 1;
+			return a.projectedBalance - b.projectedBalance;
+		});
+
+		const rawMaterialForecast: PreorderForecastLine[] = [];
+		for (const [rawId, reqQty] of totalRawRequiredMap.entries()) {
+			const rawItem = itemsById.get(rawId);
+			if (!rawItem) continue;
+
+			const projectedBalance = Number((rawItem.currentStock - reqQty).toFixed(3));
+			const deficitQuantity = projectedBalance < 0 ? Math.abs(projectedBalance) : 0;
+
+			rawMaterialForecast.push({
+				itemId: rawItem.id,
+				code: rawItem.code,
+				name: rawItem.name,
+				type: rawItem.type,
+				baseUnit: rawItem.baseUnit,
+				currentStock: rawItem.currentStock,
+				minStock: rawItem.minStock,
+				requiredQuantity: Number(reqQty.toFixed(3)),
+				projectedBalance,
+				deficitQuantity: Number(deficitQuantity.toFixed(3)),
+				isShortage: deficitQuantity > 0
+			});
+		}
+
+		rawMaterialForecast.sort((a, b) => {
+			if (a.isShortage !== b.isShortage) return a.isShortage ? -1 : 1;
+			return a.projectedBalance - b.projectedBalance;
+		});
+
+		return {
+			pendingOrdersCount: pendingOrders.length,
+			pendingPreorderLinesCount,
+			productDemands,
+			subAssemblyForecast,
+			rawMaterialForecast
+		};
+	}
+}
