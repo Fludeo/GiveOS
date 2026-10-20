@@ -22,6 +22,12 @@ variable "server_uuid" {
   default     = "ico40sgwswocc8sccwkc804o"
 }
 
+variable "github_app_uuid" {
+  type        = string
+  description = "UUID de la GitHub App para Fludeo"
+  default     = "y0ws0cww48swog8848kw8o4w"
+}
+
 variable "app_domain" {
   type        = string
   description = "Dominio público de producción (ej. giveo.net)"
@@ -30,8 +36,8 @@ variable "app_domain" {
 
 variable "git_repository" {
   type        = string
-  description = "URL del repositorio Git"
-  default     = "https://github.com/Fludeo/GiveOS.git"
+  description = "Repositorio Git (formato Org/Repo)"
+  default     = "Fludeo/GiveOS"
 }
 
 variable "git_branch" {

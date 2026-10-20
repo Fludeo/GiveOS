@@ -14,13 +14,15 @@ locals {
 }
 
 resource "coolify_application" "web" {
+  type             = "private-github-app"
   name             = var.app_name
   project_uuid     = var.project_uuid
   server_uuid      = var.server_uuid
   environment_name = var.environment_name
 
-  git_repository = var.git_repository
-  git_branch     = var.git_branch
+  git_repository  = var.git_repository
+  git_branch      = var.git_branch
+  github_app_uuid = var.github_app_uuid
 
   build_pack     = var.build_pack
   ports_exposes  = var.ports_exposes

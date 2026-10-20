@@ -26,8 +26,14 @@ variable "app_domain" {
 
 variable "git_repository" {
   type        = string
-  description = "URL del repositorio Git de la aplicación"
-  default     = "https://github.com/Fludeo/GiveOS.git"
+  description = "Repositorio Git de la aplicación (formato Org/Repo)"
+  default     = "Fludeo/GiveOS"
+}
+
+variable "github_app_uuid" {
+  type        = string
+  description = "UUID de la GitHub App para Fludeo en Coolify"
+  default     = "y0ws0cww48swog8848kw8o4w"
 }
 
 variable "git_branch" {
