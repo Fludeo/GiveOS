@@ -32,6 +32,10 @@ resource "coolify_application_github_app" "web" {
   health_check_method        = "GET"
   health_check_return_code   = 200
   health_check_response_text = "OK"
+  health_check_interval      = 10
+  health_check_timeout       = 5
+  health_check_start_period  = 20
+  health_check_retries       = 10
 
   instant_deploy        = var.instant_deploy
   force_domain_override = var.force_domain_override
