@@ -1,3 +1,4 @@
+// GiveOS PostgreSQL Schema - Drizzle ORM
 import {
 	boolean,
 	doublePrecision,

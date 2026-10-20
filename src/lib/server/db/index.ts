@@ -4,24 +4,10 @@ import type { PgDatabase } from 'drizzle-orm/pg-core';
 import postgres from 'postgres';
 import { PGlite } from '@electric-sql/pglite';
 import * as schema from './schema';
-import { INIT_SQL } from './init';
 
 export type AppDb = PgDatabase<any, typeof schema, any>;
 
 let _db: AppDb | null = null;
-let _initPromise: Promise<void> | null = null;
-
-async function runInit(client: any, isPglite: boolean) {
-	try {
-		if (isPglite) {
-			await client.exec(INIT_SQL);
-		} else {
-			await client.unsafe(INIT_SQL);
-		}
-	} catch (e) {
-		console.error('Failed to run schema initialization:', e);
-	}
-}
 
 export function getDb(): AppDb {
 	if (!_db) {
@@ -34,12 +20,10 @@ export function getDb(): AppDb {
 				connect_timeout: 10
 			});
 			_db = drizzlePostgres(client, { schema });
-			_initPromise = runInit(client, false);
 		} else {
 			const dataDir = process.env.PGLITE_DATA_DIR || './.pglite_data';
 			const client = new PGlite(dataDir);
 			_db = drizzlePglite(client, { schema });
-			_initPromise = runInit(client, true);
 		}
 	}
 	return _db;
