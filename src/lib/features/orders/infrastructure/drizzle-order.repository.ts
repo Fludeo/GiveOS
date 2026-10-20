@@ -214,6 +214,7 @@ export class DrizzleOrderRepository implements IOrderRepository {
 			paidAmount: number;
 			deliveryDate: Date | null;
 			notes: string | null;
+			transactionId?: string | null;
 		},
 		linesInput: Array<{
 			salesProductId: string;
@@ -236,7 +237,8 @@ export class DrizzleOrderRepository implements IOrderRepository {
 				totalAmount: orderInput.totalAmount,
 				paidAmount: orderInput.paidAmount,
 				deliveryDate: orderInput.deliveryDate,
-				notes: orderInput.notes
+				notes: orderInput.notes,
+				transactionId: orderInput.transactionId ?? null
 			})
 			.returning();
 
@@ -273,6 +275,7 @@ export class DrizzleOrderRepository implements IOrderRepository {
 			paidAmount?: number;
 			deliveryDate?: Date | null;
 			notes?: string | null;
+			transactionId?: string | null;
 		}
 	): Promise<Order | null> {
 		const updateData: Partial<typeof schema.orders.$inferInsert> = {
@@ -283,6 +286,7 @@ export class DrizzleOrderRepository implements IOrderRepository {
 		if (input.paidAmount !== undefined) updateData.paidAmount = input.paidAmount;
 		if (input.deliveryDate !== undefined) updateData.deliveryDate = input.deliveryDate;
 		if (input.notes !== undefined) updateData.notes = input.notes;
+		if (input.transactionId !== undefined) updateData.transactionId = input.transactionId;
 
 		const [updated] = await this.db
 			.update(schema.orders)

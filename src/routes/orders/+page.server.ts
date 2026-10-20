@@ -70,6 +70,7 @@ export const actions: Actions = {
 		const paidAmount = Number(formData.get('paidAmount') ?? 0);
 		const deliveryDateRaw = String(formData.get('deliveryDate') ?? '').trim();
 		const notes = String(formData.get('notes') ?? '').trim() || null;
+		const transactionId = String(formData.get('transactionId') ?? '').trim() || null;
 		const linesJson = String(formData.get('linesJson') ?? '[]');
 
 		let parsedLines: CreateOrderLineInput[] = [];
@@ -95,6 +96,7 @@ export const actions: Actions = {
 				paidAmount: Number.isFinite(paidAmount) && paidAmount >= 0 ? paidAmount : 0,
 				deliveryDate,
 				notes,
+				transactionId,
 				lines: parsedLines
 			});
 
@@ -167,6 +169,37 @@ export const actions: Actions = {
 		}
 	},
 
+	confirmOrder: async ({ request, locals, url }) => {
+		if (!locals.user) throw redirect(302, '/login');
+		const formData = await request.formData();
+		const businessIdParam =
+			String(formData.get('businessId') ?? '') || url.searchParams.get('business');
+		const { activeBusiness } = await resolveBusinessOrRedirect(locals.user.id, businessIdParam);
+
+		const { orderService } = getServices();
+		const orderId = String(formData.get('orderId') ?? '');
+		const paidAmountRaw = formData.get('paidAmount');
+		const paidAmount = paidAmountRaw !== null && paidAmountRaw !== ''
+			? Number(paidAmountRaw)
+			: undefined;
+		const transactionId = String(formData.get('transactionId') ?? '').trim() || null;
+
+		try {
+			const updated = await orderService.confirmOrder(activeBusiness.id, orderId, {
+				paidAmount,
+				transactionId
+			});
+			return {
+				success: true,
+				message: `Orden ${updated.orderNumber} confirmada con éxito.`
+			};
+		} catch (e) {
+			return fail(400, {
+				error: e instanceof Error ? e.message : 'Error al confirmar la orden.'
+			});
+		}
+	},
+
 	updatePayment: async ({ request, locals, url }) => {
 		if (!locals.user) throw redirect(302, '/login');
 		const formData = await request.formData();
@@ -181,13 +214,15 @@ export const actions: Actions = {
 		const paymentStatus = PAYMENT_STATUSES.includes(paymentStatusRaw)
 			? paymentStatusRaw
 			: undefined;
+		const transactionId = String(formData.get('transactionId') ?? '').trim() || null;
 
 		try {
 			const updated = await orderService.updateOrderPayment(
 				activeBusiness.id,
 				orderId,
 				Number.isFinite(paidAmount) && paidAmount >= 0 ? paidAmount : 0,
-				paymentStatus
+				paymentStatus,
+				transactionId
 			);
 			return {
 				success: true,

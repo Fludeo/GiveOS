@@ -193,7 +193,7 @@ export const salesProductItems = sqliteTable('sales_product_items', {
 	quantity: real('quantity').notNull().default(1)
 });
 
-export const ORDER_STATUSES = ['pending', 'completed', 'cancelled'] as const;
+export const ORDER_STATUSES = ['unconfirmed', 'pending', 'completed', 'cancelled'] as const;
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
 
 export const PAYMENT_STATUSES = ['pending', 'partially_paid', 'paid'] as const;
@@ -222,6 +222,7 @@ export const orders = sqliteTable(
 		paidAmount: real('paid_amount').notNull().default(0),
 		deliveryDate: integer('delivery_date', { mode: 'timestamp' }),
 		notes: text('notes'),
+		transactionId: text('transaction_id'),
 		createdAt: integer('created_at', { mode: 'timestamp' })
 			.notNull()
 			.$defaultFn(() => new Date()),

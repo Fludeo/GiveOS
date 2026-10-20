@@ -71,6 +71,9 @@
 	let payModalStatus = $state<PaymentStatus>('paid');
 	let cancellingOrderId = $state<string | null>(null);
 	let deliveringOrderId = $state<string | null>(null);
+	let confirmingOrderId = $state<string | null>(null);
+	let confirmDepositAmount = $state<number>(0);
+	let confirmTransactionId = $state<string>('');
 
 	const viewingOrder = $derived(
 		viewingOrderId ? (data.orders.find((o) => o.id === viewingOrderId) ?? null) : null
@@ -83,6 +86,9 @@
 	);
 	const deliveringOrder = $derived(
 		deliveringOrderId ? (data.orders.find((o) => o.id === deliveringOrderId) ?? null) : null
+	);
+	const confirmingOrder = $derived(
+		confirmingOrderId ? (data.orders.find((o) => o.id === confirmingOrderId) ?? null) : null
 	);
 
 	// Estado del Asistente de Venta Rápida (POS y Pedidos por Botones)
@@ -328,11 +334,16 @@
 	}
 
 	// KPIs
+	const unconfirmedOrdersCount = $derived(
+		data.orders.filter((o) => o.status === 'unconfirmed').length
+	);
 	const pendingOrdersCount = $derived(data.orders.filter((o) => o.status === 'pending').length);
 	const completedOrdersCount = $derived(
 		data.orders.filter((o) => o.status === 'completed').length
 	);
-	const activeOrders = $derived(data.orders.filter((o) => o.status !== 'cancelled'));
+	const activeOrders = $derived(
+		data.orders.filter((o) => o.status !== 'cancelled' && o.status !== 'unconfirmed')
+	);
 	const totalBilled = $derived(activeOrders.reduce((acc, o) => acc + o.totalAmount, 0));
 	const totalCollected = $derived(
 		activeOrders.reduce((acc, o) => acc + (o.status === 'completed' ? o.totalAmount : o.paidAmount), 0)
@@ -571,10 +582,18 @@
 					</Button>
 					<Button
 						size="sm"
+						variant={filterStatus === 'unconfirmed' ? 'default' : 'outline'}
+						class={filterStatus !== 'unconfirmed' && unconfirmedOrdersCount > 0 ? 'border-purple-500/40 text-purple-700 bg-purple-500/10' : ''}
+						onclick={() => (filterStatus = 'unconfirmed')}
+					>
+						Por Confirmar ({unconfirmedOrdersCount})
+					</Button>
+					<Button
+						size="sm"
 						variant={filterStatus === 'pending' ? 'default' : 'outline'}
 						onclick={() => (filterStatus = 'pending')}
 					>
-						Pendientes ({pendingOrdersCount})
+						Confirmadas / Pendientes ({pendingOrdersCount})
 					</Button>
 					<Button
 						size="sm"
@@ -657,7 +676,11 @@
 
 										<!-- Estado de la Orden -->
 										<div class="shrink-0">
-											{#if order.status === 'pending'}
+											{#if order.status === 'unconfirmed'}
+												<Badge variant="outline" class="border-purple-500/40 bg-purple-500/10 text-purple-700 text-[11px] font-bold animate-pulse">
+													{ORDER_STATUS_LABELS.unconfirmed}
+												</Badge>
+											{:else if order.status === 'pending'}
 												<Badge variant="outline" class="border-amber-500/40 bg-amber-500/10 text-amber-700 text-[11px]">
 													{ORDER_STATUS_LABELS.pending}
 												</Badge>
@@ -702,6 +725,13 @@
 										<p class="rounded-md bg-muted/30 px-2.5 py-1.5 text-xs italic text-muted-foreground border border-border/40">
 											"{order.notes}"
 										</p>
+									{/if}
+
+									{#if order.transactionId}
+										<div class="inline-flex items-center gap-1.5 rounded-md bg-sky-500/10 px-2 py-0.5 text-[11px] font-mono text-sky-800 border border-sky-500/20">
+											<span class="font-sans font-semibold">Tx ID:</span>
+											<span>{order.transactionId}</span>
+										</div>
 									{/if}
 
 									<!-- Separador y Lista de Ítems -->
@@ -778,7 +808,48 @@
 										</div>
 									</div>
 
-									{#if order.status === 'pending'}
+									{#if order.status === 'unconfirmed'}
+										<div class="flex items-center gap-2 pt-1">
+											<Button
+												type="button"
+												size="sm"
+												variant="outline"
+												class="h-9 gap-1 px-2.5 text-xs font-medium text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/30"
+												title="Cancelar / Rechazar orden"
+												onclick={() => (cancellingOrderId = order.id)}
+											>
+												<X class="size-3.5" />
+												<span>Rechazar</span>
+											</Button>
+
+											<Button
+												type="button"
+												size="sm"
+												variant="outline"
+												class="h-9 gap-1 px-2.5 text-xs font-medium"
+												title="Ver listado de ítems y detalle"
+												onclick={() => (viewingOrderId = order.id)}
+											>
+												<Eye class="size-3.5" />
+												<span>Ver</span>
+											</Button>
+
+											<Button
+												type="button"
+												size="sm"
+												class="flex-1 h-9 gap-1.5 text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white shadow-xs"
+												title="Confirmar orden por caja/encargado"
+												onclick={() => {
+													confirmingOrderId = order.id;
+													confirmDepositAmount = order.paidAmount;
+													confirmTransactionId = order.transactionId ?? '';
+												}}
+											>
+												<Check class="size-3.5" />
+												<span>Confirmar Pedido</span>
+											</Button>
+										</div>
+									{:else if order.status === 'pending'}
 										<div class="flex items-center gap-2 pt-1">
 											<Button
 												type="button"
@@ -2208,6 +2279,129 @@
 						</Button>
 					</form>
 				</div>
+			</div>
+		</div>
+	{/if}
+
+	<!-- ========================================================================
+	     MODAL 6: Confirmar Pedido (Caja / Encargado)
+	     ======================================================================== -->
+	{#if confirmingOrder}
+		<div
+			class="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4 backdrop-blur-[1px]"
+			role="dialog"
+			aria-modal="true"
+		>
+			<div class="w-full max-w-md overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
+				<div class="flex items-center justify-between border-b border-border p-5">
+					<div class="flex items-center gap-2.5">
+						<div class="flex size-9 items-center justify-center rounded-xl bg-purple-500/10 text-purple-700">
+							<Check class="size-5" />
+						</div>
+						<div>
+							<h3 class="text-base font-bold text-foreground">
+								Confirmar Pedido {confirmingOrder.orderNumber}
+							</h3>
+							<p class="text-xs text-muted-foreground">
+								Validación de caja / encargado
+							</p>
+						</div>
+					</div>
+					<button
+						type="button"
+						onclick={() => (confirmingOrderId = null)}
+						class="rounded-lg p-1 text-muted-foreground hover:bg-muted"
+					>
+						<X class="size-4" />
+					</button>
+				</div>
+
+				<form
+					method="POST"
+					action="?/confirmOrder"
+					use:enhance={() => {
+						return async ({ update }) => {
+							await update();
+							confirmingOrderId = null;
+						};
+					}}
+					class="p-5 space-y-4 text-xs"
+				>
+					<input type="hidden" name="businessId" value={data.activeBusiness.id} />
+					<input type="hidden" name="orderId" value={confirmingOrder.id} />
+
+					<!-- Resumen del pedido -->
+					<div class="rounded-xl border border-border bg-muted/20 p-3 space-y-1.5">
+						<div class="flex justify-between">
+							<span class="text-muted-foreground">Cliente:</span>
+							<span class="font-semibold text-foreground">{confirmingOrder.customerName}</span>
+						</div>
+						<div class="flex justify-between">
+							<span class="text-muted-foreground">Total de la Orden:</span>
+							<span class="font-mono font-bold text-foreground">{formatCurrency(confirmingOrder.totalAmount)}</span>
+						</div>
+						<div class="flex justify-between">
+							<span class="text-muted-foreground">Ítems a confirmar:</span>
+							<span class="font-mono text-muted-foreground">{confirmingOrder.items.length} productos</span>
+						</div>
+					</div>
+
+					<p class="text-muted-foreground text-[11px] leading-relaxed">
+						Al confirmar, el pedido comenzará a descontar stock inmediato de sus productos y se contabilizará en la previsión de insumos y recetas de cocina.
+					</p>
+
+					<!-- Monto de Seña / Pago (Opcional) -->
+					<div class="space-y-1.5">
+						<Label class="text-xs font-semibold text-foreground">
+							Monto de Seña / Pago Recibido ($) <span class="text-muted-foreground font-normal">(Opcional)</span>
+						</Label>
+						<Input
+							type="number"
+							step="100"
+							min="0"
+							max={confirmingOrder.totalAmount}
+							name="paidAmount"
+							bind:value={confirmDepositAmount}
+							class="h-9 font-mono text-xs font-bold"
+						/>
+						<span class="text-[10px] text-muted-foreground">
+							Total orden: {formatCurrency(confirmingOrder.totalAmount)}. Si no se abonó nada, puedes dejarlo en 0.
+						</span>
+					</div>
+
+					<!-- ID de Transacción (Opcional) -->
+					<div class="space-y-1.5">
+						<Label class="text-xs font-semibold text-foreground">
+							ID de Transacción / Comprobante <span class="text-muted-foreground font-normal">(Opcional)</span>
+						</Label>
+						<Input
+							type="text"
+							name="transactionId"
+							placeholder="Ej. TRANS-847291, N° de ticket o comprobante MP..."
+							bind:value={confirmTransactionId}
+							class="h-9 text-xs font-mono"
+						/>
+					</div>
+
+					<div class="flex items-center justify-end gap-2.5 pt-3 border-t border-border">
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							onclick={() => (confirmingOrderId = null)}
+						>
+							Volver
+						</Button>
+						<Button
+							type="submit"
+							size="sm"
+							class="gap-1.5 bg-purple-600 hover:bg-purple-700 text-white font-bold shadow-xs"
+						>
+							<Check class="size-3.5" />
+							<span>Confirmar Pedido</span>
+						</Button>
+					</div>
+				</form>
 			</div>
 		</div>
 	{/if}

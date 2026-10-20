@@ -41,6 +41,7 @@ export interface IOrderRepository {
 			paidAmount: number;
 			deliveryDate: Date | null;
 			notes: string | null;
+			transactionId?: string | null;
 		},
 		linesInput: Array<{
 			salesProductId: string;
@@ -61,6 +62,7 @@ export interface IOrderRepository {
 			paidAmount?: number;
 			deliveryDate?: Date | null;
 			notes?: string | null;
+			transactionId?: string | null;
 		}
 	): Promise<Order | null>;
 	updateOrderItemStatus(lineId: string, status: OrderItemStatus): Promise<OrderItem | null>;

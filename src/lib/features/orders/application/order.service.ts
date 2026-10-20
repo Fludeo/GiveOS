@@ -10,6 +10,7 @@ import {
 	type PriceTier,
 	type CreateOrderInput,
 	type CreateSalesProductInput,
+	type OrderStatus,
 	type OrderWithItems,
 	type PaymentStatus,
 	type PreorderForecastLine,
@@ -292,36 +293,43 @@ export class OrderService {
 			});
 		}
 
-		// Descontar stock directamente para todos los componentes (Productos Finales) de las líneas que se venden/entregan en el momento ('immediate')
-		for (const line of preparedLines) {
-			if (line.fulfillmentType === 'immediate') {
-				const salesProduct = productsById.get(line.salesProductId);
-				if (!salesProduct) continue;
+		// Si la orden nace como no confirmada ('unconfirmed'), NO descuenta stock en este momento.
+		// Solo descuenta stock si nace confirmada (default).
+		const initialStatus: OrderStatus = input.status === 'unconfirmed'
+			? 'unconfirmed'
+			: computeOrderStatusFromItems(preparedLines);
 
-				for (const comp of salesProduct.components) {
-					const targetItem = itemsById.get(comp.itemId);
-					if (targetItem) {
-						const consumeQty = line.quantity * comp.quantity;
-						const nextStock = Math.max(
-							0,
-							Number((targetItem.currentStock - consumeQty).toFixed(4))
-						);
-						const updatedItem = await this.itemRepo.update(
-							targetItem.id,
-							input.businessId,
-							{
-								currentStock: nextStock
+		if (initialStatus !== 'unconfirmed') {
+			// Descontar stock directamente para todos los componentes (Productos Finales) de las líneas que se venden/entregan en el momento ('immediate')
+			for (const line of preparedLines) {
+				if (line.fulfillmentType === 'immediate') {
+					const salesProduct = productsById.get(line.salesProductId);
+					if (!salesProduct) continue;
+
+					for (const comp of salesProduct.components) {
+						const targetItem = itemsById.get(comp.itemId);
+						if (targetItem) {
+							const consumeQty = line.quantity * comp.quantity;
+							const nextStock = Math.max(
+								0,
+								Number((targetItem.currentStock - consumeQty).toFixed(4))
+							);
+							const updatedItem = await this.itemRepo.update(
+								targetItem.id,
+								input.businessId,
+								{
+									currentStock: nextStock
+								}
+							);
+							if (updatedItem) {
+								itemsById.set(targetItem.id, updatedItem);
 							}
-						);
-						if (updatedItem) {
-							itemsById.set(targetItem.id, updatedItem);
 						}
 					}
 				}
 			}
 		}
 
-		const status = computeOrderStatusFromItems(preparedLines);
 		const { paymentStatus, normalizedPaidAmount } = computePaymentStatus(
 			totalAmount,
 			input.paidAmount ?? 0,
@@ -333,12 +341,13 @@ export class OrderService {
 				businessId: input.businessId,
 				orderNumber,
 				customerName: input.customerName?.trim() || 'Cliente Mostrador',
-				status,
+				status: initialStatus,
 				paymentStatus,
 				totalAmount: Number(totalAmount.toFixed(2)),
 				paidAmount: Number(normalizedPaidAmount.toFixed(2)),
 				deliveryDate: input.deliveryDate ?? null,
-				notes: input.notes?.trim() || null
+				notes: input.notes?.trim() || null,
+				transactionId: input.transactionId?.trim() || null
 			},
 			preparedLines
 		);
@@ -440,7 +449,8 @@ export class OrderService {
 		businessId: string,
 		orderId: string,
 		paidAmount: number,
-		explicitStatus?: PaymentStatus
+		explicitStatus?: PaymentStatus,
+		transactionId?: string | null
 	): Promise<OrderWithItems> {
 		const order = await this.orderRepo.findOrderById(orderId, businessId);
 		if (!order) {
@@ -455,7 +465,91 @@ export class OrderService {
 
 		await this.orderRepo.updateOrder(orderId, businessId, {
 			paymentStatus,
-			paidAmount: Number(normalizedPaidAmount.toFixed(2))
+			paidAmount: Number(normalizedPaidAmount.toFixed(2)),
+			...(transactionId !== undefined ? { transactionId: transactionId?.trim() || null } : {})
+		});
+
+		return (await this.orderRepo.findOrderById(orderId, businessId))!;
+	}
+
+	/**
+	 * Confirma una orden que estaba en estado 'unconfirmed'.
+	 * Al confirmarla:
+	 * 1. Descuenta stock inmediato de los productos elaborados (si contiene ítems de entrega inmediata).
+	 * 2. Actualiza el estado a 'pending' (si tiene encargos por entregar) o 'completed' (si eran todos inmediatos).
+	 * 3. Opcionalmente actualiza el monto de seña / pago y el ID de transacción.
+	 */
+	async confirmOrder(
+		businessId: string,
+		orderId: string,
+		options?: {
+			paidAmount?: number;
+			transactionId?: string | null;
+		}
+	): Promise<OrderWithItems> {
+		const order = await this.orderRepo.findOrderById(orderId, businessId);
+		if (!order) {
+			throw new Error('Orden no encontrada.');
+		}
+		if (order.status !== 'unconfirmed') {
+			throw new Error('Esta orden ya fue confirmada previamente o está cancelada.');
+		}
+
+		const [salesProducts, allItems] = await Promise.all([
+			this.listSalesProducts(businessId),
+			this.itemRepo.findAllByBusiness(businessId)
+		]);
+		const productsById = new Map(salesProducts.map((p) => [p.id, p]));
+		const itemsById = new Map(allItems.map((i) => [i.id, i]));
+
+		// Descontar stock para las líneas inmediatas al momento de confirmar
+		for (const line of order.items) {
+			if (line.fulfillmentType === 'immediate' && line.status !== 'cancelled') {
+				const salesProduct = productsById.get(line.salesProductId);
+				if (!salesProduct) continue;
+
+				for (const comp of salesProduct.components) {
+					const targetItem = itemsById.get(comp.itemId);
+					if (targetItem) {
+						const consumeQty = line.quantity * comp.quantity;
+						const nextStock = Math.max(
+							0,
+							Number((targetItem.currentStock - consumeQty).toFixed(4))
+						);
+						const updatedItem = await this.itemRepo.update(
+							targetItem.id,
+							businessId,
+							{
+								currentStock: nextStock
+							}
+						);
+						if (updatedItem) {
+							itemsById.set(targetItem.id, updatedItem);
+						}
+					}
+				}
+			}
+		}
+
+		// Determinar nuevo estado según sus ítems activos
+		const nextStatus = computeOrderStatusFromItems(order.items, 'pending');
+
+		const newPaidAmount = options?.paidAmount !== undefined && options.paidAmount !== null
+			? Number(options.paidAmount)
+			: order.paidAmount;
+
+		const { paymentStatus, normalizedPaidAmount } = computePaymentStatus(
+			order.totalAmount,
+			newPaidAmount
+		);
+
+		await this.orderRepo.updateOrder(orderId, businessId, {
+			status: nextStatus,
+			paymentStatus,
+			paidAmount: Number(normalizedPaidAmount.toFixed(2)),
+			...(options?.transactionId !== undefined
+				? { transactionId: options.transactionId?.trim() || null }
+				: {})
 		});
 
 		return (await this.orderRepo.findOrderById(orderId, businessId))!;

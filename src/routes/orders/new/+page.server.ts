@@ -64,6 +64,9 @@ export const actions: Actions = {
 		const paidAmount = Number(formData.get('paidAmount') ?? 0);
 		const deliveryDateRaw = String(formData.get('deliveryDate') ?? '').trim();
 		const notes = String(formData.get('notes') ?? '').trim() || null;
+		const transactionId = String(formData.get('transactionId') ?? '').trim() || null;
+		const orderStatusRaw = String(formData.get('status') ?? '').trim();
+		const orderStatus = orderStatusRaw === 'unconfirmed' ? 'unconfirmed' : undefined;
 		const linesJson = String(formData.get('linesJson') ?? '[]');
 
 		let parsedLines: CreateOrderLineInput[] = [];
@@ -93,6 +96,8 @@ export const actions: Actions = {
 				paidAmount: Number.isFinite(paidAmount) && paidAmount >= 0 ? paidAmount : 0,
 				deliveryDate,
 				notes,
+				transactionId,
+				status: orderStatus,
 				lines: parsedLines
 			});
 

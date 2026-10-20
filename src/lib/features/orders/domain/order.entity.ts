@@ -1,10 +1,11 @@
 import type { Item, ItemType, UnitOfMeasure } from '#lib/features/items/domain/item.entity';
 
-export const ORDER_STATUSES = ['pending', 'completed', 'cancelled'] as const;
+export const ORDER_STATUSES = ['unconfirmed', 'pending', 'completed', 'cancelled'] as const;
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
-	pending: 'Pendiente (Con encargos)',
+	unconfirmed: 'Por Confirmar',
+	pending: 'Confirmada (Con encargos)',
 	completed: 'Completada',
 	cancelled: 'Cancelada'
 };
@@ -169,6 +170,7 @@ export interface Order {
 	paidAmount: number;
 	deliveryDate: Date | null;
 	notes: string | null;
+	transactionId?: string | null;
 	createdAt: Date;
 	updatedAt: Date;
 }
@@ -188,10 +190,12 @@ export interface CreateOrderLineInput {
 export interface CreateOrderInput {
 	businessId: string;
 	customerName?: string;
+	status?: OrderStatus;
 	paymentStatus?: PaymentStatus;
 	paidAmount?: number;
 	deliveryDate?: Date | null;
 	notes?: string | null;
+	transactionId?: string | null;
 	lines: CreateOrderLineInput[];
 }
 
@@ -264,6 +268,7 @@ export function computeOrderStatusFromItems(
 	items: Array<{ status: OrderItemStatus }>,
 	currentStatus?: OrderStatus
 ): OrderStatus {
+	if (currentStatus === 'unconfirmed') return 'unconfirmed';
 	if (currentStatus === 'cancelled') return 'cancelled';
 	const activeItems = items.filter((i) => i.status !== 'cancelled');
 	if (activeItems.length === 0) return 'cancelled';

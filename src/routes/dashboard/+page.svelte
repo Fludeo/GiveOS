@@ -96,7 +96,7 @@
 		}
 
 		for (const order of data.orders) {
-			if (order.status === 'cancelled') continue;
+			if (order.status === 'cancelled' || order.status === 'unconfirmed') continue;
 			for (const line of order.items) {
 				const current = map.get(line.salesProductId);
 				if (!current) continue;
@@ -270,6 +270,9 @@
 	const totalPendingOrders = $derived(
 		data.orders.filter((o) => o.status === 'pending').length
 	);
+	const totalUnconfirmedOrders = $derived(
+		data.orders.filter((o) => o.status === 'unconfirmed').length
+	);
 	const totalPendingUnits = $derived(
 		data.orders
 			.filter((o) => o.status === 'pending')
@@ -360,6 +363,11 @@
 				<Card.Content class="p-4 pt-0">
 					<p class="text-xs text-muted-foreground font-mono">
 						{totalPendingUnits} unidades por entregar
+						{#if totalUnconfirmedOrders > 0}
+							<span class="block text-[11px] text-purple-600 font-sans font-semibold mt-0.5">
+								({totalUnconfirmedOrders} por confirmar)
+							</span>
+						{/if}
 					</p>
 				</Card.Content>
 			</Card.Root>

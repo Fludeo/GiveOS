@@ -69,6 +69,8 @@
 	let draftPaidAmount = $state(0);
 	let draftDeliveryDate = $state('');
 	let draftNotes = $state('');
+	let draftTransactionId = $state('');
+	let draftCreateAsUnconfirmed = $state(false);
 	let isSubmitting = $state(false);
 	let isMobileCartOpen = $state(false);
 
@@ -914,6 +916,8 @@
 				<input type="hidden" name="paymentStatus" value={draftPaymentStatus} />
 				<input type="hidden" name="paidAmount" value={draftPaidAmount} />
 				<input type="hidden" name="notes" value={draftNotes} />
+				<input type="hidden" name="transactionId" value={draftTransactionId} />
+				<input type="hidden" name="status" value={draftCreateAsUnconfirmed ? 'unconfirmed' : 'pending'} />
 				<input type="hidden" name="linesJson" value={serializedDraftLines} />
 
 				<!-- Header Comanda (solo visible en Desktop, el Drawer Mobile ya tiene el suyo) -->
@@ -1211,6 +1215,40 @@
 					{/if}
 				</div>
 
+				<!-- Comprobante / Transacción y Estado Inicial -->
+				<div class="space-y-3 border-t border-border pt-4">
+					<div class="space-y-1.5">
+						<div class="flex items-center justify-between">
+							<Label for="pos-transaction" class="text-xs font-semibold">ID de Transacción / Comprobante</Label>
+							<span class="text-[10px] text-muted-foreground">Opcional</span>
+						</div>
+						<Input
+							id="pos-transaction"
+							bind:value={draftTransactionId}
+							placeholder="Ej. TRANS-12345, Ticket #, etc."
+							class="h-8 text-xs font-mono"
+						/>
+					</div>
+
+					<div class="rounded-xl border border-border bg-muted/20 p-3 space-y-1.5">
+						<label class="flex items-start gap-2.5 cursor-pointer">
+							<input
+								type="checkbox"
+								bind:checked={draftCreateAsUnconfirmed}
+								class="size-4 mt-0.5 rounded border-border text-purple-600 focus:ring-purple-500 accent-purple-600 cursor-pointer"
+							/>
+							<div class="space-y-0.5">
+								<span class="block text-xs font-bold text-foreground">
+									Guardar como "Por Confirmar"
+								</span>
+								<span class="block text-[11px] text-muted-foreground leading-tight">
+									Se contabiliza en el listado pero queda pendiente de validación por caja. No descuenta stock ni compromete insumos hasta su confirmación.
+								</span>
+							</div>
+						</label>
+					</div>
+				</div>
+
 				<!-- Totales y Confirmación Final -->
 				<div class="border-t border-border pt-4 space-y-3">
 					<div class="flex items-center justify-between">
@@ -1223,10 +1261,14 @@
 					<Button
 						type="submit"
 						disabled={draftLines.length === 0 || isSubmitting}
-						class="w-full h-12 text-sm font-bold gap-2 shadow-md cursor-pointer"
+						class="w-full h-12 text-sm font-bold gap-2 shadow-md cursor-pointer {draftCreateAsUnconfirmed ? 'bg-purple-600 hover:bg-purple-700 text-white' : ''}"
 					>
 						<Check class="size-5" />
-						<span>Confirmar y Emitir Orden ({formatCurrency(draftTotalAmount)})</span>
+						{#if draftCreateAsUnconfirmed}
+							<span>Guardar Pedido Por Confirmar ({formatCurrency(draftTotalAmount)})</span>
+						{:else}
+							<span>Confirmar y Emitir Orden ({formatCurrency(draftTotalAmount)})</span>
+						{/if}
 					</Button>
 				</div>
 			{/snippet}
