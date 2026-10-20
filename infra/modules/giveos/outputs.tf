@@ -1,6 +1,6 @@
 output "application_uuid" {
   description = "UUID de la aplicación en Coolify"
-  value       = coolify_application.web.uuid
+  value       = coolify_application_github_app.web.uuid
 }
 
 output "application_url" {

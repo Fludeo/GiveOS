@@ -1,27 +1,25 @@
-# ==========================================
-# Build stage
-# ==========================================
-FROM node:22-alpine AS builder
+FROM node:24-alpine AS base
 WORKDIR /app
+RUN apk add --no-cache libc6-compat
 
-COPY package*.json ./
-RUN npm ci
+FROM base AS dependencies
+ENV NODE_ENV=development
+COPY package.json package-lock.json ./
+RUN npm ci --include=dev
 
+FROM base AS builder
+ENV NODE_ENV=development
+COPY --from=dependencies /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
-RUN npm prune --omit=dev
+RUN npm prune --production
 
-# ==========================================
-# Production runner
-# ==========================================
-FROM node:22-alpine AS runner
-WORKDIR /app
-
+FROM base AS runner
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOST=0.0.0.0
 
-COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/build ./build
 

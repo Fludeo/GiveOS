@@ -13,8 +13,7 @@ locals {
   domain_url = startswith(var.app_domain, "http") ? var.app_domain : "https://${var.app_domain}"
 }
 
-resource "coolify_application" "web" {
-  type             = "private-github-app"
+resource "coolify_application_github_app" "web" {
   name             = var.app_name
   project_uuid     = var.project_uuid
   server_uuid      = var.server_uuid
@@ -28,6 +27,12 @@ resource "coolify_application" "web" {
   ports_exposes  = var.ports_exposes
   domains        = local.domain_url
 
+  health_check_enabled       = true
+  health_check_path          = "/health-check"
+  health_check_method        = "GET"
+  health_check_return_code   = 200
+  health_check_response_text = "OK"
+
   instant_deploy        = var.instant_deploy
   force_domain_override = var.force_domain_override
 
@@ -36,7 +41,7 @@ resource "coolify_application" "web" {
 
 resource "coolify_envs_bulk" "envs" {
   resource_type = "application"
-  resource_uuid = coolify_application.web.uuid
+  resource_uuid = coolify_application_github_app.web.uuid
   variables = {
     NODE_ENV           = "production"
     PORT               = var.ports_exposes
