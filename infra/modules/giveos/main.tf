@@ -47,7 +47,7 @@ resource "coolify_envs_bulk" "envs" {
   resource_type = "application"
   resource_uuid = coolify_application_github_app.web.uuid
   variables = {
-    NODE_ENV           = "production"
+    NODE_ENV           = var.environment_name == "staging" ? "staging" : "production"
     PORT               = var.ports_exposes
     DATABASE_URL       = var.database_url
     BETTER_AUTH_SECRET = random_password.better_auth_secret.result
