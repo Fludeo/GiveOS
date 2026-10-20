@@ -80,5 +80,5 @@ variable "shared_db_password" {
 variable "shared_db_name" {
   type        = string
   description = "Nombre de la base de datos dentro de la instancia compartida"
-  default     = "giveos_prod"
+  default     = "giveos_db_prod"
 }
