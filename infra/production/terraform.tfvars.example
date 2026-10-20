@@ -1,8 +1,6 @@
-coolify_endpoint = "https://app.coolify.io/api/v1" # O tu instancia self-hosted: https://coolify.tudominio.com/api/v1
+coolify_endpoint = "https://coolify.tudominio.com/api/v1"
 coolify_token    = "tu-coolify-api-token"
 server_uuid      = "tu-server-uuid-de-coolify"
-environment_name = "production"
-project_name     = "GiveOS"
 app_domain       = "giveo.net"
 git_repository   = "https://github.com/Fludeo/GiveOS.git"
 git_branch       = "main"

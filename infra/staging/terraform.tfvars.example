@@ -1,0 +1,7 @@
+coolify_endpoint = "https://coolify.tudominio.com/api/v1"
+coolify_token    = "tu-coolify-api-token"
+server_uuid      = "tu-server-uuid-de-coolify"
+app_domain       = "staging.giveo.net"
+git_repository   = "https://github.com/Fludeo/GiveOS.git"
+git_branch       = "staging"
+build_pack       = "dockerfile"
