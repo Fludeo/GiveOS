@@ -1,5 +1,5 @@
 import { and, asc, eq } from 'drizzle-orm';
-import type { LibSQLDatabase } from 'drizzle-orm/libsql';
+import type { AppDb } from '#lib/server/db/index';
 import * as schema from '#lib/server/db/schema';
 import type {
 	Business,
@@ -10,7 +10,7 @@ import type {
 import type { IBusinessRepository } from '../domain/business.repository';
 
 export class DrizzleBusinessRepository implements IBusinessRepository {
-	constructor(private readonly db: LibSQLDatabase<typeof schema>) {}
+	constructor(private readonly db: AppDb) {}
 
 	async findBusinessesByUserId(userId: string): Promise<UserBusinessMembership[]> {
 		const rows = await this.db

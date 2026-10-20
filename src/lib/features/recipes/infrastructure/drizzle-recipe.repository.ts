@@ -1,5 +1,5 @@
 import { and, asc, eq } from 'drizzle-orm';
-import type { LibSQLDatabase } from 'drizzle-orm/libsql';
+import type { AppDb } from '#lib/server/db/index';
 import * as schema from '#lib/server/db/schema';
 import type {
 	RecipeLine,
@@ -10,7 +10,7 @@ import type {
 import type { IRecipeRepository } from '../domain/recipe.repository';
 
 export class DrizzleRecipeRepository implements IRecipeRepository {
-	constructor(private readonly db: LibSQLDatabase<typeof schema>) {}
+	constructor(private readonly db: AppDb) {}
 
 	async findAllLinesByBusiness(businessId: string): Promise<RecipeLine[]> {
 		const rows = await this.db

@@ -2,8 +2,7 @@ import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { sveltekitCookies } from 'better-auth/svelte-kit';
 import { getRequestEvent } from '$app/server';
-import { BETTER_AUTH_SECRET, ORIGIN } from '$app/env/private';
-import type { LibSQLDatabase } from 'drizzle-orm/libsql';
+import type { AppDb } from '#lib/server/db/index';
 import * as schema from '#lib/server/db/schema';
 import type {
 	AuthSession,
@@ -13,13 +12,23 @@ import type {
 } from '../domain/auth.entity';
 import type { IAuthRepository } from '../domain/auth.repository';
 
-export function createBetterAuthInstance(db: LibSQLDatabase<typeof schema>) {
+export function createBetterAuthInstance(db: AppDb) {
+	const origin = process.env.ORIGIN || process.env.BETTER_AUTH_URL || 'http://localhost:5173';
+	const secret =
+		process.env.BETTER_AUTH_SECRET ||
+		'cakes-super-secret-key-for-local-development-2026';
+
 	return betterAuth({
-		baseURL: ORIGIN || 'http://localhost:5173',
-		secret: BETTER_AUTH_SECRET || 'cakes-super-secret-key-for-local-development-2026',
-		database: drizzleAdapter(db, {
-			provider: 'sqlite',
-			schema
+		baseURL: origin,
+		secret: secret,
+		database: drizzleAdapter(db as any, {
+			provider: 'pg',
+			schema: {
+				user: schema.user,
+				session: schema.session,
+				account: schema.account,
+				verification: schema.verification
+			}
 		}),
 		emailAndPassword: {
 			enabled: true

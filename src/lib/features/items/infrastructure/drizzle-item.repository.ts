@@ -1,11 +1,11 @@
 import { and, asc, eq } from 'drizzle-orm';
-import type { LibSQLDatabase } from 'drizzle-orm/libsql';
+import type { AppDb } from '#lib/server/db/index';
 import * as schema from '#lib/server/db/schema';
 import type { CreateItemInput, Item, ItemType, UpdateItemInput } from '../domain/item.entity';
 import type { IItemRepository } from '../domain/item.repository';
 
 export class DrizzleItemRepository implements IItemRepository {
-	constructor(private readonly db: LibSQLDatabase<typeof schema>) {}
+	constructor(private readonly db: AppDb) {}
 
 	async findAllByBusiness(
 		businessId: string,

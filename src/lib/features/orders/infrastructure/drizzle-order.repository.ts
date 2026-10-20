@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, inArray } from 'drizzle-orm';
-import type { LibSQLDatabase } from 'drizzle-orm/libsql';
+import type { AppDb } from '#lib/server/db/index';
 import * as schema from '#lib/server/db/schema';
 import type {
 	CreateSalesProductInput,
@@ -17,7 +17,7 @@ import type {
 import type { IOrderRepository } from '../domain/order.repository';
 
 export class DrizzleOrderRepository implements IOrderRepository {
-	constructor(private readonly db: LibSQLDatabase<typeof schema>) {}
+	constructor(private readonly db: AppDb) {}
 
 	async findSalesProductsByBusiness(businessId: string): Promise<SalesProduct[]> {
 		return this.db

@@ -1,15 +1,46 @@
-import { drizzle, type LibSQLDatabase } from 'drizzle-orm/libsql';
-import { createClient } from '@libsql/client';
+import { drizzle as drizzlePostgres } from 'drizzle-orm/postgres-js';
+import { drizzle as drizzlePglite } from 'drizzle-orm/pglite';
+import type { PgDatabase } from 'drizzle-orm/pg-core';
+import postgres from 'postgres';
+import { PGlite } from '@electric-sql/pglite';
 import * as schema from './schema';
-import { DATABASE_URL } from '$app/env/private';
+import { INIT_SQL } from './init';
 
-let _db: LibSQLDatabase<typeof schema> | null = null;
+export type AppDb = PgDatabase<any, typeof schema, any>;
 
-export function getDb(): LibSQLDatabase<typeof schema> {
+let _db: AppDb | null = null;
+let _initPromise: Promise<void> | null = null;
+
+async function runInit(client: any, isPglite: boolean) {
+	try {
+		if (isPglite) {
+			await client.exec(INIT_SQL);
+		} else {
+			await client.unsafe(INIT_SQL);
+		}
+	} catch (e) {
+		console.error('Failed to run schema initialization:', e);
+	}
+}
+
+export function getDb(): AppDb {
 	if (!_db) {
-		if (!DATABASE_URL) throw new Error('DATABASE_URL is not set');
-		const client = createClient({ url: DATABASE_URL });
-		_db = drizzle(client, { schema });
+		const dbUrl = process.env.DATABASE_URL;
+
+		if (dbUrl && (dbUrl.startsWith('postgres://') || dbUrl.startsWith('postgresql://'))) {
+			const client = postgres(dbUrl, {
+				max: 10,
+				idle_timeout: 20,
+				connect_timeout: 10
+			});
+			_db = drizzlePostgres(client, { schema });
+			_initPromise = runInit(client, false);
+		} else {
+			const dataDir = process.env.PGLITE_DATA_DIR || './.pglite_data';
+			const client = new PGlite(dataDir);
+			_db = drizzlePglite(client, { schema });
+			_initPromise = runInit(client, true);
+		}
 	}
 	return _db;
 }

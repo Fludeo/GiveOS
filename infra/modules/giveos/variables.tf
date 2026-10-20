@@ -1,12 +1,6 @@
-variable "project_name" {
+variable "project_uuid" {
   type        = string
-  description = "Nombre del proyecto en Coolify"
-}
-
-variable "project_description" {
-  type        = string
-  description = "Descripción del proyecto"
-  default     = "Ecosistema GiveOS (giveo.net)"
+  description = "UUID del proyecto GiveOS en Coolify"
 }
 
 variable "environment_name" {
@@ -54,8 +48,20 @@ variable "ports_exposes" {
   default     = "3000"
 }
 
+variable "database_url" {
+  type        = string
+  description = "Cadena de conexión a PostgreSQL de la instancia compartida"
+  sensitive   = true
+}
+
 variable "instant_deploy" {
   type        = bool
   description = "Disparar despliegue inmediato al aprovisionar"
   default     = true
+}
+
+variable "force_domain_override" {
+  type        = bool
+  description = "Forzar sobreescritura de dominio en caso de conflicto"
+  default     = false
 }

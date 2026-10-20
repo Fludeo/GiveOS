@@ -1,16 +1,18 @@
 module "staging_app" {
   source = "../modules/giveos"
 
-  project_name        = "GiveOS-Staging"
-  project_description = "Ambiente de Pruebas y Validación GiveOS (giveo.net)"
-  environment_name    = "staging"
-  app_name            = "giveos-staging"
+  project_uuid     = var.project_uuid
+  environment_name = "staging"
+  server_uuid      = var.server_uuid
 
-  server_uuid    = var.server_uuid
+  app_name       = "giveos-staging"
   app_domain     = var.app_domain
   git_repository = var.git_repository
   git_branch     = var.git_branch
   build_pack     = var.build_pack
   ports_exposes  = "3000"
-  instant_deploy = true
+
+  database_url          = "postgres://${var.shared_db_user}:${var.shared_db_password}@${var.shared_db_host}:5432/${var.shared_db_name}"
+  instant_deploy        = true
+  force_domain_override = false
 }

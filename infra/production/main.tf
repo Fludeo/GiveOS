@@ -1,16 +1,18 @@
 module "production_app" {
   source = "../modules/giveos"
 
-  project_name        = "GiveOS"
-  project_description = "Ecosistema GiveOS Producción (giveo.net)"
-  environment_name    = "production"
-  app_name            = "giveos-production"
+  project_uuid     = var.project_uuid
+  environment_name = "production"
+  server_uuid      = var.server_uuid
 
-  server_uuid    = var.server_uuid
+  app_name       = "giveos-production"
   app_domain     = var.app_domain
   git_repository = var.git_repository
   git_branch     = var.git_branch
   build_pack     = var.build_pack
   ports_exposes  = "3000"
-  instant_deploy = true
+
+  database_url          = "postgres://${var.shared_db_user}:${var.shared_db_password}@${var.shared_db_host}:5432/${var.shared_db_name}"
+  instant_deploy        = true
+  force_domain_override = var.force_domain_override
 }
