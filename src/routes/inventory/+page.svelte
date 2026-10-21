@@ -46,6 +46,7 @@
 	import BookOpen from '@lucide/svelte/icons/book-open';
 	import Wheat from '@lucide/svelte/icons/wheat';
 	import CakeSlice from '@lucide/svelte/icons/cake-slice';
+	import ChefHat from '@lucide/svelte/icons/chef-hat';
 	import Clock from '@lucide/svelte/icons/clock';
 	import Calculator from '@lucide/svelte/icons/calculator';
 	import Settings2 from '@lucide/svelte/icons/settings-2';
@@ -228,9 +229,8 @@
 	// TAB 2: ESTRUCTURA DE RECETAS (MULTINIVEL)
 	// =========================================================================
 	let recipeSearchQuery = $state('');
-	let recipeFilterType = $state<ItemType | 'all'>('all');
 	let catalogPage = $state(1);
-	let catalogPageSize = $state(6);
+	let catalogPageSize = $state(8);
 	let recipeTablePage = $state(1);
 	let recipeTablePageSize = $state(8);
 
@@ -241,21 +241,21 @@
 	let selectedItemId = $state<string | null>(null);
 
 	const filteredRecipeCatalog = $derived(
-		data.items.filter((item) => {
-			if (recipeFilterType !== 'all' && item.type !== recipeFilterType) return false;
-			if (recipeSearchQuery.trim()) {
-				const q = recipeSearchQuery.toLowerCase().trim();
-				return (
-					item.name.toLowerCase().includes(q) || item.code.toLowerCase().includes(q)
-				);
-			}
-			return true;
-		})
+		data.items
+			.filter((item) => item.type === 'prepared')
+			.filter((item) => {
+				if (recipeSearchQuery.trim()) {
+					const q = recipeSearchQuery.toLowerCase().trim();
+					return (
+						item.name.toLowerCase().includes(q) || item.code.toLowerCase().includes(q)
+					);
+				}
+				return true;
+			})
 	);
 
 	$effect(() => {
 		void recipeSearchQuery;
-		void recipeFilterType;
 		catalogPage = 1;
 	});
 
@@ -267,9 +267,9 @@
 	);
 
 	const selectedRoot = $derived(
-		(selectedItemId ? data.items.find((i) => i.id === selectedItemId) : null) ??
-			data.selectedRecipeTree?.rootItem ??
-			data.items[0] ??
+		(selectedItemId ? data.items.find((i) => i.id === selectedItemId && i.type === 'prepared') : null) ??
+			(data.selectedRecipeTree?.rootItem?.type === 'prepared' ? data.selectedRecipeTree.rootItem : null) ??
+			filteredRecipeCatalog[0] ??
 			null
 	);
 
@@ -761,6 +761,12 @@
 													{#if isLow}
 														<Badge variant="destructive" class="text-[10px] px-1.5 py-0">Bajo Stock</Badge>
 													{/if}
+													{#if item.type === 'prepared' && item.prepTimeMinutes > 0}
+														<span class="inline-flex items-center gap-1 rounded-md border border-purple-500/20 bg-purple-500/10 px-1.5 py-0.5 text-[11px] font-semibold text-purple-700 dark:text-purple-400">
+															<Clock class="size-2.5" />
+															{item.prepTimeMinutes}m
+														</span>
+													{/if}
 													<ItemTypeBadge type={item.type} short={true} />
 												</div>
 											</div>
@@ -1201,238 +1207,332 @@
 	{/if}
 
 	<!-- ========================================================================
-	     VISTA 2: ESTRUCTURA DE RECETAS (MULTINIVEL)
+	     VISTA 2: ESTRUCTURA DE RECETAS (MULTINIVEL - FLUJO VERTICAL)
 	     ======================================================================== -->
 	{#if currentTab === 'recipes'}
-		<div class="grid grid-cols-1 gap-8 lg:grid-cols-12">
-			<!-- Columna Izquierda: Catálogo de Ítems -->
-			<div class="space-y-6 lg:col-span-4">
-				<Card>
-					<CardHeader class="space-y-4 p-6 pb-5">
-						<div class="space-y-1.5">
-							<div class="flex items-center justify-between">
-								<CardTitle class="text-lg">Catálogo de Recetas</CardTitle>
-								<Badge variant="secondary" class="px-2.5 py-0.5">
-									{filteredRecipeCatalog.length} ítems
+		<div class="space-y-6">
+			<!-- SECCIÓN 1 (ARRIBA): SELECCIÓN DE ELABORACIÓN -->
+			<Card class="border-border shadow-xs">
+				<CardHeader class="p-5 sm:p-6 pb-4">
+					<div class="flex flex-wrap items-center justify-between gap-4">
+						<div class="space-y-1">
+							<div class="flex items-center gap-2">
+								<CardTitle class="flex items-center gap-2 text-lg">
+									<ChefHat class="size-5 text-purple-600 dark:text-purple-400" />
+									<span>Estructura de Recetas</span>
+								</CardTitle>
+								<Badge variant="secondary" class="px-2 py-0.5 text-xs">
+									{filteredRecipeCatalog.length} {filteredRecipeCatalog.length === 1 ? 'elaboración' : 'elaboraciones'}
 								</Badge>
 							</div>
 							<CardDescription>
-								Selecciona un ítem para ver o armar su Estructura de Receta
+								Selecciona una elaboración para ver o armar su fórmula de ingredientes y tiempos
 							</CardDescription>
 						</div>
 
-						<div class="relative">
-							<Search class="pointer-events-none absolute top-3 left-3 size-4 text-muted-foreground" />
-							<Input
-								type="search"
-								placeholder="Buscar por código o nombre..."
-								bind:value={recipeSearchQuery}
-								class="h-10 pl-9"
-							/>
-						</div>
-
-						<div class="flex flex-wrap gap-2">
+						<div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+							<div class="relative w-full sm:w-72">
+								<Search class="pointer-events-none absolute top-3 left-3 size-4 text-muted-foreground" />
+								<Input
+									type="search"
+									placeholder="Buscar elaboración por nombre o código..."
+									bind:value={recipeSearchQuery}
+									class="h-10 pl-9"
+								/>
+							</div>
 							<Button
 								size="sm"
-								variant={recipeFilterType === 'all' ? 'default' : 'outline'}
-								class="h-8 px-3 text-xs"
-								onclick={() => (recipeFilterType = 'all')}
+								class="gap-1.5 shrink-0 bg-purple-600 hover:bg-purple-700 text-white font-semibold"
+								onclick={() => openNewItemModal('prepared')}
 							>
-								Todos
-							</Button>
-							<Button
-								size="sm"
-								variant={recipeFilterType === 'prepared' ? 'default' : 'outline'}
-								class="h-8 gap-1.5 px-3 text-xs"
-								onclick={() => (recipeFilterType = 'prepared')}
-							>
-								<CakeSlice class="size-3.5 text-purple-600" />
-								<span>Elaboraciones</span>
-							</Button>
-							<Button
-								size="sm"
-								variant={recipeFilterType === 'raw_material' ? 'default' : 'outline'}
-								class="h-8 gap-1.5 px-3 text-xs"
-								onclick={() => (recipeFilterType = 'raw_material')}
-							>
-								<Wheat class="size-3.5" />
-								<span>Insumos</span>
+								<Plus class="size-4" />
+								<span>Nueva Elaboración</span>
 							</Button>
 						</div>
-					</CardHeader>
+					</div>
+				</CardHeader>
 
-					<CardContent class="space-y-4 p-6 pt-0">
-						<div class="space-y-3.5">
+				<CardContent class="p-5 sm:p-6 pt-0">
+					{#if filteredRecipeCatalog.length > 0}
+						<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
 							{#each paginatedCatalogItems as item (item.id)}
 								{@const summary = data.recipeSummaries[item.id]}
 								{@const isSelected = selectedRoot?.id === item.id}
-								<a
-									href="/inventory?tab=recipes&item={item.id}"
-									onclick={(e) => {
-										e.preventDefault();
-										selectCatalogItem(item.id);
-									}}
-									class="block rounded-xl border p-4 transition-all {isSelected
-										? 'border-primary bg-primary/5 ring-1 ring-primary'
-										: 'border-border hover:border-primary/40 hover:bg-muted/40'}"
+								<button
+									type="button"
+									onclick={() => selectCatalogItem(item.id)}
+									class="flex flex-col justify-between text-left rounded-2xl border p-4 transition-all cursor-pointer shadow-2xs {isSelected
+										? 'border-purple-600 bg-purple-500/10 ring-2 ring-purple-600/30'
+										: 'border-border bg-card hover:border-purple-500/40 hover:bg-muted/30'}"
 								>
-									<div class="flex items-start justify-between gap-3">
-										<div class="min-w-0 space-y-2">
-											<div class="flex flex-wrap items-center gap-2">
-												<span class="rounded-md bg-muted px-2 py-0.5 font-mono text-xs font-semibold">
-													{item.code}
-												</span>
-												<ItemTypeBadge type={item.type} short={true} />
-											</div>
-											<p class="text-sm leading-snug font-medium text-foreground">
-												{item.name}
-											</p>
-										</div>
-
-										<div class="shrink-0 space-y-0.5 text-right">
-											<span class="font-mono text-sm font-semibold text-foreground">
-												{formatCurrency(summary?.estimatedTotalCost ?? item.referenceCost)}
+									<div>
+										<div class="flex items-center justify-between gap-2">
+											<span class="rounded-md bg-muted px-2 py-0.5 font-mono text-xs font-bold text-foreground">
+												{item.code}
 											</span>
-											<span class="block text-xs text-muted-foreground">
-												{#if (summary?.directComponentsCount ?? 0) > 0}
-													por {item.yieldQuantity} {item.baseUnit}
-												{:else}
-													por {item.purchaseQuantity} {item.baseUnit}
-												{/if}
+											<span class="inline-flex items-center gap-1 rounded-full border border-purple-500/30 bg-purple-500/10 px-2 py-0.5 text-[11px] font-semibold text-purple-700 dark:text-purple-400">
+												<ChefHat class="size-3" />
+												<span>Elaborado</span>
 											</span>
 										</div>
+										<h4 class="mt-2 text-sm font-bold text-foreground line-clamp-1">
+											{item.name}
+										</h4>
 									</div>
 
-									<div class="mt-3.5 flex items-center justify-between border-t border-border/50 pt-2.5 text-xs text-muted-foreground">
-										<span>Rinde: <strong class="text-foreground">{item.yieldQuantity} {item.baseUnit}</strong></span>
-										<div class="flex items-center gap-2">
+									<div class="mt-3 pt-2.5 border-t border-border/50 space-y-1.5">
+										<div class="flex items-center justify-between text-xs">
+											<span class="text-muted-foreground">Rinde: <strong class="text-foreground">{item.yieldQuantity} {item.baseUnit}</strong></span>
 											{#if item.prepTimeMinutes > 0}
-												<span class="inline-flex items-center gap-1 font-medium text-purple-600 dark:text-purple-400">
+												<span class="inline-flex items-center gap-1 font-semibold text-purple-700 dark:text-purple-400">
 													<Clock class="size-3" />
 													{item.prepTimeMinutes} min
 												</span>
 											{/if}
-											{#if (summary?.directComponentsCount ?? 0) > 0}
-												<span class="inline-flex items-center gap-1 font-medium text-primary">
-													<Layers class="size-3" />
-													{summary.directComponentsCount} ingr.
-												</span>
-											{:else}
-												<span>Directo</span>
-											{/if}
+										</div>
+
+										<div class="flex items-center justify-between text-xs">
+											<span class="font-mono font-bold text-foreground">
+												{formatCurrency(summary?.estimatedTotalCost ?? 0)}
+											</span>
+											<span class="inline-flex items-center gap-1 text-[11px] font-medium text-primary">
+												<Layers class="size-3" />
+												{summary?.directComponentsCount ?? 0} ingr.
+											</span>
 										</div>
 									</div>
-								</a>
-							{:else}
-								<div class="space-y-3 py-10 text-center">
-									<p class="text-sm text-muted-foreground">
-										Todavía no hay ítems cargados.
-									</p>
-									<Button size="sm" variant="outline" onclick={() => openNewItemModal()}>
-										<Plus class="size-4" />
-										<span>Crear primer ítem</span>
-									</Button>
-								</div>
+								</button>
 							{/each}
 						</div>
 
-						<TablePagination
-							bind:currentPage={catalogPage}
-							bind:pageSize={catalogPageSize}
-							totalItems={filteredRecipeCatalog.length}
-							itemLabel="ítems"
-							compact={true}
-						/>
-					</CardContent>
-				</Card>
-			</div>
-
-			<!-- Columna Derecha: Constructor y Estructura de Receta Multinivel -->
-			<div class="space-y-8 lg:col-span-8">
-				{#if selectedTree && selectedRoot}
-					{@const tree = selectedTree}
-					{@const paginatedRecipeNodes = tree.nodes.slice(
-						(recipeTablePage - 1) * recipeTablePageSize,
-						recipeTablePage * recipeTablePageSize
-					)}
-					<Card>
-						<CardHeader class="border-b border-border/60 p-6 sm:p-8">
-							<div class="flex flex-wrap items-start justify-between gap-6">
-								<div class="space-y-2.5">
-									<div class="flex items-center gap-2.5">
-										<span class="rounded-md bg-muted px-2.5 py-1 font-mono text-xs font-bold">
-											{selectedRoot.code}
-										</span>
-										<ItemTypeBadge type={selectedRoot.type} />
-									</div>
-									<CardTitle class="text-2xl leading-tight">{selectedRoot.name}</CardTitle>
-									{#if selectedRoot.notes}
-										<CardDescription class="text-sm">{selectedRoot.notes}</CardDescription>
-									{/if}
-								</div>
-
-								<div class="flex flex-wrap items-center gap-3">
-									{#if selectedRoot.type !== 'raw_material'}
-										<div class="flex flex-col justify-center rounded-xl border border-border bg-muted/20 px-3.5 py-2 shadow-2xs">
-											<span class="text-[11px] font-medium text-muted-foreground">Rendimiento</span>
-											<span class="font-mono text-sm font-bold text-foreground">
-												{selectedRoot.yieldQuantity} {selectedRoot.baseUnit}
-											</span>
-											{#if selectedRoot.prepTimeMinutes > 0}
-												<span class="text-[11px] text-purple-600 dark:text-purple-400 font-medium flex items-center gap-1 mt-0.5">
-													<Clock class="size-3" />
-													{selectedRoot.prepTimeMinutes} min
-												</span>
-											{/if}
-										</div>
-									{/if}
-
-									<div class="space-y-1 rounded-xl border border-border bg-muted/30 px-5 py-3.5 text-right">
-										<div class="flex items-center justify-end gap-1.5 text-xs text-muted-foreground">
-											<Calculator class="size-3.5" />
-											<span>
-												{tree.nodes.length > 0
-													? `Costo Receta (Rinde ${selectedRoot.yieldQuantity} ${selectedRoot.baseUnit})`
-													: `Costo Ref. (${selectedRoot.purchaseQuantity} ${selectedRoot.baseUnit})`}
-											</span>
-										</div>
-										<p class="font-mono text-xl font-bold text-foreground">
-											{formatCurrency(tree.estimatedTotalCost)}
-										</p>
-										<p class="font-mono text-xs text-muted-foreground">
-											Unitario: {formatCurrency(tree.estimatedUnitCost)} / {selectedRoot.baseUnit}
-										</p>
-									</div>
-
-									<Button
-										variant="outline"
-										size="icon"
-										class="size-10"
-										title="Editar parámetros del ítem"
-										onclick={() => (showEditItemModal = true)}
-									>
-										<Settings2 class="size-4" />
-									</Button>
-								</div>
+						{#if filteredRecipeCatalog.length > catalogPageSize}
+							<div class="mt-4">
+								<TablePagination
+									bind:currentPage={catalogPage}
+									bind:pageSize={catalogPageSize}
+									totalItems={filteredRecipeCatalog.length}
+									itemLabel="elaboraciones"
+									compact={true}
+								/>
 							</div>
-						</CardHeader>
+						{/if}
+					{:else}
+						<div class="py-8 text-center rounded-xl border border-dashed border-border">
+							<ChefHat class="mx-auto size-8 text-muted-foreground/50" />
+							<p class="mt-2 text-sm font-semibold text-foreground">
+								No hay elaboraciones coincidentes
+							</p>
+							<p class="mt-0.5 text-xs text-muted-foreground">
+								Crea una elaboración (torta, bizcochuelo, crema) para diseñar su receta.
+							</p>
+							<Button
+								size="sm"
+								class="mt-3 gap-1.5 bg-purple-600 hover:bg-purple-700 text-white"
+								onclick={() => openNewItemModal('prepared')}
+							>
+								<Plus class="size-4" />
+								<span>Crear Elaboración</span>
+							</Button>
+						</div>
+					{/if}
+				</CardContent>
+			</Card>
 
-						<CardContent class="space-y-6 p-6 sm:p-8">
-							<div class="flex flex-wrap items-center justify-between gap-4">
-								<div>
-									<h4 class="text-base font-semibold text-foreground">
-										Estructura de la Receta (Ingredientes y Sub-recetas)
-									</h4>
-									<p class="text-xs text-muted-foreground">
-										Ingredientes para producir {selectedRoot.yieldQuantity} {selectedRoot.baseUnit} de "{selectedRoot.name}"
-									</p>
+			<!-- SECCIÓN 2 (ABAJO): EDICIÓN Y ESTRUCTURA DE LA RECETA SELECCIONADA -->
+			{#if selectedTree && selectedRoot}
+				{@const tree = selectedTree}
+				{@const paginatedRecipeNodes = tree.nodes.slice(
+					(recipeTablePage - 1) * recipeTablePageSize,
+					recipeTablePage * recipeTablePageSize
+				)}
+				<Card class="border-border shadow-xs">
+					<CardHeader class="border-b border-border/60 p-5 sm:p-6 pb-4">
+						<div class="flex flex-wrap items-center justify-between gap-4">
+							<div class="space-y-1">
+								<div class="flex items-center gap-2">
+									<span class="rounded-md bg-muted px-2 py-0.5 font-mono text-xs font-bold text-foreground">
+										{selectedRoot.code}
+									</span>
+									<span class="inline-flex items-center gap-1.5 rounded-full border border-purple-500/30 bg-purple-500/10 px-2.5 py-0.5 text-xs font-semibold text-purple-700 dark:text-purple-400">
+										<ChefHat class="size-3.5" />
+										<span>Elaboración</span>
+									</span>
+								</div>
+								<CardTitle class="text-2xl leading-tight font-bold">{selectedRoot.name}</CardTitle>
+								{#if selectedRoot.notes}
+									<CardDescription class="text-xs">{selectedRoot.notes}</CardDescription>
+								{/if}
+							</div>
+
+							<!-- Costo Total y Unitario -->
+							<div class="rounded-xl border border-border bg-muted/20 px-4 py-2.5 text-right">
+								<div class="flex items-center justify-end gap-1.5 text-[11px] text-muted-foreground">
+									<Calculator class="size-3.5 text-primary" />
+									<span>Costo Estimado del Lote</span>
+								</div>
+								<p class="font-mono text-xl font-bold text-foreground">
+									{formatCurrency(tree.estimatedTotalCost)}
+								</p>
+								<p class="font-mono text-xs text-muted-foreground">
+									Unitario: {formatCurrency(tree.estimatedUnitCost)} / {selectedRoot.baseUnit}
+								</p>
+							</div>
+						</div>
+
+						<!-- PARÁMETROS DE LA RECETA EN 2 INPUTS COMPACTOS / TARJETAS (RENDIMIENTO Y TIEMPO) -->
+						<form
+							method="POST"
+							action="?/updateRecipeYield"
+							use:enhance
+							class="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 items-end rounded-2xl border border-border bg-muted/20 p-4 shadow-2xs"
+						>
+							<input type="hidden" name="businessId" value={data.activeBusiness.id} />
+							<input type="hidden" name="id" value={selectedRoot.id} />
+
+							<!-- Input 1: Rendimiento del lote -->
+							<div class="space-y-1 lg:col-span-5">
+								<Label for="quick-recipe-yield" class="text-xs font-semibold text-foreground flex items-center gap-1.5">
+									<ChefHat class="size-3.5 text-purple-600" />
+									<span>Rendimiento del Lote</span>
+								</Label>
+								<div class="relative flex items-center">
+									<Input
+										id="quick-recipe-yield"
+										name="yieldQuantity"
+										type="number"
+										step="any"
+										min="0.001"
+										value={selectedRoot.yieldQuantity}
+										class="h-9 pr-14 font-mono text-sm font-semibold"
+										required
+									/>
+									<span class="pointer-events-none absolute right-3 font-semibold text-xs text-muted-foreground uppercase">
+										{selectedRoot.baseUnit}
+									</span>
+								</div>
+								<p class="text-[10px] text-muted-foreground">
+									Cantidad de producto obtenida con esta receta
+								</p>
+							</div>
+
+							<!-- Input 2: Tiempo de Elaboración -->
+							<div class="space-y-1 lg:col-span-5">
+								<Label for="quick-recipe-preptime" class="text-xs font-semibold text-foreground flex items-center gap-1.5">
+									<Clock class="size-3.5 text-purple-600" />
+									<span>Tiempo de Elaboración</span>
+								</Label>
+								<div class="relative flex items-center">
+									<Clock class="pointer-events-none absolute left-2.5 size-3.5 text-muted-foreground" />
+									<Input
+										id="quick-recipe-preptime"
+										name="prepTimeMinutes"
+										type="number"
+										step="1"
+										min="0"
+										value={selectedRoot.prepTimeMinutes ?? 0}
+										class="h-9 pl-8 pr-12 font-mono text-sm font-semibold"
+										placeholder="0"
+									/>
+									<span class="pointer-events-none absolute right-3 font-semibold text-xs text-muted-foreground">
+										min
+									</span>
+								</div>
+								<p class="text-[10px] text-muted-foreground">
+									Tiempo estimado de preparación y cocción
+								</p>
+							</div>
+
+							<div class="lg:col-span-2">
+								<Button type="submit" size="sm" class="w-full h-9 gap-1 font-semibold shadow-xs">
+									<Check class="size-3.5" />
+									<span>Guardar</span>
+								</Button>
+							</div>
+						</form>
+					</CardHeader>
+
+					<CardContent class="space-y-6 p-5 sm:p-6">
+						<div class="flex flex-wrap items-center justify-between gap-4">
+							<div>
+								<h4 class="text-base font-semibold text-foreground">
+									Ingredientes y Sub-recetas
+								</h4>
+								<p class="text-xs text-muted-foreground">
+									Fórmula para producir {selectedRoot.yieldQuantity} {selectedRoot.baseUnit} de "{selectedRoot.name}"
+								</p>
+							</div>
+
+							<Button
+								type="button"
+								size="sm"
+								disabled={availableComponentsForSelected.length === 0}
+								onclick={() => (showAddRecipeLineModal = true)}
+							>
+								<Plus class="size-4" />
+								<span>Agregar Ingrediente</span>
+							</Button>
+						</div>
+
+						{#if tree.nodes.length > 0}
+							<div class="space-y-4">
+								<div class="overflow-x-auto rounded-xl border border-border">
+									<table class="w-full text-left text-sm">
+										<thead class="border-b border-border bg-muted/50 text-xs uppercase tracking-wider text-muted-foreground">
+											<tr>
+												<th class="py-3.5 pr-4 pl-5 font-semibold">Ingrediente / Sub-receta</th>
+												<th class="px-4 py-3.5 font-semibold">Tipo</th>
+												<th class="px-4 py-3.5 text-right font-semibold">Cantidad</th>
+												<th class="px-4 py-3.5 text-right font-semibold">Costo Unit. Ref.</th>
+												<th class="px-4 py-3.5 text-right font-semibold">Subtotal Est.</th>
+												<th class="px-4 py-3.5 text-center font-semibold">Tiempo</th>
+												<th class="py-3.5 pr-5 pl-3 text-right font-semibold">Acción</th>
+											</tr>
+										</thead>
+										<tbody>
+											{#each paginatedRecipeNodes as node (node.lineId)}
+												<RecipeTreeRow
+													{node}
+													businessId={data.activeBusiness.id}
+													isDirectChild={true}
+													onSelectItem={selectCatalogItem}
+												/>
+											{/each}
+										</tbody>
+										<tfoot class="border-t-2 border-border bg-muted/30 font-medium">
+											<tr>
+												<td colspan="4" class="py-4 pr-4 pl-5 text-right text-sm">
+													Costo Total Estimado de la Receta (para {selectedRoot.yieldQuantity} {selectedRoot.baseUnit}):
+												</td>
+												<td class="px-4 py-4 text-right font-mono text-base font-bold text-foreground">
+													{formatCurrency(tree.estimatedTotalCost)}
+												</td>
+												<td colspan="2"></td>
+											</tr>
+										</tfoot>
+									</table>
 								</div>
 
-								{#if selectedRoot.type !== 'raw_material'}
+								<TablePagination
+									bind:currentPage={recipeTablePage}
+									bind:pageSize={recipeTablePageSize}
+									pageSizeOptions={[5, 8, 15, 30]}
+									totalItems={tree.nodes.length}
+									itemLabel="ingredientes directos"
+								/>
+							</div>
+						{:else}
+							<div class="rounded-xl border border-dashed border-border p-8 text-center">
+								<Layers class="mx-auto size-8 text-muted-foreground/60" />
+								<p class="mt-2.5 text-base font-semibold text-foreground">
+									Sin ingredientes en la receta
+								</p>
+								<p class="mx-auto mt-1 max-w-sm text-xs text-muted-foreground">
+									Agrega materias primas u otras elaboraciones para costear y descontar existencias automáticamente.
+								</p>
+								{#if availableComponentsForSelected.length > 0}
 									<Button
-										type="button"
+										class="mt-4"
 										size="sm"
-										disabled={availableComponentsForSelected.length === 0}
 										onclick={() => (showAddRecipeLineModal = true)}
 									>
 										<Plus class="size-4" />
@@ -1440,173 +1540,10 @@
 									</Button>
 								{/if}
 							</div>
-
-							{#if tree.nodes.length > 0}
-								<div class="space-y-4">
-									<div class="overflow-x-auto rounded-xl border border-border">
-										<table class="w-full text-left text-sm">
-											<thead class="border-b border-border bg-muted/50 text-xs uppercase tracking-wider text-muted-foreground">
-												<tr>
-													<th class="py-3.5 pr-4 pl-5 font-semibold">Ingrediente / Sub-receta</th>
-													<th class="px-4 py-3.5 font-semibold">Tipo</th>
-													<th class="px-4 py-3.5 text-right font-semibold">Cantidad</th>
-													<th class="px-4 py-3.5 text-right font-semibold">Costo Unit. Ref.</th>
-													<th class="px-4 py-3.5 text-right font-semibold">Subtotal Est.</th>
-													<th class="py-3.5 pr-5 pl-3 text-right font-semibold">Acción</th>
-												</tr>
-											</thead>
-											<tbody>
-												{#each paginatedRecipeNodes as node (node.lineId)}
-													<RecipeTreeRow
-														{node}
-														businessId={data.activeBusiness.id}
-														isDirectChild={true}
-														onSelectItem={selectCatalogItem}
-													/>
-												{/each}
-											</tbody>
-											<tfoot class="border-t-2 border-border bg-muted/30 font-medium">
-												<tr>
-													<td colspan="4" class="py-4 pr-4 pl-5 text-right text-sm">
-														Costo Total Estimado de la Receta (para {selectedRoot.yieldQuantity}
-														{selectedRoot.baseUnit}):
-													</td>
-													<td class="px-4 py-4 text-right font-mono text-base font-bold text-foreground">
-														{formatCurrency(tree.estimatedTotalCost)}
-													</td>
-													<td></td>
-												</tr>
-											</tfoot>
-										</table>
-									</div>
-
-									<TablePagination
-										bind:currentPage={recipeTablePage}
-										bind:pageSize={recipeTablePageSize}
-										pageSizeOptions={[5, 8, 15, 30]}
-										totalItems={tree.nodes.length}
-										itemLabel="ingredientes directos"
-									/>
-								</div>
-							{:else}
-								<div class="rounded-xl border border-dashed border-border p-8 text-center">
-									<Layers class="mx-auto size-8 text-muted-foreground/60" />
-									<p class="mt-2.5 text-base font-semibold text-foreground">
-										Sin ingredientes en la receta
-									</p>
-									<p class="mx-auto mt-1 max-w-sm text-xs text-muted-foreground">
-										{#if selectedRoot.type === 'raw_material'}
-											Materia prima directa ({formatCurrency(selectedRoot.referenceCost)} / {selectedRoot.purchaseQuantity} {selectedRoot.baseUnit}).
-										{:else}
-											Agrega insumos o sub-ensambles para costear y descontar existencias automáticamente.
-										{/if}
-									</p>
-									{#if selectedRoot.type !== 'raw_material' && availableComponentsForSelected.length > 0}
-										<Button
-											class="mt-4"
-											size="sm"
-											onclick={() => (showAddRecipeLineModal = true)}
-										>
-											<Plus class="size-4" />
-											<span>Agregar Ingrediente</span>
-										</Button>
-									{/if}
-								</div>
-							{/if}
-
-							{#if selectedRoot.type !== 'raw_material'}
-								<!-- PARÁMETROS DE PRODUCCIÓN DE LA RECETA -->
-								<div class="rounded-2xl border border-border bg-muted/20 p-5 sm:p-6 shadow-2xs space-y-4">
-									<div class="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3">
-										<div class="space-y-0.5">
-											<h4 class="text-sm font-bold text-foreground flex items-center gap-2">
-												<Clock class="size-4 text-purple-600 dark:text-purple-400" />
-												<span>Parámetros de Elaboración de la Receta</span>
-											</h4>
-											<p class="text-xs text-muted-foreground">
-												Configura el rendimiento por lote y el tiempo estimado de trabajo en cocina
-											</p>
-										</div>
-
-										{#if selectedRoot.prepTimeMinutes > 0}
-											<div class="inline-flex items-center gap-1.5 rounded-full border border-purple-500/30 bg-purple-500/10 px-3 py-1 text-xs font-semibold text-purple-700 dark:text-purple-400">
-												<Clock class="size-3 text-purple-600 dark:text-purple-400" />
-												<span>Tiempo: {selectedRoot.prepTimeMinutes} min</span>
-											</div>
-										{/if}
-									</div>
-
-									<form
-										method="POST"
-										action="?/updateRecipeYield"
-										use:enhance
-										class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-12 items-end"
-									>
-										<input type="hidden" name="businessId" value={data.activeBusiness.id} />
-										<input type="hidden" name="id" value={selectedRoot.id} />
-
-										<div class="space-y-1.5 lg:col-span-5">
-											<Label for="recipe-yield-qty" class="text-xs font-semibold text-foreground">
-												Rendimiento de la Receta
-											</Label>
-											<div class="relative flex items-center">
-												<Input
-													id="recipe-yield-qty"
-													name="yieldQuantity"
-													type="number"
-													step="any"
-													min="0.001"
-													value={selectedRoot.yieldQuantity}
-													class="h-10 pr-14 font-mono text-base font-semibold"
-													required
-												/>
-												<span class="pointer-events-none absolute right-3 font-semibold text-xs text-muted-foreground uppercase">
-													{selectedRoot.baseUnit}
-												</span>
-											</div>
-											<p class="text-[11px] text-muted-foreground">
-												Cantidad final producida por esta receta completa.
-											</p>
-										</div>
-
-										<div class="space-y-1.5 lg:col-span-5">
-											<Label for="recipe-prep-time" class="text-xs font-semibold text-foreground">
-												Tiempo Estimado de Elaboración
-											</Label>
-											<div class="relative flex items-center">
-												<Clock class="pointer-events-none absolute left-3 size-4 text-muted-foreground" />
-												<Input
-													id="recipe-prep-time"
-													name="prepTimeMinutes"
-													type="number"
-													step="1"
-													min="0"
-													value={selectedRoot.prepTimeMinutes ?? 0}
-													class="h-10 pl-9 pr-14 font-mono text-base font-semibold"
-													placeholder="0"
-												/>
-												<span class="pointer-events-none absolute right-3 font-semibold text-xs text-muted-foreground">
-													min
-												</span>
-											</div>
-											<p class="text-[11px] text-muted-foreground">
-												Tiempo de preparación, cocción o armado en cocina.
-											</p>
-										</div>
-
-										<div class="lg:col-span-2">
-											<Button type="submit" class="w-full h-10 gap-1.5 font-semibold shadow-xs">
-												<Check class="size-4" />
-												<span>Guardar</span>
-											</Button>
-										</div>
-									</form>
-								</div>
-							{/if}
-						</CardContent>
-					</Card>
-				{/if}
-			</div>
+						{/if}
+					</CardContent>
+				</Card>
+			{/if}
 		</div>
 	{/if}
 
@@ -2002,7 +1939,7 @@
 						{:else if newItemStep === 2}
 							Nombre y unidad de medida
 						{:else}
-							Stock inicial y costos
+							{newItemType === 'raw_material' ? 'Stock inicial y costos' : 'Avisos de stock'}
 						{/if}
 					</h2>
 
@@ -2035,7 +1972,7 @@
 					<input type="hidden" name="type" value={newItemType} />
 					<input type="hidden" name="name" value={newItemName} />
 					<input type="hidden" name="baseUnit" value={newItemBaseUnit} />
-					<input type="hidden" name="currentStock" value={newItemCurrentStock} />
+					<input type="hidden" name="currentStock" value={newItemType === 'raw_material' ? newItemCurrentStock : 0} />
 					<input type="hidden" name="minStock" value={newItemMinStock} />
 					<input
 						type="hidden"
@@ -2091,7 +2028,7 @@
 									<div
 										class="mb-3 flex size-14 items-center justify-center rounded-full bg-purple-500/10 text-purple-600"
 									>
-										<CakeSlice class="size-7" />
+										<ChefHat class="size-7" />
 									</div>
 									<span class="text-base font-bold text-foreground">Elaboración</span>
 									<span class="mt-1 text-xs text-muted-foreground">Receta de la casa (bases, rellenos, tortas, productos)</span>
@@ -2148,21 +2085,36 @@
 						{:else}
 							<!-- PASO 3: Stock y Costos -->
 							<div class="space-y-4">
-								<div class="grid grid-cols-2 gap-3">
-									<div class="space-y-1.5">
-										<Label for="inv-step-stock">Stock Inicial ({newItemBaseUnit})</Label>
-										<Input
-											id="inv-step-stock"
-											type="number"
-											step="any"
-											min="0"
-											bind:value={newItemCurrentStock}
-											class="h-11 font-mono text-base"
-										/>
-									</div>
+								{#if newItemType === 'raw_material'}
+									<div class="grid grid-cols-2 gap-3">
+										<div class="space-y-1.5">
+											<Label for="inv-step-stock">Stock Inicial ({newItemBaseUnit})</Label>
+											<Input
+												id="inv-step-stock"
+												type="number"
+												step="any"
+												min="0"
+												bind:value={newItemCurrentStock}
+												class="h-11 font-mono text-base"
+											/>
+										</div>
 
+										<div class="space-y-1.5">
+											<Label for="inv-step-min">Aviso Stock Mínimo</Label>
+											<Input
+												id="inv-step-min"
+												type="number"
+												step="any"
+												min="0"
+												bind:value={newItemMinStock}
+												class="h-11 font-mono text-base"
+												placeholder="0"
+											/>
+										</div>
+									</div>
+								{:else}
 									<div class="space-y-1.5">
-										<Label for="inv-step-min">Aviso Stock Mínimo</Label>
+										<Label for="inv-step-min">Aviso Stock Mínimo en Vitrina ({newItemBaseUnit})</Label>
 										<Input
 											id="inv-step-min"
 											type="number"
@@ -2172,8 +2124,11 @@
 											class="h-11 font-mono text-base"
 											placeholder="0"
 										/>
+										<p class="text-[11px] text-muted-foreground">
+											El stock de esta elaboración aumentará automáticamente al cocinar lotes de su receta.
+										</p>
 									</div>
-								</div>
+								{/if}
 
 								{#if newItemType === 'raw_material'}
 									<div class="space-y-3 rounded-xl border border-border bg-muted/20 p-3.5">

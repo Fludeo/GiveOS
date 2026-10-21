@@ -7,6 +7,8 @@
 	import Layers from '@lucide/svelte/icons/layers';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import ArrowUpRight from '@lucide/svelte/icons/arrow-up-right';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
+	import Clock from '@lucide/svelte/icons/clock';
 
 	let {
 		node,
@@ -19,6 +21,8 @@
 		isDirectChild?: boolean;
 		onSelectItem?: (itemId: string) => void;
 	} = $props();
+
+	let isExpanded = $state(false);
 
 	function formatCurrency(val: number): string {
 		return `$ ${new Intl.NumberFormat('es-AR', {
@@ -46,21 +50,16 @@
 					{current.component.name}
 				</span>
 				{#if current.children.length > 0 || current.component.type !== 'raw_material'}
-					<a
-						href="/inventory?tab=recipes&item={current.component.id}"
-						onclick={(e) => {
-							if (onSelectItem) {
-								e.preventDefault();
-								onSelectItem(current.component.id);
-							}
-						}}
-						class="ml-1 inline-flex items-center gap-1 rounded-md bg-primary/5 px-2 py-0.5 text-xs font-medium text-primary hover:bg-primary/10 hover:underline"
-						title="Ver/editar la receta de este sub-ensamble"
+					<button
+						type="button"
+						onclick={() => (isExpanded = !isExpanded)}
+						class="ml-1 inline-flex items-center gap-1 rounded-md border border-purple-500/20 bg-purple-500/10 px-2 py-0.5 text-xs font-medium text-purple-700 dark:text-purple-400 hover:bg-purple-500/20 cursor-pointer transition-colors"
+						title={isExpanded ? 'Ocultar ingredientes de esta sub-receta' : 'Desplegar ingredientes de esta sub-receta'}
 					>
-						<Layers class="size-3" />
-						<span>Sub-receta</span>
-						<ArrowUpRight class="size-3" />
-					</a>
+						<Layers class="size-3 text-purple-600" />
+						<span>{current.children.length > 0 ? `${current.children.length} ingr.` : 'Sub-receta'}</span>
+						<ChevronDown class="size-3.5 transition-transform duration-200 {isExpanded ? 'rotate-180' : ''}" />
+					</button>
 				{/if}
 			</div>
 			{#if current.notes}
@@ -91,34 +90,61 @@
 				{formatCurrency(current.estimatedLineCost)}
 			</span>
 			{#if current.depth > 0}
-				<span class="mt-0.5 block text-[11px] text-muted-foreground">(incluido en sub-ensamble)</span>
+				<span class="mt-0.5 block text-[11px] text-muted-foreground">(incluido en elaboración)</span>
+			{/if}
+		</td>
+
+		<td class="px-4 py-4 text-center align-middle font-mono text-xs">
+			{#if current.component.type === 'prepared' && current.component.prepTimeMinutes > 0}
+				<span class="inline-flex items-center gap-1 rounded-full border border-purple-500/20 bg-purple-500/10 px-2 py-0.5 text-xs text-purple-700 dark:text-purple-400 font-semibold">
+					<Clock class="size-3" />
+					{current.component.prepTimeMinutes} min
+				</span>
+			{:else}
+				<span class="text-muted-foreground/40">-</span>
 			{/if}
 		</td>
 
 		<td class="py-4 pr-5 pl-3 text-right align-middle">
-			{#if direct}
-				<form method="POST" action="?/removeRecipeLine" use:enhance>
-					<input type="hidden" name="businessId" value={businessId} />
-					<input type="hidden" name="lineId" value={current.lineId} />
+			<div class="flex items-center justify-end gap-1">
+				{#if current.children.length > 0 || current.component.type !== 'raw_material'}
 					<Button
-						type="submit"
+						type="button"
 						variant="ghost"
 						size="icon"
-						class="size-8 text-muted-foreground hover:text-destructive"
-						title="Quitar ingrediente de la receta"
+						class="size-8 text-purple-600 hover:bg-purple-500/10"
+						onclick={() => (isExpanded = !isExpanded)}
+						title={isExpanded ? 'Ocultar ingredientes' : 'Desplegar sub-receta'}
 					>
-						<Trash2 class="size-4" />
+						<ChevronDown class="size-4 transition-transform duration-200 {isExpanded ? 'rotate-180' : ''}" />
 					</Button>
-				</form>
-			{:else}
-				<span class="text-xs text-muted-foreground">Nivel {current.depth + 1}</span>
-			{/if}
+				{/if}
+				{#if direct}
+					<form method="POST" action="?/removeRecipeLine" use:enhance>
+						<input type="hidden" name="businessId" value={businessId} />
+						<input type="hidden" name="lineId" value={current.lineId} />
+						<Button
+							type="submit"
+							variant="ghost"
+							size="icon"
+							class="size-8 text-muted-foreground hover:text-destructive"
+							title="Quitar ingrediente de la receta"
+						>
+							<Trash2 class="size-4" />
+						</Button>
+					</form>
+				{:else}
+					<span class="text-xs text-muted-foreground">Nivel {current.depth + 1}</span>
+				{/if}
+			</div>
 		</td>
 	</tr>
 
-	{#each current.children as childNode (childNode.lineId + '-' + childNode.depth)}
-		{@render renderNode(childNode, false)}
-	{/each}
+	{#if isExpanded}
+		{#each current.children as childNode (childNode.lineId + '-' + childNode.depth)}
+			{@render renderNode(childNode, false)}
+		{/each}
+	{/if}
 {/snippet}
 
 {@render renderNode(node, isDirectChild)}

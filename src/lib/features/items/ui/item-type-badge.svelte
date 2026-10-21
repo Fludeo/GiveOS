@@ -5,7 +5,7 @@
 		type ItemType
 	} from '../domain/item.entity';
 	import Wheat from '@lucide/svelte/icons/wheat';
-	import CakeSlice from '@lucide/svelte/icons/cake-slice';
+	import ChefHat from '@lucide/svelte/icons/chef-hat';
 
 	let {
 		type,
@@ -26,7 +26,7 @@
 	{#if type === 'raw_material'}
 		<Wheat class="size-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
 	{:else}
-		<CakeSlice class="size-3.5 shrink-0 text-purple-600 dark:text-purple-400" />
+		<ChefHat class="size-3.5 shrink-0 text-purple-600 dark:text-purple-400" />
 	{/if}
 	<span>{short ? config.shortLabel : config.label}</span>
 </span>
