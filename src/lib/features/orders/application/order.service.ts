@@ -114,12 +114,7 @@ export class OrderService {
 			if (!linkedItem) {
 				throw new Error('Uno de los ítems seleccionados no existe en el inventario.');
 			}
-			if (linkedItem.type !== 'finished_product') {
-				throw new Error(
-					`El ítem "${linkedItem.name}" no es un Producto Final. Solo se pueden asociar ítems de categoría "Producto Final" para la venta.`
-				);
-			}
-
+			// Permite vincular cualquier ítem de inventario (Insumo o Elaboración)
 			mergedMap.set(itemId, Number(((mergedMap.get(itemId) ?? 0) + qty).toFixed(4)));
 		}
 
@@ -643,12 +638,12 @@ export class OrderService {
 					comp.baseUnit
 				);
 
-				if (comp.type === 'sub_assembly') {
+				if (comp.type === 'prepared' || (comp.type as string) === 'sub_assembly') {
 					subAssemblyRequiredMap.set(
 						comp.id,
 						(subAssemblyRequiredMap.get(comp.id) ?? 0) + reqInBase
 					);
-				} else if (comp.type === 'raw_material') {
+				} else {
 					directRawRequiredMap.set(
 						comp.id,
 						(directRawRequiredMap.get(comp.id) ?? 0) + reqInBase
@@ -674,7 +669,7 @@ export class OrderService {
 						comp.id,
 						(totalRawRequiredMap.get(comp.id) ?? 0) + reqInBase
 					);
-				} else if (comp.type === 'sub_assembly' && node.children.length > 0) {
+				} else if (node.children.length > 0) {
 					const childYield = comp.yieldQuantity > 0 ? comp.yieldQuantity : 1;
 					explodeSubAssemblyRawMaterials(node.children, reqInBase / childYield);
 				}

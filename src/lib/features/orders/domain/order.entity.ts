@@ -38,7 +38,7 @@ export const ORDER_ITEM_STATUS_LABELS: Record<OrderItemStatus, string> = {
 
 /**
  * Línea de la tabla intermedia `sales_product_items` que vincula un Producto Comercial
- * con uno o varios Productos Finales (`finished_product`) para soportar productos simples y combos.
+ * con uno o varios ítems de inventario (insumos o elaboraciones) para soportar productos simples y combos.
  */
 export interface SalesProductItemRow {
 	id: string;

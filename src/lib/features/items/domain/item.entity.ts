@@ -1,20 +1,41 @@
-export const ITEM_TYPES = ['raw_material', 'sub_assembly', 'finished_product'] as const;
+export const ITEM_TYPES = ['raw_material', 'prepared'] as const;
 export type ItemType = (typeof ITEM_TYPES)[number];
+export type LegacyItemType = ItemType | 'sub_assembly' | 'finished_product';
+
+export function normalizeItemType(type: string): ItemType {
+	if (type === 'sub_assembly' || type === 'finished_product') return 'prepared';
+	return type === 'prepared' ? 'prepared' : 'raw_material';
+}
 
 export const UNITS_OF_MEASURE = ['g', 'kg', 'ml', 'l', 'unit'] as const;
 export type UnitOfMeasure = (typeof UNITS_OF_MEASURE)[number];
 
 export const ITEM_TYPE_LABELS: Record<ItemType, string> = {
-	raw_material: 'Materia Prima / Insumo',
-	sub_assembly: 'Sub-ensamble / Base',
-	finished_product: 'Producto Final'
+	raw_material: 'Insumo',
+	prepared: 'Elaboración'
 };
 
 export const ITEM_TYPE_PREFIXES: Record<ItemType, string> = {
-	raw_material: 'MP',
-	sub_assembly: 'SUB',
-	finished_product: 'PRD'
+	raw_material: 'INS',
+	prepared: 'ELB'
 };
+
+export const ITEM_TYPE_CONFIG = {
+	raw_material: {
+		label: 'Insumo',
+		shortLabel: 'Insumo',
+		prefix: 'INS',
+		badgeClass: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
+		color: 'emerald'
+	},
+	prepared: {
+		label: 'Elaboración',
+		shortLabel: 'Elaborado',
+		prefix: 'ELB',
+		badgeClass: 'border-purple-500/30 bg-purple-500/10 text-purple-700 dark:text-purple-400',
+		color: 'purple'
+	}
+} as const;
 
 export const UNIT_LABELS: Record<UnitOfMeasure, string> = {
 	g: 'Gramos (g)',
@@ -73,7 +94,8 @@ export interface UpdateItemInput {
  */
 export function generateNextItemCode(type: ItemType, existingCodes: string[]): string {
 	const prefix = ITEM_TYPE_PREFIXES[type];
-	const pattern = new RegExp(`^${prefix}-(\\d+)$`, 'i');
+	const prefixesToMatch = type === 'raw_material' ? [prefix, 'MP'] : [prefix, 'SUB', 'PRD'];
+	const pattern = new RegExp(`^(?:${prefixesToMatch.join('|')})-(\\d+)$`, 'i');
 	let maxNumber = 0;
 
 	for (const code of existingCodes) {

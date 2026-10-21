@@ -47,8 +47,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 	const selectedParam = url.searchParams.get('item');
 	const defaultItem =
 		items.find((i) => i.id === selectedParam) ??
-		items.find((i) => i.type === 'finished_product') ??
-		items.find((i) => i.type === 'sub_assembly') ??
+		items.find((i) => i.type === 'prepared') ??
 		items[0] ??
 		null;
 

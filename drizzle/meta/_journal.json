@@ -8,6 +8,13 @@
       "when": 1792533730364,
       "tag": "0000_living_goliath",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792558600000,
+      "tag": "0001_unify_item_types",
+      "breakpoints": true
     }
   ]
 }

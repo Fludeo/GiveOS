@@ -125,7 +125,7 @@ export const userBusinesses = pgTable(
 // Domain Schema: Items & Multi-level Recipes (Scoped to Business)
 // ==========================================
 
-export const ITEM_TYPES = ['raw_material', 'sub_assembly', 'finished_product'] as const;
+export const ITEM_TYPES = ['raw_material', 'prepared'] as const;
 export type ItemType = (typeof ITEM_TYPES)[number];
 
 export const UNITS_OF_MEASURE = ['g', 'kg', 'ml', 'l', 'unit'] as const;

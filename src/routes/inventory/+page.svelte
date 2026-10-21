@@ -45,7 +45,6 @@
 	import X from '@lucide/svelte/icons/x';
 	import BookOpen from '@lucide/svelte/icons/book-open';
 	import Wheat from '@lucide/svelte/icons/wheat';
-	import ChefHat from '@lucide/svelte/icons/chef-hat';
 	import CakeSlice from '@lucide/svelte/icons/cake-slice';
 	import Calculator from '@lucide/svelte/icons/calculator';
 	import Settings2 from '@lucide/svelte/icons/settings-2';
@@ -574,8 +573,7 @@
 						<p class="text-2xl font-bold text-foreground">{data.items.length} ítems</p>
 						<p class="text-xs text-muted-foreground">
 							{data.items.filter((i) => i.type === 'raw_material').length} insumos ·
-							{data.items.filter((i) => i.type === 'sub_assembly').length} bases ·
-							{data.items.filter((i) => i.type === 'finished_product').length} productos
+							{data.items.filter((i) => i.type === 'prepared').length} elaboraciones
 						</p>
 					</div>
 					<div class="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -659,21 +657,12 @@
 						</Button>
 						<Button
 							size="sm"
-							variant={filterType === 'sub_assembly' ? 'default' : 'outline'}
+							variant={filterType === 'prepared' ? 'default' : 'outline'}
 							class="gap-1.5"
-							onclick={() => (filterType = 'sub_assembly')}
+							onclick={() => (filterType = 'prepared')}
 						>
-							<ChefHat class="size-3.5" />
-							<span>Sub-ensambles</span>
-						</Button>
-						<Button
-							size="sm"
-							variant={filterType === 'finished_product' ? 'default' : 'outline'}
-							class="gap-1.5"
-							onclick={() => (filterType = 'finished_product')}
-						>
-							<CakeSlice class="size-3.5" />
-							<span>Productos</span>
+							<CakeSlice class="size-3.5 text-purple-600" />
+							<span>Elaboraciones</span>
 						</Button>
 						<Button
 							size="sm"
@@ -1250,21 +1239,12 @@
 							</Button>
 							<Button
 								size="sm"
-								variant={recipeFilterType === 'finished_product' ? 'default' : 'outline'}
+								variant={recipeFilterType === 'prepared' ? 'default' : 'outline'}
 								class="h-8 gap-1.5 px-3 text-xs"
-								onclick={() => (recipeFilterType = 'finished_product')}
+								onclick={() => (recipeFilterType = 'prepared')}
 							>
-								<CakeSlice class="size-3.5" />
-								<span>Productos</span>
-							</Button>
-							<Button
-								size="sm"
-								variant={recipeFilterType === 'sub_assembly' ? 'default' : 'outline'}
-								class="h-8 gap-1.5 px-3 text-xs"
-								onclick={() => (recipeFilterType = 'sub_assembly')}
-							>
-								<ChefHat class="size-3.5" />
-								<span>Sub-ensambles</span>
+								<CakeSlice class="size-3.5 text-purple-600" />
+								<span>Elaboraciones</span>
 							</Button>
 							<Button
 								size="sm"
@@ -1988,7 +1968,7 @@
 					<div class="p-6">
 						{#if newItemStep === 1}
 							<!-- PASO 1: Selección de Tipo de Ítem -->
-							<div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+							<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 								<button
 									type="button"
 									onclick={() => {
@@ -1996,60 +1976,39 @@
 										newItemBaseUnit = 'g';
 										newItemStep = 2;
 									}}
-									class="flex flex-col items-center justify-center rounded-xl border-2 p-4 text-center transition-all {newItemType ===
+									class="flex flex-col items-center justify-center rounded-2xl border-2 p-6 text-center transition-all cursor-pointer {newItemType ===
 									'raw_material'
 										? 'border-primary bg-primary/5 text-primary shadow-xs'
 										: 'border-border hover:border-muted-foreground/30 hover:bg-muted/30'}"
 								>
 									<div
-										class="mb-2.5 flex size-12 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600"
+										class="mb-3 flex size-14 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600"
 									>
-										<Wheat class="size-6" />
+										<Wheat class="size-7" />
 									</div>
-									<span class="text-sm font-bold text-foreground">Materia Prima</span>
-									<span class="mt-1 text-[11px] text-muted-foreground">Insumo que compras</span>
+									<span class="text-base font-bold text-foreground">Insumo</span>
+									<span class="mt-1 text-xs text-muted-foreground">Materia prima que compras (harina, huevos, azúcar...)</span>
 								</button>
 
 								<button
 									type="button"
 									onclick={() => {
-										newItemType = 'sub_assembly';
+										newItemType = 'prepared';
 										newItemBaseUnit = 'unit';
 										newItemStep = 2;
 									}}
-									class="flex flex-col items-center justify-center rounded-xl border-2 p-4 text-center transition-all {newItemType ===
-									'sub_assembly'
+									class="flex flex-col items-center justify-center rounded-2xl border-2 p-6 text-center transition-all cursor-pointer {newItemType ===
+									'prepared'
 										? 'border-primary bg-primary/5 text-primary shadow-xs'
 										: 'border-border hover:border-muted-foreground/30 hover:bg-muted/30'}"
 								>
 									<div
-										class="mb-2.5 flex size-12 items-center justify-center rounded-full bg-amber-500/10 text-amber-600"
+										class="mb-3 flex size-14 items-center justify-center rounded-full bg-purple-500/10 text-purple-600"
 									>
-										<ChefHat class="size-6" />
+										<CakeSlice class="size-7" />
 									</div>
-									<span class="text-sm font-bold text-foreground">Sub-ensamble</span>
-									<span class="mt-1 text-[11px] text-muted-foreground">Base elaborada</span>
-								</button>
-
-								<button
-									type="button"
-									onclick={() => {
-										newItemType = 'finished_product';
-										newItemBaseUnit = 'unit';
-										newItemStep = 2;
-									}}
-									class="flex flex-col items-center justify-center rounded-xl border-2 p-4 text-center transition-all {newItemType ===
-									'finished_product'
-										? 'border-primary bg-primary/5 text-primary shadow-xs'
-										: 'border-border hover:border-muted-foreground/30 hover:bg-muted/30'}"
-								>
-									<div
-										class="mb-2.5 flex size-12 items-center justify-center rounded-full bg-indigo-500/10 text-indigo-600"
-									>
-										<CakeSlice class="size-6" />
-									</div>
-									<span class="text-sm font-bold text-foreground">Producto Final</span>
-									<span class="mt-1 text-[11px] text-muted-foreground">Listo para venta</span>
+									<span class="text-base font-bold text-foreground">Elaboración</span>
+									<span class="mt-1 text-xs text-muted-foreground">Receta de la casa (bases, rellenos, tortas, productos)</span>
 								</button>
 							</div>
 						{:else if newItemStep === 2}
@@ -2062,9 +2021,7 @@
 										bind:value={newItemName}
 										placeholder={newItemType === 'raw_material'
 											? 'Ej. Harina 0000'
-											: newItemType === 'sub_assembly'
-												? 'Ej. Crema Pastelera'
-												: 'Ej. Torta Selva Negra'}
+											: 'Ej. Bizcochuelo de Vainilla o Torta Selva Negra'}
 										class="h-11 text-base font-medium"
 										required
 										autofocus

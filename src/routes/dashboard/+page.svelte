@@ -282,7 +282,7 @@
 	);
 	const totalFinishedStock = $derived(
 		data.items
-			.filter((i) => i.type === 'finished_product')
+			.filter((i) => i.type === 'prepared')
 			.reduce((sum, i) => sum + i.currentStock, 0)
 	);
 	const lowStockCount = $derived(
@@ -1089,7 +1089,7 @@
 					{:else}
 						<div class="rounded-lg border border-dashed border-primary/30 bg-primary/5 p-2.5 text-xs text-muted-foreground">
 							<p class="font-medium text-foreground">
-								Este {newItemType === 'sub_assembly' ? 'sub-ensamble' : 'producto'} calculará su costo y rendimiento en <strong class="text-primary">Estructura de Recetas</strong>.
+								Esta elaboración calculará su costo y rendimiento en <strong class="text-primary">Estructura de Recetas</strong>.
 							</p>
 						</div>
 						<input type="hidden" name="referenceCost" value="0" />

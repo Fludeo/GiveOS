@@ -19,7 +19,7 @@
 - **Entrega Just-in-Time (JIT)**: Al completar una orden, el sistema descuenta automáticamente los insumos y materias primas correspondientes mediante su árbol de recetas.
 
 ### 3. 🧪 Recetas Multinivel & Escandallo de Costos
-- **Arquitectura de 3 Niveles**: Materias Primas (`raw_material`), Sub-ensambles (`sub_assembly`) y Productos Terminados (`finished_product`).
+- **Modelo Simplificado de Inventario**: Insumos (`raw_material`) y Elaboraciones (`prepared`), permitiendo anidar recetas a cualquier nivel y vender tanto insumos directos como productos elaborados o combos.
 - **Cálculo Automático de Costos**: Actualización de costos en cascada ante variaciones de precios de materias primas.
 - **Unidades y Conversiones**: Soporte para gramos, kilogramos, mililitros, litros y unidades.
 
