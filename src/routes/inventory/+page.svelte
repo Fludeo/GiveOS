@@ -436,19 +436,19 @@
 		{/if}
 	{/snippet}
 
-	<!-- Barra de Pestañas Unificada (Inventario | Estructura de Recetas | Productos para Venta) -->
-	<div class="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-border bg-card p-2 shadow-2xs">
-		<div class="flex flex-wrap items-center gap-1.5">
+	<!-- Barra de Pestañas Unificada (Inventario | Recetas | Productos para Venta) -->
+	<div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-1.5 shadow-2xs">
+		<div class="flex flex-wrap items-center gap-1">
 			<button
 				type="button"
 				onclick={() => switchTab('stock')}
-				class="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all {currentTab ===
+				class="inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-all {currentTab ===
 				'stock'
 					? 'bg-primary text-primary-foreground shadow-xs'
 					: 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
 			>
 				<Package class="size-4" />
-				<span>1. Inventario y Existencias</span>
+				<span>Inventario</span>
 				<Badge
 					variant={currentTab === 'stock' ? 'secondary' : 'outline'}
 					class="ml-1 px-1.5 py-0 text-[11px]"
@@ -460,25 +460,25 @@
 			<button
 				type="button"
 				onclick={() => switchTab('recipes')}
-				class="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all {currentTab ===
+				class="inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-all {currentTab ===
 				'recipes'
 					? 'bg-primary text-primary-foreground shadow-xs'
 					: 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
 			>
 				<Layers class="size-4" />
-				<span>2. Estructura de Recetas</span>
+				<span>Recetas</span>
 			</button>
 
 			<button
 				type="button"
 				onclick={() => switchTab('products')}
-				class="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all {currentTab ===
+				class="inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-all {currentTab ===
 				'products'
 					? 'bg-primary text-primary-foreground shadow-xs'
 					: 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
 			>
 				<Tag class="size-4" />
-				<span>3. Productos para Venta</span>
+				<span>Productos para Venta</span>
 				<Badge
 					variant={currentTab === 'products' ? 'secondary' : 'outline'}
 					class="ml-1 px-1.5 py-0 text-[11px]"
@@ -488,13 +488,13 @@
 			</button>
 		</div>
 
-		<div class="px-3 text-xs text-muted-foreground hidden sm:block">
+		<div class="px-3 text-xs text-muted-foreground hidden lg:block">
 			{#if currentTab === 'stock'}
-				Al incrementar stock de un sub-ensamble o producto, se descuentan los ingredientes de su receta automáticamente.
+				Al incrementar stock de un sub-ensamble o producto, se descuentan sus ingredientes automáticamente.
 			{:else if currentTab === 'recipes'}
-				Define qué insumos y sub-ensambles componen cada receta o producto final.
+				Define qué insumos y sub-ensambles componen cada receta y su rendimiento.
 			{:else}
-				Estos son los productos comerciales y combos vinculados a tus Productos Finales para vender en Órdenes.
+				Productos y combos comerciales disponibles para el módulo de Órdenes.
 			{/if}
 		</div>
 	</div>
@@ -503,9 +503,9 @@
 	     VISTA 1: INVENTARIO Y EXISTENCIAS
 	     ======================================================================== -->
 	{#if currentTab === 'stock'}
-		<div class="grid grid-cols-1 gap-6 sm:grid-cols-3">
+		<div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
 			<Card>
-				<CardContent class="flex items-center justify-between p-6">
+				<CardContent class="flex items-center justify-between p-4 sm:p-5">
 					<div class="space-y-1">
 						<p class="text-xs font-medium uppercase tracking-wider text-muted-foreground">
 							Total en Catálogo Técnico
@@ -517,14 +517,14 @@
 							{data.items.filter((i) => i.type === 'finished_product').length} productos
 						</p>
 					</div>
-					<div class="flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
-						<Package class="size-6" />
+					<div class="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
+						<Package class="size-5" />
 					</div>
 				</CardContent>
 			</Card>
 
 			<Card>
-				<CardContent class="flex items-center justify-between p-6">
+				<CardContent class="flex items-center justify-between p-4 sm:p-5">
 					<div class="space-y-1">
 						<p class="text-xs font-medium uppercase tracking-wider text-muted-foreground">
 							Alertas de Stock Bajo
@@ -537,17 +537,17 @@
 						</p>
 					</div>
 					<div
-						class="flex size-12 items-center justify-center rounded-xl {lowStockCount > 0
+						class="flex size-11 items-center justify-center rounded-xl {lowStockCount > 0
 							? 'bg-destructive/10 text-destructive'
 							: 'bg-muted text-muted-foreground'}"
 					>
-						<AlertTriangle class="size-6" />
+						<AlertTriangle class="size-5" />
 					</div>
 				</CardContent>
 			</Card>
 
 			<Card>
-				<CardContent class="flex items-center justify-between p-6">
+				<CardContent class="flex items-center justify-between p-4 sm:p-5">
 					<div class="space-y-1">
 						<p class="text-xs font-medium uppercase tracking-wider text-muted-foreground">
 							Valor Valorizado en Stock
@@ -559,8 +559,8 @@
 							Calculado según costo unitario o Receta
 						</p>
 					</div>
-					<div class="flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
-						<Layers class="size-6" />
+					<div class="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
+						<Layers class="size-5" />
 					</div>
 				</CardContent>
 			</Card>
