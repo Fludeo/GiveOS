@@ -460,25 +460,18 @@
 	<title>Órdenes de Compra — {data.activeBusiness.name}</title>
 </svelte:head>
 
-<AppShell
-	user={data.user}
-	activeBusiness={data.activeBusiness}
-	businesses={data.businesses}
-	currentSection="orders"
-	title="Órdenes de Compra"
-	description="Gestión integral de órdenes con entrega inmediata en mostrador y órdenes programadas por encargo"
->
-	{#snippet headerActions()}
-		<Button variant="outline" href="/inventory?tab=products">
-			<Tag class="size-4" />
-			<span>Catálogo de Venta ({data.salesProducts.length})</span>
-		</Button>
-		<Button href="/orders/new" class="gap-1.5 font-bold shadow-sm">
-			<Plus class="size-4" />
-			<span>Nueva Orden de Compra</span>
-		</Button>
-	{/snippet}
+{#snippet headerActions()}
+	<Button variant="outline" href="/inventory?tab=products">
+		<Tag class="size-4" />
+		<span>Catálogo de Venta ({data.salesProducts.length})</span>
+	</Button>
+	<Button href="/orders/new" class="gap-1.5 font-bold shadow-sm">
+		<Plus class="size-4" />
+		<span>Nueva Orden de Compra</span>
+	</Button>
+{/snippet}
 
+{#snippet salesSummary()}
 	<!-- Tarjetas de Resumen de Ventas y Pedidos -->
 	<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
 		<Card class={pendingOrdersCount > 0 ? 'border-amber-500/40 bg-amber-500/5' : ''}>
@@ -557,7 +550,9 @@
 			</CardContent>
 		</Card>
 	</div>
+{/snippet}
 
+{#snippet orderFiltersAndList()}
 	<!-- Listado y Filtros de Órdenes -->
 	<Card>
 		<CardHeader class="space-y-4 p-6 sm:p-8 sm:pb-4">
@@ -953,7 +948,9 @@
 			{/if}
 		</CardContent>
 	</Card>
+{/snippet}
 
+{#snippet newOrderModal()}
 	<!-- ========================================================================
 	     MODAL 1: Asistente de Venta Rápida (Buscador, Atajos, Flujo por Ítem y Checkout)
 	     ======================================================================== -->
@@ -1918,7 +1915,9 @@
 			</div>
 		</div>
 	{/if}
+{/snippet}
 
+{#snippet viewOrderModal()}
 	<!-- ========================================================================
 	     MODAL 2: Detalle de Orden y Entrega Just-In-Time por Línea
 	     ======================================================================== -->
@@ -2076,7 +2075,9 @@
 			</div>
 		</div>
 	{/if}
+{/snippet}
 
+{#snippet payOrderModal()}
 	<!-- ========================================================================
 	     MODAL 3: Registrar Pago / Seña
 	     ======================================================================== -->
@@ -2173,7 +2174,9 @@
 			</div>
 		</div>
 	{/if}
+{/snippet}
 
+{#snippet cancelOrderModal()}
 	<!-- ========================================================================
 	     MODAL 4: Confirmar Cancelación de Orden
 	     ======================================================================== -->
@@ -2227,7 +2230,9 @@
 			</div>
 		</div>
 	{/if}
+{/snippet}
 
+{#snippet deliverOrderModal()}
 	<!-- ========================================================================
 	     MODAL 5: Confirmar Entrega de Orden
 	     ======================================================================== -->
@@ -2282,7 +2287,9 @@
 			</div>
 		</div>
 	{/if}
+{/snippet}
 
+{#snippet confirmOrderModal()}
 	<!-- ========================================================================
 	     MODAL 6: Confirmar Pedido (Caja / Encargado)
 	     ======================================================================== -->
@@ -2405,4 +2412,24 @@
 			</div>
 		</div>
 	{/if}
+{/snippet}
+
+<AppShell
+	user={data.user}
+	activeBusiness={data.activeBusiness}
+	businesses={data.businesses}
+	currentSection="orders"
+	title="Órdenes de Compra"
+	description="Gestión integral de órdenes con entrega inmediata en mostrador y órdenes programadas por encargo"
+	{headerActions}
+>
+	{@render salesSummary()}
+	{@render orderFiltersAndList()}
+
+	{@render newOrderModal()}
+	{@render viewOrderModal()}
+	{@render payOrderModal()}
+	{@render cancelOrderModal()}
+	{@render deliverOrderModal()}
+	{@render confirmOrderModal()}
 </AppShell>

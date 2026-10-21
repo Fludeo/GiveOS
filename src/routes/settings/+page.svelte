@@ -21,6 +21,7 @@
 	import Plus from '@lucide/svelte/icons/plus';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import Copy from '@lucide/svelte/icons/copy';
+	import ExternalLink from '@lucide/svelte/icons/external-link';
 	import { toast } from '#lib/components/ui/toast/toast.svelte';
 
 	let { data }: PageProps = $props();
@@ -256,5 +257,19 @@
 				</form>
 			</CardContent>
 		</Card>
+
+		<!-- Acceso al Sistema de Diseño UI -->
+		<div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-dashed border-border bg-card/60 p-5">
+			<div class="space-y-0.5">
+				<h4 class="text-sm font-bold text-foreground">Catálogo del Sistema de Diseño UI</h4>
+				<p class="text-xs text-muted-foreground">
+					Vista centralizada con todos los componentes disponibles, tokens de color, tablas y estados interactivos.
+				</p>
+			</div>
+			<Button variant="outline" size="sm" href="/ui-design" class="gap-1.5 shadow-2xs">
+				<span>Explorar /ui-design</span>
+				<ExternalLink class="size-3.5" />
+			</Button>
+		</div>
 	</div>
 </AppShell>

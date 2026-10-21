@@ -508,28 +508,21 @@
 	<title>Inventario, Recetas y Productos — {data.activeBusiness.name}</title>
 </svelte:head>
 
-<AppShell
-	user={data.user}
-	activeBusiness={data.activeBusiness}
-	businesses={data.businesses}
-	currentSection="inventory"
-	title="Inventario"
-	description="Stock de insumos, recetas y productos de venta"
->
-	{#snippet headerActions()}
-		{#if currentTab === 'products'}
-			<Button onclick={openNewSalesProductModal} class="gap-1.5 shadow-xs">
-				<Plus class="size-4" />
-				<span>Nuevo Producto</span>
-			</Button>
-		{:else}
-			<Button onclick={() => openNewItemModal()} class="gap-1.5 shadow-xs">
-				<Plus class="size-4" />
-				<span>Nuevo Ítem</span>
-			</Button>
-		{/if}
-	{/snippet}
+{#snippet headerActions()}
+	{#if currentTab === 'products'}
+		<Button onclick={openNewSalesProductModal} class="gap-1.5 shadow-xs">
+			<Plus class="size-4" />
+			<span>Nuevo Producto</span>
+		</Button>
+	{:else}
+		<Button onclick={() => openNewItemModal()} class="gap-1.5 shadow-xs">
+			<Plus class="size-4" />
+			<span>Nuevo Ítem</span>
+		</Button>
+	{/if}
+{/snippet}
 
+{#snippet tabsBar()}
 	<!-- Barra de Pestañas Unificada (Inventario | Recetas | Productos para Venta) -->
 	<div class="flex items-center gap-1 rounded-2xl border border-border bg-card p-1.5 shadow-2xs">
 		<button
@@ -580,12 +573,13 @@
 			</Badge>
 		</button>
 	</div>
+{/snippet}
 
+{#snippet stockView()}
 	<!-- ========================================================================
 	     VISTA 1: INVENTARIO Y EXISTENCIAS
 	     ======================================================================== -->
-	{#if currentTab === 'stock'}
-		<div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+	<div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
 			<Card>
 				<CardContent class="flex items-center justify-between p-4 sm:p-5">
 					<div class="space-y-1">
@@ -1223,13 +1217,13 @@
 				{/if}
 			</CardContent>
 		</Card>
-	{/if}
+{/snippet}
 
+{#snippet recipesView()}
 	<!-- ========================================================================
 	     VISTA 2: ESTRUCTURA DE RECETAS (2 COLUMNAS: CATÁLOGO IZQ + RECETA DER)
 	     ======================================================================== -->
-	{#if currentTab === 'recipes'}
-		<div class="grid grid-cols-1 gap-5 lg:grid-cols-12 items-start">
+	<div class="grid grid-cols-1 gap-5 lg:grid-cols-12 items-start">
 			<!-- COLUMNA IZQUIERDA: CATÁLOGO DE ELABORACIONES (lg:col-span-3 para maximizar espacio de tabla) -->
 			<div class="space-y-4 lg:col-span-3">
 				<Card class="border-border shadow-xs">
@@ -1673,13 +1667,13 @@
 				{/if}
 			</div>
 		</div>
-	{/if}
+{/snippet}
 
+{#snippet productsView()}
 	<!-- ========================================================================
 	     VISTA 3: PRODUCTOS PARA VENTA (CATÁLOGO COMERCIAL PARA ÓRDENES)
 	     ======================================================================== -->
-	{#if currentTab === 'products'}
-		<Card>
+	<Card>
 			<CardHeader class="space-y-4 p-6 sm:p-8 sm:pb-4">
 				<div class="flex flex-wrap items-center justify-between gap-4">
 					<div class="space-y-1">
@@ -2028,8 +2022,9 @@
 				{/if}
 			</CardContent>
 		</Card>
-	{/if}
+{/snippet}
 
+{#snippet newItemModal()}
 	<!-- ========================================================================
 	     MODAL ONBOARDING: Alta de Nuevo Ítem en Inventario / Recetas (Paso a Paso)
 	     ======================================================================== -->
@@ -2362,7 +2357,9 @@
 			</div>
 		</div>
 	{/if}
+{/snippet}
 
+{#snippet addRecipeLineModal()}
 	<!-- ========================================================================
 	     MODAL RECETAS: Agregar Ingrediente / Sub-ensamble a la Receta
 	     ======================================================================== -->
@@ -2488,7 +2485,9 @@
 			</div>
 		</div>
 	{/if}
+{/snippet}
 
+{#snippet editRecipeItemModal()}
 	<!-- ========================================================================
 	     MODAL RECETAS: Editar Ficha Técnica del Ítem Seleccionado
 	     ======================================================================== -->
@@ -2666,7 +2665,9 @@
 			</div>
 		</div>
 	{/if}
+{/snippet}
 
+{#snippet newSalesProductModal()}
 	<!-- ========================================================================
 	     MODAL ONBOARDING: Alta de Producto de Venta (Paso a Paso)
 	     ======================================================================== -->
@@ -2972,7 +2973,9 @@
 			</div>
 		</div>
 	{/if}
+{/snippet}
 
+{#snippet editSalesProductModal()}
 	<!-- ========================================================================
 	     MODAL PRODUCTOS PARA VENTA: Editar Producto Comercial / Combo
 	     ======================================================================== -->
@@ -3191,7 +3194,9 @@
 			</div>
 		</div>
 	{/if}
+{/snippet}
 
+{#snippet deleteSalesProductModal()}
 	<!-- ========================================================================
 	     MODAL PRODUCTOS PARA VENTA: Confirmar Eliminación
 	     ======================================================================== -->
@@ -3246,7 +3251,9 @@
 			</div>
 		</div>
 	{/if}
+{/snippet}
 
+{#snippet viewRecipeModal()}
 	<!-- ========================================================================
 	     MODAL INVENTARIO: Ver Receta Rápida
 	     ======================================================================== -->
@@ -3365,7 +3372,9 @@
 			</div>
 		</div>
 	{/if}
+{/snippet}
 
+{#snippet deleteItemModal()}
 	<!-- ========================================================================
 	     MODAL INVENTARIO / RECETAS: Confirmación de Eliminación de Ítem
 	     ======================================================================== -->
@@ -3428,4 +3437,33 @@
 			</div>
 		</div>
 	{/if}
+{/snippet}
+
+<AppShell
+	user={data.user}
+	activeBusiness={data.activeBusiness}
+	businesses={data.businesses}
+	currentSection="inventory"
+	title="Inventario"
+	description="Stock de insumos, recetas y productos de venta"
+	{headerActions}
+>
+	{@render tabsBar()}
+
+	{#if currentTab === 'stock'}
+		{@render stockView()}
+	{:else if currentTab === 'recipes'}
+		{@render recipesView()}
+	{:else if currentTab === 'products'}
+		{@render productsView()}
+	{/if}
+
+	{@render newItemModal()}
+	{@render addRecipeLineModal()}
+	{@render editRecipeItemModal()}
+	{@render newSalesProductModal()}
+	{@render editSalesProductModal()}
+	{@render deleteSalesProductModal()}
+	{@render viewRecipeModal()}
+	{@render deleteItemModal()}
 </AppShell>

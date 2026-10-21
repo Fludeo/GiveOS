@@ -305,30 +305,22 @@
 	<title>Dashboard — {data.activeBusiness.name}</title>
 </svelte:head>
 
-<AppShell
-	user={data.user}
-	businesses={data.businesses}
-	activeBusiness={data.activeBusiness}
-	currentSection="dashboard"
-	title="Dashboard de Productos, Pedidos e Insumos"
-	description="Supervisa productos de venta con sus ítems asociados, analiza la cobertura de insumos requeridos por pedidos y gestiona el stock en tiempo real"
->
-	{#snippet headerActions()}
-		<Button variant="outline" href="/inventory" class="gap-1.5 cursor-pointer">
-			<Boxes class="size-4" />
-			<span>Inventario y Recetas</span>
-		</Button>
-		<Button variant="outline" onclick={() => (showNewItemModal = true)} class="gap-1.5 cursor-pointer">
-			<Plus class="size-4" />
-			<span>Nuevo Ítem</span>
-		</Button>
-		<Button href="/orders/new" class="gap-1.5 cursor-pointer shadow-sm">
-			<ShoppingCart class="size-4" />
-			<span>Nueva Orden</span>
-		</Button>
-	{/snippet}
+{#snippet headerActions()}
+	<Button variant="outline" href="/inventory" class="gap-1.5 cursor-pointer">
+		<Boxes class="size-4" />
+		<span>Inventario y Recetas</span>
+	</Button>
+	<Button variant="outline" onclick={() => (showNewItemModal = true)} class="gap-1.5 cursor-pointer">
+		<Plus class="size-4" />
+		<span>Nuevo Ítem</span>
+	</Button>
+	<Button href="/orders/new" class="gap-1.5 cursor-pointer shadow-sm">
+		<ShoppingCart class="size-4" />
+		<span>Nueva Orden</span>
+	</Button>
+{/snippet}
 
-	<div class="space-y-6">
+	{#snippet kpiSummary()}
 		<!-- KPI Summary Row -->
 		<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
 			<!-- KPI 1: Productos en Catálogo -->
@@ -408,12 +400,11 @@
 				</Card.Content>
 			</Card.Root>
 		</div>
+	{/snippet}
 
-		<!-- Layout Principal: 2 Columnas (Catálogo interactivo + Panel Gráfico de Barras shadcn) -->
-		<div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-			
-			<!-- COLUMNA IZQUIERDA: Catálogo de Productos e Ítems Asociados (5 Cols) -->
-			<div class="lg:col-span-5 space-y-4">
+	{#snippet catalogColumn()}
+		<!-- COLUMNA IZQUIERDA: Catálogo de Productos e Ítems Asociados (5 Cols) -->
+		<div class="lg:col-span-5 space-y-4">
 				<Card.Root class="border-border bg-card shadow-xs">
 					<Card.Header class="p-4 border-b border-border space-y-3">
 						<div class="flex items-center justify-between">
@@ -585,7 +576,9 @@
 					</Card.Content>
 				</Card.Root>
 			</div>
+		{/snippet}
 
+		{#snippet detailAndChartColumn()}
 			<!-- COLUMNA DERECHA: Detalle del Producto, Stock Asociado y Gráfico de Barras shadcn (7 Cols) -->
 			<div class="lg:col-span-7 space-y-6">
 				{#if selectedSalesProduct && selectedProductAnalysis}
@@ -955,10 +948,9 @@
 					</div>
 				{/if}
 			</div>
+		{/snippet}
 
-		</div>
-	</div>
-
+		{#snippet newItemModal()}
 	<!-- Modal de Alta Rápida de Nuevo Ítem -->
 	{#if showNewItemModal}
 		<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
@@ -1114,7 +1106,9 @@
 			</div>
 		</div>
 	{/if}
+	{/snippet}
 
+	{#snippet restockModal()}
 	<!-- Modal de Ajuste Rápido de Stock -->
 	{#if restockModalItem}
 		<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
@@ -1191,4 +1185,26 @@
 			</div>
 		</div>
 	{/if}
+{/snippet}
+
+<AppShell
+	user={data.user}
+	businesses={data.businesses}
+	activeBusiness={data.activeBusiness}
+	currentSection="dashboard"
+	title="Dashboard de Productos, Pedidos e Insumos"
+	description="Supervisa productos de venta con sus ítems asociados, analiza la cobertura de insumos requeridos por pedidos y gestiona el stock en tiempo real"
+	{headerActions}
+>
+	<div class="space-y-6">
+		{@render kpiSummary()}
+
+		<div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+			{@render catalogColumn()}
+			{@render detailAndChartColumn()}
+		</div>
+	</div>
+
+	{@render newItemModal()}
+	{@render restockModal()}
 </AppShell>
