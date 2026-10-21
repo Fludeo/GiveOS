@@ -20,6 +20,17 @@ export async function runMigrations() {
 			const migrationClient = postgres(dbUrl, { max: 1 });
 			const db = drizzlePostgres(migrationClient);
 
+			// Direct DDL safeguard to ensure critical schema patches are applied immediately
+			try {
+				await migrationClient.unsafe(`
+					ALTER TABLE IF EXISTS "items" ADD COLUMN IF NOT EXISTS "prep_time_minutes" integer DEFAULT 0 NOT NULL;
+					UPDATE "items" SET "type" = 'prepared' WHERE "type" IN ('sub_assembly', 'finished_product');
+				`);
+				console.log('[db:migrate] Applied direct DDL safeguards.');
+			} catch (ddlErr) {
+				console.warn('[db:migrate] Direct DDL safeguard notice:', ddlErr);
+			}
+
 			console.log('[db:migrate] Running Drizzle migrations...');
 			await migratePostgres(db, { migrationsFolder: './drizzle' });
 			console.log('[db:migrate] Migrations completed successfully.');
