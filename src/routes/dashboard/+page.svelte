@@ -325,16 +325,20 @@
 		<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
 			<!-- KPI 1: Productos en Catálogo -->
 			<Card.Root class="border-border bg-card shadow-xs">
-				<Card.Header class="p-4 pb-2">
-					<Card.Description class="flex items-center justify-between text-xs font-medium">
-						<span>Productos Comerciales</span>
-						<CakeSlice class="size-4 text-primary" />
+				<Card.Header class="p-4 sm:p-5 pb-2 space-y-1.5">
+					<Card.Description class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+						Productos Comerciales
 					</Card.Description>
-					<Card.Title class="text-2xl font-bold font-mono tracking-tight">
-						{data.salesProducts.length}
-					</Card.Title>
+					<div class="flex items-center gap-3 pt-0.5">
+						<div class="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+							<CakeSlice class="size-6" />
+						</div>
+						<Card.Title class="text-2xl sm:text-3xl font-bold font-mono tracking-tight text-foreground">
+							{data.salesProducts.length}
+						</Card.Title>
+					</div>
 				</Card.Header>
-				<Card.Content class="p-4 pt-0">
+				<Card.Content class="p-4 sm:p-5 pt-0">
 					<p class="text-xs text-muted-foreground">
 						{data.salesProducts.filter((p) => p.isCombo).length} combos • {data.salesProducts.filter((p) => !p.isCombo).length} simples
 					</p>
@@ -342,17 +346,21 @@
 			</Card.Root>
 
 			<!-- KPI 2: Pedidos Pendientes -->
-			<Card.Root class="border-border bg-card shadow-xs">
-				<Card.Header class="p-4 pb-2">
-					<Card.Description class="flex items-center justify-between text-xs font-medium">
-						<span>Pedidos Pendientes</span>
-						<Clock class="size-4 text-amber-500" />
+			<Card.Root class={totalPendingOrders > 0 ? 'border-amber-500/30 bg-amber-500/5 shadow-xs' : 'border-border bg-card shadow-xs'}>
+				<Card.Header class="p-4 sm:p-5 pb-2 space-y-1.5">
+					<Card.Description class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+						Pedidos Pendientes
 					</Card.Description>
-					<Card.Title class="text-2xl font-bold font-mono tracking-tight text-amber-600">
-						{totalPendingOrders}
-					</Card.Title>
+					<div class="flex items-center gap-3 pt-0.5">
+						<div class="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-amber-500/15 text-amber-600">
+							<Clock class="size-6" />
+						</div>
+						<Card.Title class="text-2xl sm:text-3xl font-bold font-mono tracking-tight text-amber-600">
+							{totalPendingOrders}
+						</Card.Title>
+					</div>
 				</Card.Header>
-				<Card.Content class="p-4 pt-0">
+				<Card.Content class="p-4 sm:p-5 pt-0">
 					<p class="text-xs text-muted-foreground font-mono">
 						{totalPendingUnits} unidades por entregar
 						{#if totalUnconfirmedOrders > 0}
@@ -366,16 +374,20 @@
 
 			<!-- KPI 3: Stock Productos Terminados -->
 			<Card.Root class="border-border bg-card shadow-xs">
-				<Card.Header class="p-4 pb-2">
-					<Card.Description class="flex items-center justify-between text-xs font-medium">
-						<span>Stock Elaborado (Mostrador)</span>
-						<Package class="size-4 text-emerald-600" />
+				<Card.Header class="p-4 sm:p-5 pb-2 space-y-1.5">
+					<Card.Description class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+						Stock Elaborado (Mostrador)
 					</Card.Description>
-					<Card.Title class="text-2xl font-bold font-mono tracking-tight text-emerald-600">
-						{formatQty(totalFinishedStock)} u
-					</Card.Title>
+					<div class="flex items-center gap-3 pt-0.5">
+						<div class="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600">
+							<Package class="size-6" />
+						</div>
+						<Card.Title class="text-2xl sm:text-3xl font-bold font-mono tracking-tight text-emerald-600">
+							{formatQty(totalFinishedStock)} u
+						</Card.Title>
+					</div>
 				</Card.Header>
-				<Card.Content class="p-4 pt-0">
+				<Card.Content class="p-4 sm:p-5 pt-0">
 					<p class="text-xs text-muted-foreground">
 						Listo para despacho inmediato
 					</p>
@@ -383,17 +395,21 @@
 			</Card.Root>
 
 			<!-- KPI 4: Insumos en Alerta -->
-			<Card.Root class={lowStockCount > 0 ? 'border-red-500/30 bg-red-500/5' : 'border-border bg-card'}>
-				<Card.Header class="p-4 pb-2">
-					<Card.Description class="flex items-center justify-between text-xs font-medium">
-						<span>Insumos Bajo Mínimo</span>
-						<AlertTriangle class="size-4 {lowStockCount > 0 ? 'text-red-500' : 'text-muted-foreground'}" />
+			<Card.Root class={lowStockCount > 0 ? 'border-red-500/30 bg-red-500/5 shadow-xs' : 'border-border bg-card shadow-xs'}>
+				<Card.Header class="p-4 sm:p-5 pb-2 space-y-1.5">
+					<Card.Description class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+						Insumos Bajo Mínimo
 					</Card.Description>
-					<Card.Title class="text-2xl font-bold font-mono tracking-tight {lowStockCount > 0 ? 'text-red-600' : 'text-foreground'}">
-						{lowStockCount}
-					</Card.Title>
+					<div class="flex items-center gap-3 pt-0.5">
+						<div class="flex size-11 shrink-0 items-center justify-center rounded-2xl {lowStockCount > 0 ? 'bg-red-500/15 text-red-600' : 'bg-muted text-muted-foreground'}">
+							<AlertTriangle class="size-6" />
+						</div>
+						<Card.Title class="text-2xl sm:text-3xl font-bold font-mono tracking-tight {lowStockCount > 0 ? 'text-red-600' : 'text-foreground'}">
+							{lowStockCount}
+						</Card.Title>
+					</div>
 				</Card.Header>
-				<Card.Content class="p-4 pt-0">
+				<Card.Content class="p-4 sm:p-5 pt-0">
 					<p class="text-xs text-muted-foreground">
 						{lowStockCount > 0 ? 'Requieren reposición de compra' : 'Inventario equilibrado'}
 					</p>

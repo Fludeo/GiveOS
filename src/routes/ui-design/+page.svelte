@@ -322,82 +322,190 @@
 		<section id="cards" class="space-y-6 scroll-mt-24">
 			<div class="border-b border-border pb-2">
 				<h2 class="text-lg font-bold text-foreground">4. Tarjetas y Módulos KPI (Card)</h2>
-				<p class="text-xs text-muted-foreground">Estructuras modulares con <code class="rounded bg-muted px-1.5 py-0.5">Card.Root</code>, <code class="rounded bg-muted px-1.5 py-0.5">Card.Header</code> y <code class="rounded bg-muted px-1.5 py-0.5">Card.Content</code>.</p>
+				<p class="text-xs text-muted-foreground">Estructuras modulares con <code class="rounded bg-muted px-1.5 py-0.5">Card.Root</code>, <code class="rounded bg-muted px-1.5 py-0.5">Card.Header</code> y <code class="rounded bg-muted px-1.5 py-0.5">Card.Content</code>. Rework con íconos ampliados alineados horizontalmente al valor numérico.</p>
 			</div>
 
-			<!-- KPIs en Grid -->
-			<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-				<!-- KPI Normal -->
-				<Card.Root class="border-border bg-card shadow-xs">
-					<Card.Header class="p-4 pb-2">
-						<Card.Description class="flex items-center justify-between text-xs font-medium">
-							<span>Productos Comerciales</span>
-							<CakeSlice class="size-4 text-primary" />
-						</Card.Description>
-						<Card.Title class="text-2xl font-bold font-mono tracking-tight text-foreground">
-							28
-						</Card.Title>
-					</Card.Header>
-					<Card.Content class="p-4 pt-0">
-						<p class="text-xs text-muted-foreground">
-							4 combos • 24 productos simples
-						</p>
-					</Card.Content>
-				</Card.Root>
+			<!-- KPIs en Grid (Rework con Ícono Alineado al Número) -->
+			<div class="space-y-3">
+				<div class="flex items-center justify-between">
+					<h3 class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+						Estilo Principal (Con Contenedor de Color Suave)
+					</h3>
+					<Badge variant="outline" class="text-[10px] text-primary border-primary/30">Recomendado</Badge>
+				</div>
+				<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+					<!-- KPI Normal -->
+					<Card.Root class="border-border bg-card shadow-xs">
+						<Card.Header class="p-4 sm:p-5 pb-2 space-y-1.5">
+							<Card.Description class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+								Productos Comerciales
+							</Card.Description>
+							<div class="flex items-center gap-3 pt-0.5">
+								<div class="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+									<CakeSlice class="size-6" />
+								</div>
+								<Card.Title class="text-2xl sm:text-3xl font-bold font-mono tracking-tight text-foreground">
+									28
+								</Card.Title>
+							</div>
+						</Card.Header>
+						<Card.Content class="p-4 sm:p-5 pt-0">
+							<p class="text-xs text-muted-foreground">
+								4 combos • 24 productos simples
+							</p>
+						</Card.Content>
+					</Card.Root>
 
-				<!-- KPI Alerta / Warning -->
-				<Card.Root class="border-amber-500/30 bg-amber-500/5 shadow-xs">
-					<Card.Header class="p-4 pb-2">
-						<Card.Description class="flex items-center justify-between text-xs font-medium">
-							<span>Pedidos Pendientes</span>
-							<Clock class="size-4 text-amber-500" />
-						</Card.Description>
-						<Card.Title class="text-2xl font-bold font-mono tracking-tight text-amber-600">
-							12
-						</Card.Title>
-					</Card.Header>
-					<Card.Content class="p-4 pt-0">
-						<p class="text-xs text-muted-foreground">
-							18 unidades por entregar
-						</p>
-					</Card.Content>
-				</Card.Root>
+					<!-- KPI Alerta / Warning -->
+					<Card.Root class="border-amber-500/30 bg-amber-500/5 shadow-xs">
+						<Card.Header class="p-4 sm:p-5 pb-2 space-y-1.5">
+							<Card.Description class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+								Pedidos Pendientes
+							</Card.Description>
+							<div class="flex items-center gap-3 pt-0.5">
+								<div class="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-amber-500/15 text-amber-600">
+									<Clock class="size-6" />
+								</div>
+								<Card.Title class="text-2xl sm:text-3xl font-bold font-mono tracking-tight text-amber-600">
+									12
+								</Card.Title>
+							</div>
+						</Card.Header>
+						<Card.Content class="p-4 sm:p-5 pt-0">
+							<p class="text-xs text-muted-foreground font-mono">
+								18 unidades por entregar
+							</p>
+						</Card.Content>
+					</Card.Root>
 
-				<!-- KPI Éxito -->
-				<Card.Root class="border-border bg-card shadow-xs">
-					<Card.Header class="p-4 pb-2">
-						<Card.Description class="flex items-center justify-between text-xs font-medium">
-							<span>Stock en Mostrador</span>
-							<Package class="size-4 text-emerald-600" />
-						</Card.Description>
-						<Card.Title class="text-2xl font-bold font-mono tracking-tight text-emerald-600">
-							45 u
-						</Card.Title>
-					</Card.Header>
-					<Card.Content class="p-4 pt-0">
-						<p class="text-xs text-muted-foreground">
-							Listo para despacho inmediato
-						</p>
-					</Card.Content>
-				</Card.Root>
+					<!-- KPI Éxito -->
+					<Card.Root class="border-border bg-card shadow-xs">
+						<Card.Header class="p-4 sm:p-5 pb-2 space-y-1.5">
+							<Card.Description class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+								Stock en Mostrador
+							</Card.Description>
+							<div class="flex items-center gap-3 pt-0.5">
+								<div class="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600">
+									<Package class="size-6" />
+								</div>
+								<Card.Title class="text-2xl sm:text-3xl font-bold font-mono tracking-tight text-emerald-600">
+									45 u
+								</Card.Title>
+							</div>
+						</Card.Header>
+						<Card.Content class="p-4 sm:p-5 pt-0">
+							<p class="text-xs text-muted-foreground">
+								Listo para despacho inmediato
+							</p>
+						</Card.Content>
+					</Card.Root>
 
-				<!-- KPI Crítico / Error -->
-				<Card.Root class="border-red-500/30 bg-red-500/5 shadow-xs">
-					<Card.Header class="p-4 pb-2">
-						<Card.Description class="flex items-center justify-between text-xs font-medium">
-							<span>Insumos Bajo Mínimo</span>
-							<AlertTriangle class="size-4 text-red-500" />
-						</Card.Description>
-						<Card.Title class="text-2xl font-bold font-mono tracking-tight text-red-600">
-							3
-						</Card.Title>
-					</Card.Header>
-					<Card.Content class="p-4 pt-0">
-						<p class="text-xs text-muted-foreground">
-							Requieren reposición de compra
-						</p>
-					</Card.Content>
-				</Card.Root>
+					<!-- KPI Crítico / Error -->
+					<Card.Root class="border-red-500/30 bg-red-500/5 shadow-xs">
+						<Card.Header class="p-4 sm:p-5 pb-2 space-y-1.5">
+							<Card.Description class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+								Insumos Bajo Mínimo
+							</Card.Description>
+							<div class="flex items-center gap-3 pt-0.5">
+								<div class="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-red-500/15 text-red-600">
+									<AlertTriangle class="size-6" />
+								</div>
+								<Card.Title class="text-2xl sm:text-3xl font-bold font-mono tracking-tight text-red-600">
+									3
+								</Card.Title>
+							</div>
+						</Card.Header>
+						<Card.Content class="p-4 sm:p-5 pt-0">
+							<p class="text-xs text-muted-foreground">
+								Requieren reposición de compra
+							</p>
+						</Card.Content>
+					</Card.Root>
+				</div>
+			</div>
+
+			<!-- Variante Alternativa: Con Ícono Directo Grande (Sin contenedor de fondo) -->
+			<div class="space-y-3 pt-2">
+				<h3 class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+					Variante B (Ícono Directo Grande sin Contenedor)
+				</h3>
+				<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+					<Card.Root class="border-border bg-card shadow-xs">
+						<Card.Header class="p-4 sm:p-5 pb-2 space-y-1.5">
+							<Card.Description class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+								Productos Comerciales
+							</Card.Description>
+							<div class="flex items-center gap-3 pt-0.5">
+								<CakeSlice class="size-7 text-primary shrink-0" />
+								<Card.Title class="text-2xl sm:text-3xl font-bold font-mono tracking-tight text-foreground">
+									28
+								</Card.Title>
+							</div>
+						</Card.Header>
+						<Card.Content class="p-4 sm:p-5 pt-0">
+							<p class="text-xs text-muted-foreground">
+								4 combos • 24 productos simples
+							</p>
+						</Card.Content>
+					</Card.Root>
+
+					<Card.Root class="border-amber-500/30 bg-amber-500/5 shadow-xs">
+						<Card.Header class="p-4 sm:p-5 pb-2 space-y-1.5">
+							<Card.Description class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+								Pedidos Pendientes
+							</Card.Description>
+							<div class="flex items-center gap-3 pt-0.5">
+								<Clock class="size-7 text-amber-500 shrink-0" />
+								<Card.Title class="text-2xl sm:text-3xl font-bold font-mono tracking-tight text-amber-600">
+									12
+								</Card.Title>
+							</div>
+						</Card.Header>
+						<Card.Content class="p-4 sm:p-5 pt-0">
+							<p class="text-xs text-muted-foreground font-mono">
+								18 unidades por entregar
+							</p>
+						</Card.Content>
+					</Card.Root>
+
+					<Card.Root class="border-border bg-card shadow-xs">
+						<Card.Header class="p-4 sm:p-5 pb-2 space-y-1.5">
+							<Card.Description class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+								Stock en Mostrador
+							</Card.Description>
+							<div class="flex items-center gap-3 pt-0.5">
+								<Package class="size-7 text-emerald-600 shrink-0" />
+								<Card.Title class="text-2xl sm:text-3xl font-bold font-mono tracking-tight text-emerald-600">
+									45 u
+								</Card.Title>
+							</div>
+						</Card.Header>
+						<Card.Content class="p-4 sm:p-5 pt-0">
+							<p class="text-xs text-muted-foreground">
+								Listo para despacho inmediato
+							</p>
+						</Card.Content>
+					</Card.Root>
+
+					<Card.Root class="border-red-500/30 bg-red-500/5 shadow-xs">
+						<Card.Header class="p-4 sm:p-5 pb-2 space-y-1.5">
+							<Card.Description class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+								Insumos Bajo Mínimo
+							</Card.Description>
+							<div class="flex items-center gap-3 pt-0.5">
+								<AlertTriangle class="size-7 text-red-500 shrink-0" />
+								<Card.Title class="text-2xl sm:text-3xl font-bold font-mono tracking-tight text-red-600">
+									3
+								</Card.Title>
+							</div>
+						</Card.Header>
+						<Card.Content class="p-4 sm:p-5 pt-0">
+							<p class="text-xs text-muted-foreground">
+								Requieren reposición de compra
+							</p>
+						</Card.Content>
+					</Card.Root>
+				</div>
 			</div>
 
 			<!-- Tarjeta Interactiva y Tarjeta Empty State -->
