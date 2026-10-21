@@ -638,7 +638,7 @@ export class OrderService {
 					comp.baseUnit
 				);
 
-				if (comp.type === 'prepared' || (comp.type as string) === 'sub_assembly') {
+				if (comp.type === 'prepared') {
 					subAssemblyRequiredMap.set(
 						comp.id,
 						(subAssemblyRequiredMap.get(comp.id) ?? 0) + reqInBase

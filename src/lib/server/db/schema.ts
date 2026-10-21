@@ -150,6 +150,8 @@ export const items = pgTable(
 		purchaseQuantity: doublePrecision('purchase_quantity').notNull().default(1),
 		/** Rendimiento base cuando este ítem se produce mediante una Receta (ej. 1 torta o 1000 g de crema) */
 		yieldQuantity: doublePrecision('yield_quantity').notNull().default(1),
+		/** Tiempo estimado de elaboración en minutos */
+		prepTimeMinutes: integer('prep_time_minutes').notNull().default(0),
 		/** Stock actual en unidad base */
 		currentStock: doublePrecision('current_stock').notNull().default(0),
 		/** Stock mínimo de alerta en unidad base */

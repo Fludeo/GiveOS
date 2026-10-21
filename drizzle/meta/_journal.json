@@ -15,6 +15,13 @@
       "when": 1792558600000,
       "tag": "0001_unify_item_types",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792560000000,
+      "tag": "0002_add_prep_time_minutes",
+      "breakpoints": true
     }
   ]
 }

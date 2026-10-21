@@ -1,11 +1,5 @@
 export const ITEM_TYPES = ['raw_material', 'prepared'] as const;
 export type ItemType = (typeof ITEM_TYPES)[number];
-export type LegacyItemType = ItemType | 'sub_assembly' | 'finished_product';
-
-export function normalizeItemType(type: string): ItemType {
-	if (type === 'sub_assembly' || type === 'finished_product') return 'prepared';
-	return type === 'prepared' ? 'prepared' : 'raw_material';
-}
 
 export const UNITS_OF_MEASURE = ['g', 'kg', 'ml', 'l', 'unit'] as const;
 export type UnitOfMeasure = (typeof UNITS_OF_MEASURE)[number];
@@ -55,6 +49,7 @@ export interface Item {
 	referenceCost: number;
 	purchaseQuantity: number;
 	yieldQuantity: number;
+	prepTimeMinutes: number;
 	currentStock: number;
 	minStock: number;
 	notes: string | null;
@@ -63,7 +58,7 @@ export interface Item {
 
 export interface CreateItemInput {
 	businessId: string;
-	/** Si no se provee, se autogenera secuencialmente según el tipo (MP-001, SUB-001, PRD-001) */
+	/** Si no se provee, se autogenera secuencialmente según el tipo (INS-001, ELB-001) */
 	code?: string;
 	name: string;
 	type: ItemType;
@@ -71,6 +66,7 @@ export interface CreateItemInput {
 	referenceCost: number;
 	purchaseQuantity: number;
 	yieldQuantity?: number;
+	prepTimeMinutes?: number;
 	currentStock?: number;
 	minStock?: number;
 	notes?: string | null;
@@ -84,6 +80,7 @@ export interface UpdateItemInput {
 	referenceCost?: number;
 	purchaseQuantity?: number;
 	yieldQuantity?: number;
+	prepTimeMinutes?: number;
 	currentStock?: number;
 	minStock?: number;
 	notes?: string | null;

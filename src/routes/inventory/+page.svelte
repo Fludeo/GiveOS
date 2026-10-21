@@ -46,6 +46,7 @@
 	import BookOpen from '@lucide/svelte/icons/book-open';
 	import Wheat from '@lucide/svelte/icons/wheat';
 	import CakeSlice from '@lucide/svelte/icons/cake-slice';
+	import Clock from '@lucide/svelte/icons/clock';
 	import Calculator from '@lucide/svelte/icons/calculator';
 	import Settings2 from '@lucide/svelte/icons/settings-2';
 	import Tag from '@lucide/svelte/icons/tag';
@@ -112,6 +113,7 @@
 	let newItemMinStock = $state(0);
 	let newItemRefCost = $state(0);
 	let newItemPurchaseQty = $state(1);
+	let newItemPrepTime = $state(0);
 	let newItemNotes = $state('');
 
 	function openNewItemModal(type: ItemType = 'raw_material') {
@@ -123,6 +125,7 @@
 		newItemMinStock = 0;
 		newItemRefCost = 0;
 		newItemPurchaseQty = 1;
+		newItemPrepTime = 0;
 		newItemNotes = '';
 		showNewItemModal = true;
 	}
@@ -1301,15 +1304,23 @@
 									</div>
 
 									<div class="mt-3.5 flex items-center justify-between border-t border-border/50 pt-2.5 text-xs text-muted-foreground">
-										<span>Unidad base: <strong class="text-foreground">{item.baseUnit}</strong></span>
-										{#if (summary?.directComponentsCount ?? 0) > 0}
-											<span class="inline-flex items-center gap-1.5 font-medium text-primary">
-												<Layers class="size-3.5" />
-												{summary.directComponentsCount} ingr. directos
-											</span>
-										{:else}
-											<span>Insumo directo</span>
-										{/if}
+										<span>Rinde: <strong class="text-foreground">{item.yieldQuantity} {item.baseUnit}</strong></span>
+										<div class="flex items-center gap-2">
+											{#if item.prepTimeMinutes > 0}
+												<span class="inline-flex items-center gap-1 font-medium text-purple-600 dark:text-purple-400">
+													<Clock class="size-3" />
+													{item.prepTimeMinutes} min
+												</span>
+											{/if}
+											{#if (summary?.directComponentsCount ?? 0) > 0}
+												<span class="inline-flex items-center gap-1 font-medium text-primary">
+													<Layers class="size-3" />
+													{summary.directComponentsCount} ingr.
+												</span>
+											{:else}
+												<span>Directo</span>
+											{/if}
+										</div>
 									</div>
 								</a>
 							{:else}
@@ -1362,34 +1373,18 @@
 
 								<div class="flex flex-wrap items-center gap-3">
 									{#if selectedRoot.type !== 'raw_material'}
-										<form
-											method="POST"
-											action="?/updateRecipeYield"
-											use:enhance
-											class="flex flex-col justify-center rounded-xl border border-border bg-muted/20 px-3.5 py-2 shadow-2xs"
-										>
-											<input type="hidden" name="businessId" value={data.activeBusiness.id} />
-											<input type="hidden" name="id" value={selectedRoot.id} />
-											<Label for="quick-recipe-yield" class="text-[11px] font-medium text-muted-foreground">
-												Rendimiento de la Receta
-											</Label>
-											<div class="mt-1 flex items-center gap-1.5">
-												<Input
-													id="quick-recipe-yield"
-													name="yieldQuantity"
-													type="number"
-													step="any"
-													min="0.001"
-													value={selectedRoot.yieldQuantity}
-													class="h-8 w-24 text-right font-mono text-sm font-semibold"
-													required
-												/>
-												<span class="text-xs font-semibold text-foreground">{selectedRoot.baseUnit}</span>
-												<Button type="submit" size="sm" variant="secondary" class="h-8 px-2.5 text-xs">
-													Guardar
-												</Button>
-											</div>
-										</form>
+										<div class="flex flex-col justify-center rounded-xl border border-border bg-muted/20 px-3.5 py-2 shadow-2xs">
+											<span class="text-[11px] font-medium text-muted-foreground">Rendimiento</span>
+											<span class="font-mono text-sm font-bold text-foreground">
+												{selectedRoot.yieldQuantity} {selectedRoot.baseUnit}
+											</span>
+											{#if selectedRoot.prepTimeMinutes > 0}
+												<span class="text-[11px] text-purple-600 dark:text-purple-400 font-medium flex items-center gap-1 mt-0.5">
+													<Clock class="size-3" />
+													{selectedRoot.prepTimeMinutes} min
+												</span>
+											{/if}
+										</div>
 									{/if}
 
 									<div class="space-y-1 rounded-xl border border-border bg-muted/30 px-5 py-3.5 text-right">
@@ -1516,6 +1511,96 @@
 											<span>Agregar Ingrediente</span>
 										</Button>
 									{/if}
+								</div>
+							{/if}
+
+							{#if selectedRoot.type !== 'raw_material'}
+								<!-- PARÁMETROS DE PRODUCCIÓN DE LA RECETA -->
+								<div class="rounded-2xl border border-border bg-muted/20 p-5 sm:p-6 shadow-2xs space-y-4">
+									<div class="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3">
+										<div class="space-y-0.5">
+											<h4 class="text-sm font-bold text-foreground flex items-center gap-2">
+												<Clock class="size-4 text-purple-600 dark:text-purple-400" />
+												<span>Parámetros de Elaboración de la Receta</span>
+											</h4>
+											<p class="text-xs text-muted-foreground">
+												Configura el rendimiento por lote y el tiempo estimado de trabajo en cocina
+											</p>
+										</div>
+
+										{#if selectedRoot.prepTimeMinutes > 0}
+											<div class="inline-flex items-center gap-1.5 rounded-full border border-purple-500/30 bg-purple-500/10 px-3 py-1 text-xs font-semibold text-purple-700 dark:text-purple-400">
+												<Clock class="size-3 text-purple-600 dark:text-purple-400" />
+												<span>Tiempo: {selectedRoot.prepTimeMinutes} min</span>
+											</div>
+										{/if}
+									</div>
+
+									<form
+										method="POST"
+										action="?/updateRecipeYield"
+										use:enhance
+										class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-12 items-end"
+									>
+										<input type="hidden" name="businessId" value={data.activeBusiness.id} />
+										<input type="hidden" name="id" value={selectedRoot.id} />
+
+										<div class="space-y-1.5 lg:col-span-5">
+											<Label for="recipe-yield-qty" class="text-xs font-semibold text-foreground">
+												Rendimiento de la Receta
+											</Label>
+											<div class="relative flex items-center">
+												<Input
+													id="recipe-yield-qty"
+													name="yieldQuantity"
+													type="number"
+													step="any"
+													min="0.001"
+													value={selectedRoot.yieldQuantity}
+													class="h-10 pr-14 font-mono text-base font-semibold"
+													required
+												/>
+												<span class="pointer-events-none absolute right-3 font-semibold text-xs text-muted-foreground uppercase">
+													{selectedRoot.baseUnit}
+												</span>
+											</div>
+											<p class="text-[11px] text-muted-foreground">
+												Cantidad final producida por esta receta completa.
+											</p>
+										</div>
+
+										<div class="space-y-1.5 lg:col-span-5">
+											<Label for="recipe-prep-time" class="text-xs font-semibold text-foreground">
+												Tiempo Estimado de Elaboración
+											</Label>
+											<div class="relative flex items-center">
+												<Clock class="pointer-events-none absolute left-3 size-4 text-muted-foreground" />
+												<Input
+													id="recipe-prep-time"
+													name="prepTimeMinutes"
+													type="number"
+													step="1"
+													min="0"
+													value={selectedRoot.prepTimeMinutes ?? 0}
+													class="h-10 pl-9 pr-14 font-mono text-base font-semibold"
+													placeholder="0"
+												/>
+												<span class="pointer-events-none absolute right-3 font-semibold text-xs text-muted-foreground">
+													min
+												</span>
+											</div>
+											<p class="text-[11px] text-muted-foreground">
+												Tiempo de preparación, cocción o armado en cocina.
+											</p>
+										</div>
+
+										<div class="lg:col-span-2">
+											<Button type="submit" class="w-full h-10 gap-1.5 font-semibold shadow-xs">
+												<Check class="size-4" />
+												<span>Guardar</span>
+											</Button>
+										</div>
+									</form>
 								</div>
 							{/if}
 						</CardContent>
@@ -1963,6 +2048,7 @@
 						value={newItemType === 'raw_material' ? newItemPurchaseQty : 1}
 					/>
 					<input type="hidden" name="yieldQuantity" value="1" />
+					<input type="hidden" name="prepTimeMinutes" value={newItemPrepTime} />
 					<input type="hidden" name="notes" value={newItemNotes} />
 
 					<div class="p-6">
@@ -2040,6 +2126,24 @@
 										{/each}
 									</select>
 								</div>
+
+								{#if newItemType === 'prepared'}
+									<div class="space-y-2">
+										<Label for="inv-step-preptime">Tiempo Estimado de Elaboración (minutos)</Label>
+										<div class="relative flex items-center">
+											<Clock class="pointer-events-none absolute left-3 size-4 text-muted-foreground" />
+											<Input
+												id="inv-step-preptime"
+												type="number"
+												min="0"
+												step="1"
+												bind:value={newItemPrepTime}
+												class="h-11 pl-9 font-mono"
+												placeholder="0 (ej. 60)"
+											/>
+										</div>
+									</div>
+								{/if}
 							</div>
 						{:else}
 							<!-- PASO 3: Stock y Costos -->
@@ -2392,9 +2496,9 @@
 								</div>
 								<input type="hidden" name="yieldQuantity" value={selectedRoot.yieldQuantity} />
 							{:else}
-								<div class="space-y-2 sm:col-span-2">
+								<div class="space-y-2">
 									<Label for="edit-yieldQuantity">
-										Rendimiento de la Receta ({selectedRoot.baseUnit})
+										Rendimiento ({selectedRoot.baseUnit})
 									</Label>
 									<Input
 										id="edit-yieldQuantity"
@@ -2402,9 +2506,23 @@
 										type="number"
 										step="any"
 										min="0.001"
-										class="h-10"
+										class="h-10 font-mono"
 										value={selectedRoot.yieldQuantity}
 										required
+									/>
+								</div>
+								<div class="space-y-2">
+									<Label for="edit-prepTimeMinutes">
+										Tiempo Elaboración (min)
+									</Label>
+									<Input
+										id="edit-prepTimeMinutes"
+										name="prepTimeMinutes"
+										type="number"
+										step="1"
+										min="0"
+										class="h-10 font-mono"
+										value={selectedRoot.prepTimeMinutes ?? 0}
 									/>
 								</div>
 								<input type="hidden" name="purchaseQuantity" value={selectedRoot.purchaseQuantity} />

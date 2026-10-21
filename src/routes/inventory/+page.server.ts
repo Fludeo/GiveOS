@@ -95,6 +95,9 @@ export const actions: Actions = {
 		const referenceCost = Number(formData.get('referenceCost') ?? 0);
 		const purchaseQuantity = Number(formData.get('purchaseQuantity') ?? 1);
 		const yieldQuantity = Number(formData.get('yieldQuantity') ?? 1);
+		const prepTimeMinutes = formData.has('prepTimeMinutes')
+			? Number(formData.get('prepTimeMinutes') ?? 0)
+			: 0;
 		const currentStock = Number(formData.get('currentStock') ?? 0);
 		const minStock = Number(formData.get('minStock') ?? 0);
 		const notes = String(formData.get('notes') ?? '').trim() || null;
@@ -116,6 +119,8 @@ export const actions: Actions = {
 				purchaseQuantity:
 					Number.isFinite(purchaseQuantity) && purchaseQuantity > 0 ? purchaseQuantity : 1,
 				yieldQuantity: Number.isFinite(yieldQuantity) && yieldQuantity > 0 ? yieldQuantity : 1,
+				prepTimeMinutes:
+					Number.isFinite(prepTimeMinutes) && prepTimeMinutes >= 0 ? Math.round(prepTimeMinutes) : 0,
 				currentStock: Number.isFinite(currentStock) && currentStock >= 0 ? currentStock : 0,
 				minStock: Number.isFinite(minStock) && minStock >= 0 ? minStock : 0,
 				notes
@@ -145,6 +150,9 @@ export const actions: Actions = {
 		const referenceCost = Number(formData.get('referenceCost') ?? 0);
 		const purchaseQuantity = Number(formData.get('purchaseQuantity') ?? 1);
 		const yieldQuantity = Number(formData.get('yieldQuantity') ?? 1);
+		const prepTimeMinutes = formData.has('prepTimeMinutes')
+			? Number(formData.get('prepTimeMinutes') ?? 0)
+			: undefined;
 		const notes = String(formData.get('notes') ?? '').trim() || null;
 
 		try {
@@ -156,6 +164,10 @@ export const actions: Actions = {
 				purchaseQuantity:
 					Number.isFinite(purchaseQuantity) && purchaseQuantity > 0 ? purchaseQuantity : 1,
 				yieldQuantity: Number.isFinite(yieldQuantity) && yieldQuantity > 0 ? yieldQuantity : 1,
+				prepTimeMinutes:
+					prepTimeMinutes !== undefined && Number.isFinite(prepTimeMinutes) && prepTimeMinutes >= 0
+						? Math.round(prepTimeMinutes)
+						: undefined,
 				notes
 			});
 			return {
@@ -276,6 +288,9 @@ export const actions: Actions = {
 		const { itemService } = getServices();
 		const id = String(formData.get('id') ?? '');
 		const yieldQuantity = Number(formData.get('yieldQuantity') ?? 1);
+		const prepTimeMinutes = formData.has('prepTimeMinutes')
+			? Number(formData.get('prepTimeMinutes') ?? 0)
+			: undefined;
 
 		if (!Number.isFinite(yieldQuantity) || yieldQuantity <= 0) {
 			return fail(400, { error: 'El rendimiento del lote debe ser un número mayor a 0.' });
@@ -283,15 +298,19 @@ export const actions: Actions = {
 
 		try {
 			const updated = await itemService.updateItem(id, activeBusiness.id, {
-				yieldQuantity
+				yieldQuantity,
+				prepTimeMinutes:
+					prepTimeMinutes !== undefined && Number.isFinite(prepTimeMinutes) && prepTimeMinutes >= 0
+						? Math.round(prepTimeMinutes)
+						: undefined
 			});
 			return {
 				success: true,
-				message: `Rendimiento de la receta para "${updated.name}" actualizado a ${yieldQuantity} ${updated.baseUnit}.`
+				message: `Parámetros de la receta para "${updated.name}" actualizados (Rinde ${yieldQuantity} ${updated.baseUnit}${updated.prepTimeMinutes > 0 ? ` · ${updated.prepTimeMinutes} min` : ''}).`
 			};
 		} catch (e) {
 			return fail(400, {
-				error: e instanceof Error ? e.message : 'Error al actualizar el rendimiento de la receta.'
+				error: e instanceof Error ? e.message : 'Error al actualizar los parámetros de la receta.'
 			});
 		}
 	},
