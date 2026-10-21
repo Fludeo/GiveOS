@@ -978,13 +978,16 @@
 							Crea materias primas, sub-ensambles o productos finales
 						</p>
 					</div>
-					<button
+					<Button
 						type="button"
+						variant="ghost"
+						size="icon"
 						onclick={() => (showNewItemModal = false)}
-						class="rounded-lg p-1 text-muted-foreground hover:bg-muted cursor-pointer"
+						class="size-8 text-muted-foreground hover:text-foreground cursor-pointer"
+						title="Cerrar modal"
 					>
-						<X class="size-5" />
-					</button>
+						<X class="size-4" />
+					</Button>
 				</div>
 
 				<form
@@ -1136,13 +1139,16 @@
 							{restockModalItem.name} ({restockModalItem.code})
 						</p>
 					</div>
-					<button
+					<Button
 						type="button"
+						variant="ghost"
+						size="icon"
 						onclick={() => (restockModalItemId = null)}
-						class="rounded-lg p-1 text-muted-foreground hover:bg-muted cursor-pointer"
+						class="size-8 text-muted-foreground hover:text-foreground cursor-pointer"
+						title="Cerrar modal"
 					>
 						<X class="size-4" />
-					</button>
+					</Button>
 				</div>
 
 				<form
