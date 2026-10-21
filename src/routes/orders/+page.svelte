@@ -578,7 +578,7 @@
 					<Button
 						size="sm"
 						variant={filterStatus === 'unconfirmed' ? 'default' : 'outline'}
-						class={filterStatus !== 'unconfirmed' && unconfirmedOrdersCount > 0 ? 'border-purple-500/40 text-purple-700 bg-purple-500/10' : ''}
+						class={filterStatus !== 'unconfirmed' && unconfirmedOrdersCount > 0 ? 'border-indigo-500/40 text-indigo-700 dark:text-indigo-400 bg-indigo-500/10' : ''}
 						onclick={() => (filterStatus = 'unconfirmed')}
 					>
 						Por Confirmar ({unconfirmedOrdersCount})
@@ -672,7 +672,7 @@
 										<!-- Estado de la Orden -->
 										<div class="shrink-0">
 											{#if order.status === 'unconfirmed'}
-												<Badge variant="outline" class="border-purple-500/40 bg-purple-500/10 text-purple-700 text-[11px] font-bold animate-pulse">
+												<Badge variant="outline" class="border-indigo-500/40 bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 text-[11px] font-bold animate-pulse">
 													{ORDER_STATUS_LABELS.unconfirmed}
 												</Badge>
 											{:else if order.status === 'pending'}
@@ -832,7 +832,7 @@
 											<Button
 												type="button"
 												size="sm"
-												class="flex-1 h-9 gap-1.5 text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white shadow-xs"
+												class="flex-1 h-9 gap-1.5 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs"
 												title="Confirmar orden por caja/encargado"
 												onclick={() => {
 													confirmingOrderId = order.id;
@@ -2304,7 +2304,7 @@
 			<div class="w-full max-w-md overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
 				<div class="flex items-center justify-between border-b border-border p-5">
 					<div class="flex items-center gap-2.5">
-						<div class="flex size-9 items-center justify-center rounded-xl bg-purple-500/10 text-purple-700">
+						<div class="flex size-9 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-700 dark:text-indigo-300">
 							<Check class="size-5" />
 						</div>
 						<div>
@@ -2407,7 +2407,7 @@
 						<Button
 							type="submit"
 							size="sm"
-							class="gap-1.5 bg-purple-600 hover:bg-purple-700 text-white font-bold shadow-xs"
+							class="gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-xs"
 						>
 							<Check class="size-3.5" />
 							<span>Confirmar Pedido</span>

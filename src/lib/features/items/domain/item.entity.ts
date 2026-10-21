@@ -26,8 +26,8 @@ export const ITEM_TYPE_CONFIG = {
 		label: 'Elaboración',
 		shortLabel: 'Elaborado',
 		prefix: 'ELB',
-		badgeClass: 'border-purple-500/30 bg-purple-500/10 text-purple-700 dark:text-purple-400',
-		color: 'purple'
+		badgeClass: 'border-indigo-500/30 bg-indigo-500/10 text-indigo-700 dark:text-indigo-400',
+		color: 'indigo'
 	}
 } as const;
 

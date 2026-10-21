@@ -364,7 +364,7 @@
 					<p class="text-xs text-muted-foreground font-mono">
 						{totalPendingUnits} unidades por entregar
 						{#if totalUnconfirmedOrders > 0}
-							<span class="block text-[11px] text-purple-600 font-sans font-semibold mt-0.5">
+							<span class="block text-[11px] text-indigo-600 dark:text-indigo-400 font-sans font-semibold mt-0.5">
 								({totalUnconfirmedOrders} por confirmar)
 							</span>
 						{/if}
@@ -512,7 +512,7 @@
 												{product.code}
 											</span>
 											{#if product.isCombo}
-												<Badge variant="outline" class="border-purple-500/30 bg-purple-500/10 text-purple-700 text-[10px] px-1.5 py-0">
+												<Badge variant="outline" class="border-indigo-500/30 bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 text-[10px] px-1.5 py-0">
 													Combo
 												</Badge>
 											{/if}
@@ -609,7 +609,7 @@
 											{selectedSalesProduct.code}
 										</span>
 										{#if selectedSalesProduct.isCombo}
-											<Badge variant="outline" class="border-purple-500/30 bg-purple-500/10 text-purple-700 text-xs">
+											<Badge variant="outline" class="border-indigo-500/30 bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 text-xs">
 												Combo Comercial
 											</Badge>
 										{/if}

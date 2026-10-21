@@ -177,10 +177,10 @@
 				</div>
 
 				<div class="rounded-xl border border-border bg-card p-3 shadow-2xs space-y-2">
-					<div class="h-14 w-full rounded-lg bg-purple-600 shadow-inner"></div>
+					<div class="h-14 w-full rounded-lg bg-indigo-600 shadow-inner"></div>
 					<div>
 						<p class="text-xs font-bold text-foreground">Elaboraciones / Combos</p>
-						<p class="font-mono text-[11px] text-muted-foreground">#9333ea</p>
+						<p class="font-mono text-[11px] text-muted-foreground">#4f46e5</p>
 					</div>
 				</div>
 			</div>
@@ -276,8 +276,8 @@
 				<div class="rounded-2xl border border-border bg-card p-5 space-y-3">
 					<h3 class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Estados de Pedido / Órdenes</h3>
 					<div class="flex flex-wrap gap-2">
-						<span class="inline-flex items-center gap-1.5 rounded-full bg-purple-500/10 px-2.5 py-0.5 text-xs font-bold text-purple-700">
-							<span class="size-1.5 rounded-full bg-purple-600"></span>
+						<span class="inline-flex items-center gap-1.5 rounded-full bg-indigo-500/10 px-2.5 py-0.5 text-xs font-bold text-indigo-700 dark:text-indigo-400">
+							<span class="size-1.5 rounded-full bg-indigo-600"></span>
 							Por Confirmar
 						</span>
 						<span class="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 px-2.5 py-0.5 text-xs font-bold text-amber-700">
@@ -306,7 +306,7 @@
 						<Badge variant="outline" class="border-blue-500/30 bg-blue-500/10 text-blue-700 text-xs">
 							Materia Prima (Insumo)
 						</Badge>
-						<Badge variant="outline" class="border-purple-500/30 bg-purple-500/10 text-purple-700 text-xs">
+						<Badge variant="outline" class="border-indigo-500/30 bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 text-xs">
 							Sub-ensamble (Elaboración)
 						</Badge>
 						<Badge variant="outline" class="border-emerald-500/30 bg-emerald-500/10 text-emerald-700 text-xs">
@@ -807,7 +807,7 @@
 								<td class="p-3.5 pl-5 font-mono font-semibold text-primary">REC-012</td>
 								<td class="p-3.5 font-medium text-foreground">Bizcochuelo Vainilla 20cm</td>
 								<td class="p-3.5">
-									<Badge variant="outline" class="border-purple-500/30 bg-purple-500/10 text-purple-700 text-[11px]">
+									<Badge variant="outline" class="border-indigo-500/30 bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 text-[11px]">
 										Elaboración
 									</Badge>
 								</td>
