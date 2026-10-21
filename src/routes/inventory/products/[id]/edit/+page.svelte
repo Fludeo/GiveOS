@@ -5,7 +5,7 @@
 		type PriceTier,
 		type SalesProductComponentInput
 	} from '#lib/features/orders/domain/order.entity';
-	import { getDirectUnitCost } from '#lib/features/items/domain/item.entity';
+	import { getDirectUnitCost, ITEM_TYPE_LABELS } from '#lib/features/items/domain/item.entity';
 	import AppShell from '#lib/components/layout/app-shell.svelte';
 	import { Button } from '#lib/components/ui/button';
 	import { Input } from '#lib/components/ui/input';
@@ -21,9 +21,8 @@
 
 	let { data, form }: PageProps = $props();
 
-	const linkableItems = $derived(
-		data.items.filter((i) => i.type === 'finished_product')
-	);
+	// Permitir vincular cualquier ítem del inventario (materia prima, sub-ensamble o producto final)
+	const linkableItems = $derived(data.items);
 
 	// svelte-ignore state_referenced_locally
 	let name = $state(data.product.name);
@@ -241,7 +240,7 @@
 					{@const itemRecipeCost = selectedItem ? (data.recipeSummaries[selectedItem.id]?.estimatedUnitCost ?? getDirectUnitCost(selectedItem)) : 0}
 					<div class="flex flex-col gap-3 rounded-xl border border-border bg-muted/15 p-4 sm:flex-row sm:items-center">
 						<div class="min-w-0 flex-1 space-y-1">
-							<Label class="text-xs text-muted-foreground">Producto Final del Inventario</Label>
+							<Label class="text-xs text-muted-foreground">Ítem del Inventario (Insumo, Sub-ensamble o Producto Final)</Label>
 							<select
 								bind:value={comp.itemId}
 								class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm shadow-xs"
@@ -249,7 +248,7 @@
 							>
 								{#each linkableItems as cand (cand.id)}
 									<option value={cand.id}>
-										[{cand.code}] {cand.name} (Stock: {cand.currentStock} {cand.baseUnit})
+										[{cand.code}] {cand.name} ({ITEM_TYPE_LABELS[cand.type]} · Stock: {cand.currentStock} {cand.baseUnit})
 									</option>
 								{/each}
 							</select>

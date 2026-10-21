@@ -1062,28 +1062,40 @@
 						</div>
 					</div>
 
-					<div class="grid grid-cols-2 gap-3">
-						<div class="space-y-1">
-							<Label class="text-xs font-medium">Costo de Referencia ($)</Label>
-							<Input
-								type="number"
-								step="0.01"
-								name="referenceCost"
-								value="0"
-								class="h-9 font-mono text-xs"
-							/>
+					{#if newItemType === 'raw_material'}
+						<div class="grid grid-cols-2 gap-3">
+							<div class="space-y-1">
+								<Label class="text-xs font-medium">Costo de Compra ($)</Label>
+								<Input
+									type="number"
+									step="0.01"
+									name="referenceCost"
+									value="0"
+									class="h-9 font-mono text-xs"
+								/>
+							</div>
+							<div class="space-y-1">
+								<Label class="text-xs font-medium">Cant. Envase Compra ({newItemBaseUnit})</Label>
+								<Input
+									type="number"
+									step="0.01"
+									name="purchaseQuantity"
+									value="1"
+									class="h-9 font-mono text-xs"
+								/>
+							</div>
 						</div>
-						<div class="space-y-1">
-							<Label class="text-xs font-medium">Cantidad de Compra/Rendimiento</Label>
-							<Input
-								type="number"
-								step="0.01"
-								name="purchaseQuantity"
-								value="1"
-								class="h-9 font-mono text-xs"
-							/>
+						<input type="hidden" name="yieldQuantity" value="1" />
+					{:else}
+						<div class="rounded-lg border border-dashed border-primary/30 bg-primary/5 p-2.5 text-xs text-muted-foreground">
+							<p class="font-medium text-foreground">
+								Este {newItemType === 'sub_assembly' ? 'sub-ensamble' : 'producto'} calculará su costo y rendimiento en <strong class="text-primary">Estructura de Recetas</strong>.
+							</p>
 						</div>
-					</div>
+						<input type="hidden" name="referenceCost" value="0" />
+						<input type="hidden" name="purchaseQuantity" value="1" />
+						<input type="hidden" name="yieldQuantity" value="1" />
+					{/if}
 
 					<div class="flex items-center justify-end gap-2 pt-3 border-t border-border">
 						<Button

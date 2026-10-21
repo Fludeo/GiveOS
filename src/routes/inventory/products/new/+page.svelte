@@ -6,7 +6,7 @@
 		type PriceTier,
 		type SalesProductComponentInput
 	} from '#lib/features/orders/domain/order.entity';
-	import { getDirectUnitCost } from '#lib/features/items/domain/item.entity';
+	import { getDirectUnitCost, ITEM_TYPE_LABELS } from '#lib/features/items/domain/item.entity';
 	import ItemTypeBadge from '#lib/features/items/ui/item-type-badge.svelte';
 	import AppShell from '#lib/components/layout/app-shell.svelte';
 	import { Button } from '#lib/components/ui/button';
@@ -24,10 +24,8 @@
 
 	let { data, form }: PageProps = $props();
 
-	// Solo ítems de categoría Producto Final para vender comercialmente
-	const linkableItems = $derived(
-		data.items.filter((i) => i.type === 'finished_product')
-	);
+	// Permitir vincular cualquier ítem del inventario (materia prima, sub-ensamble o producto final)
+	const linkableItems = $derived(data.items);
 
 	// svelte-ignore state_referenced_locally
 	let code = $state(generateNextSalesProductCode(data.existingCodes));
@@ -126,10 +124,10 @@
 		<div class="rounded-2xl border border-dashed border-border bg-card p-12 text-center">
 			<AlertTriangle class="mx-auto size-12 text-amber-500" />
 			<h3 class="mt-4 text-lg font-bold text-foreground">
-				No hay Productos Finales en el Inventario
+				No hay ítems en el Inventario
 			</h3>
 			<p class="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-				Para crear un producto comercial necesitas al menos un ítem registrado como "Producto Final" con su receta correspondiente.
+				Para crear un producto comercial necesitas al menos un ítem registrado en el inventario (materia prima, sub-ensamble o producto final).
 			</p>
 			<Button href="/inventory" class="mt-6">
 				Ir a Inventario de Ítems →
@@ -259,7 +257,7 @@
 						{@const itemRecipeCost = selectedItem ? (data.recipeSummaries[selectedItem.id]?.estimatedUnitCost ?? getDirectUnitCost(selectedItem)) : 0}
 						<div class="flex flex-col gap-3 rounded-xl border border-border bg-muted/15 p-4 sm:flex-row sm:items-center">
 							<div class="min-w-0 flex-1 space-y-1">
-								<Label class="text-xs text-muted-foreground">Producto Final del Inventario</Label>
+								<Label class="text-xs text-muted-foreground">Ítem del Inventario (Insumo, Sub-ensamble o Producto Final)</Label>
 								<select
 									bind:value={comp.itemId}
 									onchange={() => {
@@ -272,7 +270,7 @@
 								>
 									{#each linkableItems as cand (cand.id)}
 										<option value={cand.id}>
-											[{cand.code}] {cand.name} (Stock: {cand.currentStock} {cand.baseUnit})
+											[{cand.code}] {cand.name} ({ITEM_TYPE_LABELS[cand.type]} · Stock: {cand.currentStock} {cand.baseUnit})
 										</option>
 									{/each}
 								</select>

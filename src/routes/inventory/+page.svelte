@@ -295,10 +295,8 @@
 	let editingSalesProduct = $state<SalesProductWithItems | null>(null);
 	let deletingSalesProduct = $state<SalesProductWithItems | null>(null);
 
-	// Solo permitir elegir entre Productos Finales (finished_product) para la venta
-	const linkableItems = $derived(
-		data.items.filter((i) => i.type === 'finished_product')
-	);
+	// Permitir vincular cualquier ítem de inventario (materia prima, sub-ensamble o producto final)
+	const linkableItems = $derived(data.items);
 
 	let newSalesComponents = $state<SalesProductComponentInput[]>([]);
 	let newSalesName = $state('');
@@ -1094,7 +1092,38 @@
 									{/if}
 								</div>
 
-								<div class="flex items-center gap-3">
+								<div class="flex flex-wrap items-center gap-3">
+									{#if selectedRoot.type !== 'raw_material'}
+										<form
+											method="POST"
+											action="?/updateRecipeYield"
+											use:enhance
+											class="flex flex-col justify-center rounded-xl border border-border bg-muted/20 px-3.5 py-2 shadow-2xs"
+										>
+											<input type="hidden" name="businessId" value={data.activeBusiness.id} />
+											<input type="hidden" name="id" value={selectedRoot.id} />
+											<Label for="quick-recipe-yield" class="text-[11px] font-medium text-muted-foreground">
+												Rendimiento de la Receta
+											</Label>
+											<div class="mt-1 flex items-center gap-1.5">
+												<Input
+													id="quick-recipe-yield"
+													name="yieldQuantity"
+													type="number"
+													step="any"
+													min="0.001"
+													value={selectedRoot.yieldQuantity}
+													class="h-8 w-24 text-right font-mono text-sm font-semibold"
+													required
+												/>
+												<span class="text-xs font-semibold text-foreground">{selectedRoot.baseUnit}</span>
+												<Button type="submit" size="sm" variant="secondary" class="h-8 px-2.5 text-xs">
+													Guardar
+												</Button>
+											</div>
+										</form>
+									{/if}
+
 									<div class="space-y-1 rounded-xl border border-border bg-muted/30 px-5 py-3.5 text-right">
 										<div class="flex items-center justify-end gap-1.5 text-xs text-muted-foreground">
 											<Calculator class="size-3.5" />
@@ -1571,19 +1600,13 @@
 								</div>
 								<input type="hidden" name="yieldQuantity" value="1" />
 							{:else}
-								<div class="space-y-2">
-									<Label for="inv-new-yieldQty">Rendimiento por Receta ({newItemBaseUnit})</Label>
-									<Input
-										id="inv-new-yieldQty"
-										name="yieldQuantity"
-										type="number"
-										step="any"
-										min="0.001"
-										value="1"
-										class="h-10"
-										required
-									/>
+								<div class="space-y-1.5 sm:col-span-2 rounded-xl border border-dashed border-primary/30 bg-primary/5 p-3 text-xs text-muted-foreground">
+									<p class="font-medium text-foreground">
+										Este {newItemType === 'sub_assembly' ? 'sub-ensamble' : 'producto'} calculará su costo y rendimiento en la pestaña <strong class="text-primary">Estructura de Recetas</strong>.
+									</p>
+									<p class="mt-0.5">Podrás configurar cuánto rinde la receta y cargar sus ingredientes una vez creado el ítem.</p>
 								</div>
+								<input type="hidden" name="yieldQuantity" value="1" />
 								<input type="hidden" name="referenceCost" value="0" />
 								<input type="hidden" name="purchaseQuantity" value="1" />
 							{/if}
@@ -1966,10 +1989,10 @@
 					<div class="space-y-4 p-8 text-center">
 						<CakeSlice class="mx-auto size-10 text-muted-foreground" />
 						<p class="text-base font-semibold text-foreground">
-							No tienes Productos Finales registrados en Inventario
+							No tienes ítems registrados en Inventario
 						</p>
 						<p class="mx-auto max-w-md text-sm text-muted-foreground">
-							Solo los ítems de categoría "Producto Final" pueden habilitarse para la venta. Crea primero tu producto final en el inventario/recetas.
+							Para crear un producto de venta necesitas al menos un ítem registrado en el inventario (materia prima, sub-ensamble o producto final).
 						</p>
 						<div class="flex justify-center gap-3 pt-2">
 							<Button variant="outline" onclick={() => (showNewSalesProductModal = false)}>
@@ -1979,13 +2002,11 @@
 								type="button"
 								onclick={() => {
 									showNewSalesProductModal = false;
-									newItemType = 'finished_product';
-									newItemBaseUnit = 'unit';
 									showNewItemModal = true;
 								}}
 							>
 								<Plus class="size-4" />
-								<span>Crear Producto Final</span>
+								<span>Crear Ítem en Inventario</span>
 							</Button>
 						</div>
 					</div>
@@ -2069,7 +2090,7 @@
 												>
 													{#each linkableItems as candidate (candidate.id)}
 														<option value={candidate.id}>
-															[{candidate.code}] {candidate.name} (Stock: {candidate.currentStock} {candidate.baseUnit})
+															[{candidate.code}] {candidate.name} ({ITEM_TYPE_LABELS[candidate.type]} · Stock: {candidate.currentStock} {candidate.baseUnit})
 														</option>
 													{/each}
 												</select>
@@ -2289,7 +2310,7 @@
 											>
 												{#each linkableItems as candidate (candidate.id)}
 													<option value={candidate.id}>
-														[{candidate.code}] {candidate.name} (Stock: {candidate.currentStock} {candidate.baseUnit})
+														[{candidate.code}] {candidate.name} ({ITEM_TYPE_LABELS[candidate.type]} · Stock: {candidate.currentStock} {candidate.baseUnit})
 													</option>
 												{/each}
 											</select>

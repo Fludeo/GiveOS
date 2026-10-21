@@ -267,7 +267,7 @@ export class OrderService {
 			}
 			if (salesProduct.components.length === 0) {
 				throw new Error(
-					`El producto "${salesProduct.name}" no tiene ningún Producto Final vinculado en su configuración.`
+					`El producto "${salesProduct.name}" no tiene ningún ítem de inventario vinculado en su configuración.`
 				);
 			}
 
