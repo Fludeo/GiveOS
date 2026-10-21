@@ -69,12 +69,31 @@
 	}
 
 	// =========================================================================
-	// ESTADO COMPARTIDO Y MODAL DE ALTA DE ÍTEM DE INVENTARIO / RECETA
+	// ESTADO COMPARTIDO Y MODAL DE ALTA DE ÍTEM DE INVENTARIO / RECETA (WIZARD)
 	// =========================================================================
 	let showNewItemModal = $state(false);
+	let newItemStep = $state<1 | 2 | 3>(1);
 	let newItemType = $state<ItemType>('raw_material');
+	let newItemName = $state('');
 	let newItemBaseUnit = $state<UnitOfMeasure>('g');
+	let newItemCurrentStock = $state(0);
 	let newItemMinStock = $state(0);
+	let newItemRefCost = $state(0);
+	let newItemPurchaseQty = $state(1);
+	let newItemNotes = $state('');
+
+	function openNewItemModal(type: ItemType = 'raw_material') {
+		newItemType = type;
+		newItemStep = 1;
+		newItemName = '';
+		newItemBaseUnit = type === 'raw_material' ? 'g' : 'unit';
+		newItemCurrentStock = 0;
+		newItemMinStock = 0;
+		newItemRefCost = 0;
+		newItemPurchaseQty = 1;
+		newItemNotes = '';
+		showNewItemModal = true;
+	}
 
 	const nextAutoCode = $derived(
 		generateNextItemCode(
@@ -292,6 +311,10 @@
 	let salesProductPageSize = $state(8);
 
 	let showNewSalesProductModal = $state(false);
+	let newSalesStep = $state<1 | 2>(1);
+	let newSalesIsCombo = $state(false);
+	let newSalesIsShortcut = $state(false);
+	let newSalesDescription = $state('');
 	let editingSalesProduct = $state<SalesProductWithItems | null>(null);
 	let deletingSalesProduct = $state<SalesProductWithItems | null>(null);
 
@@ -304,6 +327,23 @@
 
 	let editSalesComponents = $state<SalesProductComponentInput[]>([]);
 	let editSalesPrice = $state(0);
+
+	function openNewSalesProductModal() {
+		newSalesStep = 1;
+		newSalesPrice = 0;
+		newSalesDescription = '';
+		newSalesIsShortcut = false;
+		newSalesIsCombo = false;
+		if (linkableItems.length > 0) {
+			const first = linkableItems[0];
+			newSalesComponents = [{ itemId: first.id, quantity: 1 }];
+			newSalesName = first.name;
+		} else {
+			newSalesComponents = [];
+			newSalesName = '';
+		}
+		showNewSalesProductModal = true;
+	}
 
 	$effect(() => {
 		if (newSalesComponents.length === 0 && linkableItems.length > 0) {
@@ -419,84 +459,72 @@
 	activeBusiness={data.activeBusiness}
 	businesses={data.businesses}
 	currentSection="inventory"
-	title="Inventario, Estructura de Recetas y Productos para Venta"
-	description="Gestiona tus existencias, arma recetas multinivel y publica los productos comerciales disponibles para Órdenes"
+	title="Inventario"
+	description="Stock de insumos, recetas y productos de venta"
 >
 	{#snippet headerActions()}
 		{#if currentTab === 'products'}
-			<Button href="/inventory/products/new">
+			<Button onclick={openNewSalesProductModal} class="gap-1.5 shadow-xs">
 				<Plus class="size-4" />
-				<span>Nuevo Producto para Venta</span>
+				<span>Nuevo Producto</span>
 			</Button>
 		{:else}
-			<Button onclick={() => (showNewItemModal = true)}>
+			<Button onclick={() => openNewItemModal()} class="gap-1.5 shadow-xs">
 				<Plus class="size-4" />
-				<span>Nuevo Ítem de Inventario</span>
+				<span>Nuevo Ítem</span>
 			</Button>
 		{/if}
 	{/snippet}
 
 	<!-- Barra de Pestañas Unificada (Inventario | Recetas | Productos para Venta) -->
-	<div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-1.5 shadow-2xs">
-		<div class="flex flex-wrap items-center gap-1">
-			<button
-				type="button"
-				onclick={() => switchTab('stock')}
-				class="inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-all {currentTab ===
-				'stock'
-					? 'bg-primary text-primary-foreground shadow-xs'
-					: 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
+	<div class="flex items-center gap-1 rounded-2xl border border-border bg-card p-1.5 shadow-2xs">
+		<button
+			type="button"
+			onclick={() => switchTab('stock')}
+			class="inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-all {currentTab ===
+			'stock'
+				? 'bg-primary text-primary-foreground shadow-xs'
+				: 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
+		>
+			<Package class="size-4" />
+			<span>Inventario</span>
+			<Badge
+				variant={currentTab === 'stock' ? 'secondary' : 'outline'}
+				class="ml-1 px-1.5 py-0 text-[11px]"
 			>
-				<Package class="size-4" />
-				<span>Inventario</span>
-				<Badge
-					variant={currentTab === 'stock' ? 'secondary' : 'outline'}
-					class="ml-1 px-1.5 py-0 text-[11px]"
-				>
-					{data.items.length}
-				</Badge>
-			</button>
+				{data.items.length}
+			</Badge>
+		</button>
 
-			<button
-				type="button"
-				onclick={() => switchTab('recipes')}
-				class="inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-all {currentTab ===
-				'recipes'
-					? 'bg-primary text-primary-foreground shadow-xs'
-					: 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
+		<button
+			type="button"
+			onclick={() => switchTab('recipes')}
+			class="inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-all {currentTab ===
+			'recipes'
+				? 'bg-primary text-primary-foreground shadow-xs'
+				: 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
+		>
+			<Layers class="size-4" />
+			<span>Recetas</span>
+		</button>
+
+		<button
+			type="button"
+			onclick={() => switchTab('products')}
+			class="inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-all {currentTab ===
+			'products'
+				? 'bg-primary text-primary-foreground shadow-xs'
+				: 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
+		>
+			<Tag class="size-4" />
+			<span>Productos de Venta</span>
+			<Badge
+				variant={currentTab === 'products' ? 'secondary' : 'outline'}
+				class="ml-1 px-1.5 py-0 text-[11px]"
 			>
-				<Layers class="size-4" />
-				<span>Recetas</span>
-			</button>
-
-			<button
-				type="button"
-				onclick={() => switchTab('products')}
-				class="inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-all {currentTab ===
-				'products'
-					? 'bg-primary text-primary-foreground shadow-xs'
-					: 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
-			>
-				<Tag class="size-4" />
-				<span>Productos para Venta</span>
-				<Badge
-					variant={currentTab === 'products' ? 'secondary' : 'outline'}
-					class="ml-1 px-1.5 py-0 text-[11px]"
-				>
-					{data.salesProducts.length}
-				</Badge>
-			</button>
-		</div>
-
-		<div class="px-3 text-xs text-muted-foreground hidden lg:block">
-			{#if currentTab === 'stock'}
-				Al incrementar stock de un sub-ensamble o producto, se descuentan sus ingredientes automáticamente.
-			{:else if currentTab === 'recipes'}
-				Define qué insumos y sub-ensambles componen cada receta y su rendimiento.
-			{:else}
-				Productos y combos comerciales disponibles para el módulo de Órdenes.
-			{/if}
-		</div>
+				{data.salesProducts.length}
+			</Badge>
+		</button>
 	</div>
 
 	<!-- ========================================================================
@@ -507,8 +535,8 @@
 			<Card>
 				<CardContent class="flex items-center justify-between p-4 sm:p-5">
 					<div class="space-y-1">
-						<p class="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-							Total en Catálogo Técnico
+						<p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+							Catálogo
 						</p>
 						<p class="text-2xl font-bold text-foreground">{data.items.length} ítems</p>
 						<p class="text-xs text-muted-foreground">
@@ -526,14 +554,14 @@
 			<Card>
 				<CardContent class="flex items-center justify-between p-4 sm:p-5">
 					<div class="space-y-1">
-						<p class="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-							Alertas de Stock Bajo
+						<p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+							Stock Bajo
 						</p>
 						<p class="text-2xl font-bold {lowStockCount > 0 ? 'text-destructive' : 'text-foreground'}">
 							{lowStockCount}
 						</p>
 						<p class="text-xs text-muted-foreground">
-							Ítems en o por debajo del punto de alerta
+							{lowStockCount > 0 ? 'Bajo el punto de alerta' : 'Existencias al día'}
 						</p>
 					</div>
 					<div
@@ -549,14 +577,14 @@
 			<Card>
 				<CardContent class="flex items-center justify-between p-4 sm:p-5">
 					<div class="space-y-1">
-						<p class="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-							Valor Valorizado en Stock
+						<p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+							Valor en Stock
 						</p>
 						<p class="font-mono text-2xl font-bold text-foreground">
 							{formatCurrency(totalInventoryValue)}
 						</p>
 						<p class="text-xs text-muted-foreground">
-							Calculado según costo unitario o Receta
+							Costo valorizado total
 						</p>
 					</div>
 					<div class="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -664,15 +692,11 @@
 							<table class="w-full text-left text-sm">
 								<thead class="border-b border-border bg-muted/50 text-xs uppercase tracking-wider text-muted-foreground">
 									<tr>
-										<th class="py-3.5 pr-4 pl-5 font-semibold whitespace-nowrap">SKU / Ítem</th>
+										<th class="py-3.5 pr-4 pl-5 font-semibold whitespace-nowrap">Ítem</th>
 										<th class="px-4 py-3.5 font-semibold whitespace-nowrap">Tipo</th>
-										<th class="px-4 py-3.5 font-semibold whitespace-nowrap">
-											Stock (Actual / Mín.)
-										</th>
-										<th class="px-4 py-3.5 font-semibold whitespace-nowrap">Costo Base / Receta</th>
-										<th class="py-3.5 pr-5 pl-4 text-right font-semibold whitespace-nowrap">
-											Acciones
-										</th>
+										<th class="px-4 py-3.5 font-semibold whitespace-nowrap">Stock / Mín.</th>
+										<th class="px-4 py-3.5 font-semibold whitespace-nowrap">Costo Unit.</th>
+										<th class="py-3.5 pr-5 pl-4 text-right font-semibold whitespace-nowrap">Acciones</th>
 									</tr>
 								</thead>
 								<tbody class="divide-y divide-border/60">
@@ -904,15 +928,15 @@
 				{:else}
 					<div class="rounded-xl border border-dashed border-border p-12 text-center">
 						<Package class="mx-auto size-10 text-muted-foreground/60" />
-						<p class="mt-3 text-base font-medium text-foreground">
-							No hay ítems que coincidan con la búsqueda
+						<p class="mt-3 text-base font-semibold text-foreground">
+							No se encontraron ítems
 						</p>
 						<p class="mt-1 text-sm text-muted-foreground">
-							Registra insumos, bases o productos con código autogenerado desde el modal de alta.
+							Registra insumos o productos para comenzar el control de stock.
 						</p>
-						<Button class="mt-4" onclick={() => (showNewItemModal = true)}>
+						<Button class="mt-4" onclick={() => openNewItemModal()}>
 							<Plus class="size-4" />
-							<span>Dar de Alta Nuevo Ítem</span>
+							<span>Nuevo Ítem</span>
 						</Button>
 					</div>
 				{/if}
@@ -1049,7 +1073,7 @@
 									<p class="text-sm text-muted-foreground">
 										Todavía no hay ítems cargados.
 									</p>
-									<Button size="sm" variant="outline" onclick={() => (showNewItemModal = true)}>
+									<Button size="sm" variant="outline" onclick={() => openNewItemModal()}>
 										<Plus class="size-4" />
 										<span>Crear primer ítem</span>
 									</Button>
@@ -1226,28 +1250,26 @@
 									/>
 								</div>
 							{:else}
-								<div class="rounded-xl border border-dashed border-border p-10 text-center">
-									<Layers class="mx-auto size-9 text-muted-foreground/60" />
-									<p class="mt-3 text-base font-medium text-foreground">
-										Este ítem aún no tiene ingredientes cargados en su receta
+								<div class="rounded-xl border border-dashed border-border p-8 text-center">
+									<Layers class="mx-auto size-8 text-muted-foreground/60" />
+									<p class="mt-2.5 text-base font-semibold text-foreground">
+										Sin ingredientes en la receta
 									</p>
-									<p class="mx-auto mt-1.5 max-w-lg text-sm leading-relaxed text-muted-foreground">
+									<p class="mx-auto mt-1 max-w-sm text-xs text-muted-foreground">
 										{#if selectedRoot.type === 'raw_material'}
-											Es una materia prima directa; su costo se toma de su precio de compra ({formatCurrency(
-												selectedRoot.referenceCost
-											)} por {selectedRoot.purchaseQuantity} {selectedRoot.baseUnit}).
+											Materia prima directa ({formatCurrency(selectedRoot.referenceCost)} / {selectedRoot.purchaseQuantity} {selectedRoot.baseUnit}).
 										{:else}
-											Haz clic en el botón para añadir las materias primas o sub-ensambles que componen esta receta.
+											Agrega insumos o sub-ensambles para costear y descontar existencias automáticamente.
 										{/if}
 									</p>
 									{#if selectedRoot.type !== 'raw_material' && availableComponentsForSelected.length > 0}
 										<Button
-											class="mt-5"
+											class="mt-4"
 											size="sm"
 											onclick={() => (showAddRecipeLineModal = true)}
 										>
 											<Plus class="size-4" />
-											<span>Agregar primer ingrediente a la Receta</span>
+											<span>Agregar Ingrediente</span>
 										</Button>
 									{/if}
 								</div>
@@ -1269,10 +1291,10 @@
 					<div class="space-y-1">
 						<CardTitle class="flex items-center gap-2 text-lg">
 							<Tag class="size-5 text-primary" />
-							Catálogo de Productos para Venta
+							Productos para Venta
 						</CardTitle>
 						<CardDescription>
-							Cada producto comercial tiene asociado uno o varios Productos Finales de tu inventario/recetas para que el módulo de Órdenes opere de forma independiente y descuente stock o ejecute producción Just-In-Time.
+							Catálogo comercial disponible para el módulo de Órdenes.
 						</CardDescription>
 					</div>
 
@@ -1281,14 +1303,14 @@
 							<Search class="pointer-events-none absolute top-3 left-3 size-4 text-muted-foreground" />
 							<Input
 								type="search"
-								placeholder="Buscar producto de venta..."
+								placeholder="Buscar producto..."
 								bind:value={salesProductSearch}
 								class="h-10 pl-9"
 							/>
 						</div>
-						<Button href="/inventory/products/new" class="gap-1.5 font-semibold shadow-xs">
+						<Button onclick={openNewSalesProductModal} class="gap-1.5 font-semibold shadow-xs">
 							<Plus class="size-4" />
-							<span>Nuevo Producto para Venta</span>
+							<span>Nuevo Producto</span>
 						</Button>
 					</div>
 				</div>
@@ -1301,11 +1323,11 @@
 							<table class="w-full text-left text-sm">
 								<thead class="border-b border-border bg-muted/50 text-xs uppercase tracking-wider text-muted-foreground">
 									<tr>
-										<th class="py-3.5 pr-4 pl-5 font-semibold">Código / Producto Comercial</th>
-										<th class="px-4 py-3.5 font-semibold">Productos Finales Asociados (Recetas)</th>
-										<th class="px-4 py-3.5 text-right font-semibold">Costo Receta Est.</th>
-										<th class="px-4 py-3.5 text-right font-semibold">Precio de Venta</th>
-										<th class="px-4 py-3.5 text-right font-semibold">Margen Est.</th>
+										<th class="py-3.5 pr-4 pl-5 font-semibold">Producto</th>
+										<th class="px-4 py-3.5 font-semibold">Composición</th>
+										<th class="px-4 py-3.5 text-right font-semibold">Costo Est.</th>
+										<th class="px-4 py-3.5 text-right font-semibold">Precio</th>
+										<th class="px-4 py-3.5 text-right font-semibold">Margen</th>
 										<th class="py-3.5 pr-5 pl-4 text-right font-semibold">Acciones</th>
 									</tr>
 								</thead>
@@ -1448,15 +1470,15 @@
 				{:else}
 					<div class="rounded-xl border border-dashed border-border p-12 text-center">
 						<Tag class="mx-auto size-10 text-muted-foreground/60" />
-						<p class="mt-3 text-base font-medium text-foreground">
-							Aún no tienes Productos para Venta configurados
+						<p class="mt-3 text-base font-semibold text-foreground">
+							Sin productos de venta
 						</p>
-						<p class="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
-							Crea tus productos comerciales o combos vinculándolos con los Productos Finales de tu inventario/recetas para poder tomar órdenes y ventas.
+						<p class="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
+							Crea productos o combos comerciales para vender en el mostrador.
 						</p>
-						<Button class="mt-4" href="/inventory/products/new">
+						<Button class="mt-4" onclick={openNewSalesProductModal}>
 							<Plus class="size-4" />
-							<span>Crear Primer Producto para Venta</span>
+							<span>Nuevo Producto</span>
 						</Button>
 					</div>
 				{/if}
@@ -1465,7 +1487,7 @@
 	{/if}
 
 	<!-- ========================================================================
-	     MODAL COMPARTIDO: Alta de Nuevo Ítem en Inventario / Recetas
+	     MODAL ONBOARDING: Alta de Nuevo Ítem en Inventario / Recetas (Paso a Paso)
 	     ======================================================================== -->
 	{#if showNewItemModal}
 		<div
@@ -1474,28 +1496,43 @@
 			aria-modal="true"
 			aria-labelledby="inv-new-item-title"
 		>
-			<div class="w-full max-w-xl overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
-				<div class="flex items-start justify-between gap-4 border-b border-border p-6">
-					<div class="space-y-1">
+			<div class="w-full max-w-lg overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
+				<!-- Header con Barra de Progreso y Paso -->
+				<div class="border-b border-border p-5">
+					<div class="flex items-center justify-between">
 						<div class="flex items-center gap-2">
-							<Badge variant="secondary" class="font-mono text-xs">
-								SKU autogenerado: {nextAutoCode}
-							</Badge>
-							<ItemTypeBadge type={newItemType} short={true} />
+							<span class="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-bold text-primary">
+								Paso {newItemStep} de 3
+							</span>
+							<span class="text-xs font-mono text-muted-foreground">{nextAutoCode}</span>
 						</div>
-						<h2 id="inv-new-item-title" class="text-xl font-bold text-foreground">
-							Registrar Nuevo Ítem en Inventario / Recetas
-						</h2>
+						<Button
+							type="button"
+							size="icon"
+							variant="ghost"
+							class="size-8 text-muted-foreground hover:text-foreground"
+							onclick={() => (showNewItemModal = false)}
+						>
+							<X class="size-4" />
+						</Button>
 					</div>
-					<Button
-						type="button"
-						size="icon"
-						variant="ghost"
-						class="size-8 text-muted-foreground hover:text-foreground"
-						onclick={() => (showNewItemModal = false)}
-					>
-						<X class="size-4" />
-					</Button>
+
+					<h2 id="inv-new-item-title" class="mt-3 text-lg font-bold text-foreground">
+						{#if newItemStep === 1}
+							¿Qué tipo de ítem vas a registrar?
+						{:else if newItemStep === 2}
+							Nombre y unidad de medida
+						{:else}
+							Stock inicial y costos
+						{/if}
+					</h2>
+
+					<!-- Barra de progreso visual -->
+					<div class="mt-3 flex gap-1.5">
+						<div class="h-1 flex-1 rounded-full {newItemStep >= 1 ? 'bg-primary' : 'bg-muted'}"></div>
+						<div class="h-1 flex-1 rounded-full {newItemStep >= 2 ? 'bg-primary' : 'bg-muted'}"></div>
+						<div class="h-1 flex-1 rounded-full {newItemStep >= 3 ? 'bg-primary' : 'bg-muted'}"></div>
+					</div>
 				</div>
 
 				<form
@@ -1515,147 +1552,230 @@
 						};
 					}}
 				>
-					<div class="max-h-[70vh] space-y-5 overflow-y-auto p-6">
-						<input type="hidden" name="businessId" value={data.activeBusiness.id} />
+					<input type="hidden" name="businessId" value={data.activeBusiness.id} />
+					<input type="hidden" name="type" value={newItemType} />
+					<input type="hidden" name="name" value={newItemName} />
+					<input type="hidden" name="baseUnit" value={newItemBaseUnit} />
+					<input type="hidden" name="currentStock" value={newItemCurrentStock} />
+					<input type="hidden" name="minStock" value={newItemMinStock} />
+					<input
+						type="hidden"
+						name="referenceCost"
+						value={newItemType === 'raw_material' ? newItemRefCost : 0}
+					/>
+					<input
+						type="hidden"
+						name="purchaseQuantity"
+						value={newItemType === 'raw_material' ? newItemPurchaseQty : 1}
+					/>
+					<input type="hidden" name="yieldQuantity" value="1" />
+					<input type="hidden" name="notes" value={newItemNotes} />
 
-						<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-							<div class="space-y-2 sm:col-span-2">
-								<Label for="inv-new-name">Nombre del Ítem</Label>
-								<Input
-									id="inv-new-name"
-									name="name"
-									class="h-10"
-									placeholder="Ej. Chocolate Cobertura 70% o Combo Cumpleaños"
-									required
-								/>
-							</div>
-
-							<div class="space-y-2">
-								<Label for="inv-new-type">Categoría / Tipo</Label>
-								<select
-									id="inv-new-type"
-									name="type"
-									bind:value={newItemType}
-									class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
+					<div class="p-6">
+						{#if newItemStep === 1}
+							<!-- PASO 1: Selección de Tipo de Ítem -->
+							<div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+								<button
+									type="button"
+									onclick={() => {
+										newItemType = 'raw_material';
+										newItemBaseUnit = 'g';
+										newItemStep = 2;
+									}}
+									class="flex flex-col items-center justify-center rounded-xl border-2 p-4 text-center transition-all {newItemType ===
+									'raw_material'
+										? 'border-primary bg-primary/5 text-primary shadow-xs'
+										: 'border-border hover:border-muted-foreground/30 hover:bg-muted/30'}"
 								>
-									{#each ITEM_TYPES as t}
-										<option value={t}>{ITEM_TYPE_LABELS[t]}</option>
-									{/each}
-								</select>
-							</div>
+									<div
+										class="mb-2.5 flex size-12 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600"
+									>
+										<Wheat class="size-6" />
+									</div>
+									<span class="text-sm font-bold text-foreground">Materia Prima</span>
+									<span class="mt-1 text-[11px] text-muted-foreground">Insumo que compras</span>
+								</button>
 
-							<div class="space-y-2">
-								<Label for="inv-new-baseUnit">Unidad de Medida</Label>
-								<select
-									id="inv-new-baseUnit"
-									name="baseUnit"
-									bind:value={newItemBaseUnit}
-									class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
+								<button
+									type="button"
+									onclick={() => {
+										newItemType = 'sub_assembly';
+										newItemBaseUnit = 'unit';
+										newItemStep = 2;
+									}}
+									class="flex flex-col items-center justify-center rounded-xl border-2 p-4 text-center transition-all {newItemType ===
+									'sub_assembly'
+										? 'border-primary bg-primary/5 text-primary shadow-xs'
+										: 'border-border hover:border-muted-foreground/30 hover:bg-muted/30'}"
 								>
-									{#each UNITS_OF_MEASURE as u}
-										<option value={u}>{UNIT_LABELS[u]}</option>
-									{/each}
-								</select>
-							</div>
+									<div
+										class="mb-2.5 flex size-12 items-center justify-center rounded-full bg-amber-500/10 text-amber-600"
+									>
+										<ChefHat class="size-6" />
+									</div>
+									<span class="text-sm font-bold text-foreground">Sub-ensamble</span>
+									<span class="mt-1 text-[11px] text-muted-foreground">Base elaborada</span>
+								</button>
 
-							<div class="space-y-2">
-								<Label for="inv-new-currentStock">Stock Inicial ({newItemBaseUnit})</Label>
-								<Input
-									id="inv-new-currentStock"
-									name="currentStock"
-									type="number"
-									step="any"
-									min="0"
-									value="0"
-									class="h-10"
-									required
-								/>
+								<button
+									type="button"
+									onclick={() => {
+										newItemType = 'finished_product';
+										newItemBaseUnit = 'unit';
+										newItemStep = 2;
+									}}
+									class="flex flex-col items-center justify-center rounded-xl border-2 p-4 text-center transition-all {newItemType ===
+									'finished_product'
+										? 'border-primary bg-primary/5 text-primary shadow-xs'
+										: 'border-border hover:border-muted-foreground/30 hover:bg-muted/30'}"
+								>
+									<div
+										class="mb-2.5 flex size-12 items-center justify-center rounded-full bg-indigo-500/10 text-indigo-600"
+									>
+										<CakeSlice class="size-6" />
+									</div>
+									<span class="text-sm font-bold text-foreground">Producto Final</span>
+									<span class="mt-1 text-[11px] text-muted-foreground">Listo para venta</span>
+								</button>
 							</div>
-
-							{#if newItemType === 'raw_material'}
+						{:else if newItemStep === 2}
+							<!-- PASO 2: Nombre y Unidad -->
+							<div class="space-y-4">
 								<div class="space-y-2">
-									<Label for="inv-new-referenceCost">Costo Compra ($)</Label>
+									<Label for="inv-step-name">Nombre del Ítem</Label>
 									<Input
-										id="inv-new-referenceCost"
-										name="referenceCost"
-										type="number"
-										step="any"
-										min="0"
-										value="0"
-										class="h-10"
+										id="inv-step-name"
+										bind:value={newItemName}
+										placeholder={newItemType === 'raw_material'
+											? 'Ej. Harina 0000'
+											: newItemType === 'sub_assembly'
+												? 'Ej. Crema Pastelera'
+												: 'Ej. Torta Selva Negra'}
+										class="h-11 text-base font-medium"
+										required
+										autofocus
 									/>
 								</div>
 
 								<div class="space-y-2">
-									<Label for="inv-new-purchaseQty">Cant. Envase Compra ({newItemBaseUnit})</Label>
+									<Label for="inv-step-unit">Unidad de Medida</Label>
+									<select
+										id="inv-step-unit"
+										bind:value={newItemBaseUnit}
+										class="flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs"
+									>
+										{#each UNITS_OF_MEASURE as u}
+											<option value={u}>{UNIT_LABELS[u]} ({u})</option>
+										{/each}
+									</select>
+								</div>
+							</div>
+						{:else}
+							<!-- PASO 3: Stock y Costos -->
+							<div class="space-y-4">
+								<div class="grid grid-cols-2 gap-3">
+									<div class="space-y-1.5">
+										<Label for="inv-step-stock">Stock Inicial ({newItemBaseUnit})</Label>
+										<Input
+											id="inv-step-stock"
+											type="number"
+											step="any"
+											min="0"
+											bind:value={newItemCurrentStock}
+											class="h-11 font-mono text-base"
+										/>
+									</div>
+
+									<div class="space-y-1.5">
+										<Label for="inv-step-min">Aviso Stock Mínimo</Label>
+										<Input
+											id="inv-step-min"
+											type="number"
+											step="any"
+											min="0"
+											bind:value={newItemMinStock}
+											class="h-11 font-mono text-base"
+											placeholder="0"
+										/>
+									</div>
+								</div>
+
+								{#if newItemType === 'raw_material'}
+									<div class="space-y-3 rounded-xl border border-border bg-muted/20 p-3.5">
+										<div class="grid grid-cols-2 gap-3">
+											<div class="space-y-1.5">
+												<Label for="inv-step-cost">Costo de Compra ($)</Label>
+												<Input
+													id="inv-step-cost"
+													type="number"
+													step="any"
+													min="0"
+													bind:value={newItemRefCost}
+													class="h-10 font-mono"
+													placeholder="0.00"
+												/>
+											</div>
+											<div class="space-y-1.5">
+												<Label for="inv-step-pkg">Cantidad Envase ({newItemBaseUnit})</Label>
+												<Input
+													id="inv-step-pkg"
+													type="number"
+													step="any"
+													min="0.001"
+													bind:value={newItemPurchaseQty}
+													class="h-10 font-mono"
+													placeholder="1"
+												/>
+											</div>
+										</div>
+										<p class="text-[11px] text-muted-foreground">
+											Calcula el costo unitario por cada {newItemBaseUnit} para tus recetas.
+										</p>
+									</div>
+								{/if}
+
+								<div class="space-y-1.5">
+									<Label for="inv-step-notes">Notas (opcional)</Label>
 									<Input
-										id="inv-new-purchaseQty"
-										name="purchaseQuantity"
-										type="number"
-										step="any"
-										min="0.001"
-										value="1"
-										class="h-10"
+										id="inv-step-notes"
+										bind:value={newItemNotes}
+										placeholder="Proveedor, marca o detalle"
+										class="h-9 text-xs"
 									/>
 								</div>
-								<input type="hidden" name="yieldQuantity" value="1" />
-							{:else}
-								<div class="space-y-1.5 sm:col-span-2 rounded-xl border border-dashed border-primary/30 bg-primary/5 p-3 text-xs text-muted-foreground">
-									<p class="font-medium text-foreground">
-										Este {newItemType === 'sub_assembly' ? 'sub-ensamble' : 'producto'} calculará su costo y rendimiento en la pestaña <strong class="text-primary">Estructura de Recetas</strong>.
-									</p>
-									<p class="mt-0.5">Podrás configurar cuánto rinde la receta y cargar sus ingredientes una vez creado el ítem.</p>
-								</div>
-								<input type="hidden" name="yieldQuantity" value="1" />
-								<input type="hidden" name="referenceCost" value="0" />
-								<input type="hidden" name="purchaseQuantity" value="1" />
-							{/if}
-
-							<div class="space-y-1.5 sm:col-span-2">
-								<div class="flex items-center justify-between">
-									<Label for="inv-new-min-stock">Punto de Alerta (Stock Mínimo)</Label>
-									<span class="text-xs text-muted-foreground font-mono">Unidad: {newItemBaseUnit}</span>
-								</div>
-								<div class="flex items-center gap-2">
-									<Input
-										id="inv-new-min-stock"
-										name="minStock"
-										type="number"
-										step="any"
-										min="0"
-										bind:value={newItemMinStock}
-										class="h-10 font-mono text-sm"
-										placeholder="0"
-									/>
-									<span class="rounded-md border border-input bg-muted px-3 py-2 font-mono text-sm text-muted-foreground">
-										{newItemBaseUnit}
-									</span>
-								</div>
-								<p class="text-[11px] text-muted-foreground">
-									El sistema te avisará cuando las existencias estén en o por debajo de esta cantidad.
-								</p>
 							</div>
-
-							<div class="space-y-2 sm:col-span-2">
-								<Label for="inv-new-notes">Notas (opcional)</Label>
-								<Input
-									id="inv-new-notes"
-									name="notes"
-									class="h-10"
-									placeholder="Marca, proveedor o detalle de preparación"
-								/>
-							</div>
-						</div>
+						{/if}
 					</div>
 
-					<div class="flex items-center justify-end gap-3 border-t border-border bg-muted/20 px-6 py-4">
-						<Button type="button" variant="outline" onclick={() => (showNewItemModal = false)}>
-							Cancelar
-						</Button>
-						<Button type="submit">
-							<Plus class="size-4" />
-							<span>Guardar en Inventario</span>
-						</Button>
+					<!-- Footer del Wizard -->
+					<div class="flex items-center justify-between border-t border-border bg-muted/20 px-6 py-4">
+						{#if newItemStep === 1}
+							<Button type="button" variant="outline" onclick={() => (showNewItemModal = false)}>
+								Cancelar
+							</Button>
+							<Button type="button" onclick={() => (newItemStep = 2)}>
+								Siguiente →
+							</Button>
+						{:else if newItemStep === 2}
+							<Button type="button" variant="outline" onclick={() => (newItemStep = 1)}>
+								← Atrás
+							</Button>
+							<Button
+								type="button"
+								disabled={!newItemName.trim()}
+								onclick={() => (newItemStep = 3)}
+							>
+								Siguiente →
+							</Button>
+						{:else}
+							<Button type="button" variant="outline" onclick={() => (newItemStep = 2)}>
+								← Atrás
+							</Button>
+							<Button type="submit">
+								<Check class="size-4" />
+								<span>Guardar Ítem</span>
+							</Button>
+						{/if}
 					</div>
 				</form>
 			</div>
@@ -1672,8 +1792,8 @@
 			aria-modal="true"
 			aria-labelledby="add-recipe-modal-title"
 		>
-			<div class="w-full max-w-lg overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
-				<div class="flex items-start justify-between gap-4 border-b border-border p-6">
+			<div class="w-full max-w-md overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
+				<div class="flex items-start justify-between gap-4 border-b border-border p-5">
 					<div class="space-y-1">
 						<div class="flex items-center gap-2">
 							<span class="rounded bg-muted px-2 py-0.5 font-mono text-xs font-semibold">
@@ -1682,10 +1802,10 @@
 							<ItemTypeBadge type={selectedRoot.type} short={true} />
 						</div>
 						<h2 id="add-recipe-modal-title" class="text-lg font-bold text-foreground">
-							Agregar Ingrediente a "{selectedRoot.name}"
+							Añadir a {selectedRoot.name}
 						</h2>
 						<p class="text-xs text-muted-foreground">
-							Cantidad expresada para un lote de {selectedRoot.yieldQuantity} {selectedRoot.baseUnit}
+							Rinde {selectedRoot.yieldQuantity} {selectedRoot.baseUnit}
 						</p>
 					</div>
 					<Button
@@ -1711,17 +1831,17 @@
 						};
 					}}
 				>
-					<div class="space-y-4 p-6">
+					<div class="space-y-4 p-5">
 						<input type="hidden" name="businessId" value={data.activeBusiness.id} />
 						<input type="hidden" name="parentItemId" value={selectedRoot.id} />
 
-						<div class="space-y-2">
-							<Label for="recipe-componentItemId">Ingrediente / Componente (Materia Prima, Sub-ensamble o Producto)</Label>
+						<div class="space-y-1.5">
+							<Label for="recipe-componentItemId">Ingrediente</Label>
 							<select
 								id="recipe-componentItemId"
 								name="componentItemId"
 								bind:value={selectedComponentId}
-								class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
+								class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs"
 								required
 							>
 								{#each availableComponentsForSelected as candidate (candidate.id)}
@@ -1732,28 +1852,29 @@
 							</select>
 						</div>
 
-						<div class="grid grid-cols-2 gap-4">
-							<div class="space-y-2">
-								<Label for="recipe-quantity">Cantidad Requerida</Label>
+						<div class="grid grid-cols-2 gap-3">
+							<div class="space-y-1.5">
+								<Label for="recipe-quantity">Cantidad</Label>
 								<Input
 									id="recipe-quantity"
 									name="quantity"
 									type="number"
 									step="any"
 									min="0.001"
-									class="h-10"
+									class="h-10 font-mono"
 									placeholder="Ej. 250"
 									required
+									autofocus
 								/>
 							</div>
 
-							<div class="space-y-2">
+							<div class="space-y-1.5">
 								<Label for="recipe-unit">Unidad</Label>
 								<select
 									id="recipe-unit"
 									name="unit"
 									bind:value={selectedRecipeUnit}
-									class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
+									class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs"
 								>
 									{#each compatibleUnits as u}
 										<option value={u}>{u}</option>
@@ -1762,24 +1883,24 @@
 							</div>
 						</div>
 
-						<div class="space-y-2">
-							<Label for="recipe-notes">Nota / Etapa de preparación (opcional)</Label>
+						<div class="space-y-1.5">
+							<Label for="recipe-notes">Nota (opcional)</Label>
 							<Input
 								id="recipe-notes"
 								name="notes"
-								class="h-10"
-								placeholder="Ej. Tamizada, para el relleno o cobertura"
+								class="h-9 text-xs"
+								placeholder="Ej. Relleno, cobertura"
 							/>
 						</div>
 					</div>
 
-					<div class="flex items-center justify-end gap-3 border-t border-border bg-muted/20 px-6 py-4">
+					<div class="flex items-center justify-end gap-2.5 border-t border-border bg-muted/20 px-5 py-3.5">
 						<Button type="button" variant="outline" onclick={() => (showAddRecipeLineModal = false)}>
 							Cancelar
 						</Button>
 						<Button type="submit">
 							<Plus class="size-4" />
-							<span>Añadir a la Receta</span>
+							<span>Añadir a Receta</span>
 						</Button>
 					</div>
 				</form>
@@ -1952,7 +2073,7 @@
 	{/if}
 
 	<!-- ========================================================================
-	     MODAL PRODUCTOS PARA VENTA: Alta de Producto Comercial
+	     MODAL ONBOARDING: Alta de Producto de Venta (Paso a Paso)
 	     ======================================================================== -->
 	{#if showNewSalesProductModal}
 		<div
@@ -1962,37 +2083,49 @@
 			aria-labelledby="new-sales-product-title"
 		>
 			<div class="w-full max-w-lg overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
-				<div class="flex items-start justify-between gap-4 border-b border-border p-6">
-					<div class="space-y-1">
-						<Badge variant="secondary" class="font-mono text-xs">
-							Código Comercial: {nextSalesProductCode}
-						</Badge>
-						<h2 id="new-sales-product-title" class="text-xl font-bold text-foreground">
-							Nuevo Producto para Venta
-						</h2>
-						<p class="text-xs text-muted-foreground">
-							Vincula uno o varios Productos Finales de tu inventario/recetas para habilitarlo en el módulo de Órdenes.
-						</p>
+				<!-- Header con Barra de Progreso y Paso -->
+				<div class="border-b border-border p-5">
+					<div class="flex items-center justify-between">
+						<div class="flex items-center gap-2">
+							<span class="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-bold text-primary">
+								Paso {newSalesStep} de 2
+							</span>
+							<span class="text-xs font-mono text-muted-foreground">{nextSalesProductCode}</span>
+						</div>
+						<Button
+							type="button"
+							size="icon"
+							variant="ghost"
+							class="size-8 text-muted-foreground hover:text-foreground"
+							onclick={() => (showNewSalesProductModal = false)}
+						>
+							<X class="size-4" />
+						</Button>
 					</div>
-					<Button
-						type="button"
-						size="icon"
-						variant="ghost"
-						class="size-8 text-muted-foreground hover:text-foreground"
-						onclick={() => (showNewSalesProductModal = false)}
-					>
-						<X class="size-4" />
-					</Button>
+
+					<h2 id="new-sales-product-title" class="mt-3 text-lg font-bold text-foreground">
+						{#if newSalesStep === 1}
+							¿Qué producto vas a vender?
+						{:else}
+							Precio y venta rápida
+						{/if}
+					</h2>
+
+					<!-- Barra de progreso visual -->
+					<div class="mt-3 flex gap-1.5">
+						<div class="h-1 flex-1 rounded-full {newSalesStep >= 1 ? 'bg-primary' : 'bg-muted'}"></div>
+						<div class="h-1 flex-1 rounded-full {newSalesStep >= 2 ? 'bg-primary' : 'bg-muted'}"></div>
+					</div>
 				</div>
 
 				{#if linkableItems.length === 0}
 					<div class="space-y-4 p-8 text-center">
 						<CakeSlice class="mx-auto size-10 text-muted-foreground" />
 						<p class="text-base font-semibold text-foreground">
-							No tienes ítems registrados en Inventario
+							Sin ítems en el Inventario
 						</p>
 						<p class="mx-auto max-w-md text-sm text-muted-foreground">
-							Para crear un producto de venta necesitas al menos un ítem registrado en el inventario (materia prima, sub-ensamble o producto final).
+							Necesitas al menos un ítem registrado para crear un producto de venta.
 						</p>
 						<div class="flex justify-center gap-3 pt-2">
 							<Button variant="outline" onclick={() => (showNewSalesProductModal = false)}>
@@ -2002,11 +2135,11 @@
 								type="button"
 								onclick={() => {
 									showNewSalesProductModal = false;
-									showNewItemModal = true;
+									openNewItemModal();
 								}}
 							>
 								<Plus class="size-4" />
-								<span>Crear Ítem en Inventario</span>
+								<span>Crear Ítem</span>
 							</Button>
 						</div>
 					</div>
@@ -2028,178 +2161,216 @@
 							};
 						}}
 					>
-						<div class="max-h-[70vh] space-y-4 overflow-y-auto p-6">
-							<input type="hidden" name="businessId" value={data.activeBusiness.id} />
-							<input
-								type="hidden"
-								name="componentsJson"
-								value={JSON.stringify(newSalesComponents)}
-							/>
+						<input type="hidden" name="businessId" value={data.activeBusiness.id} />
+						<input
+							type="hidden"
+							name="componentsJson"
+							value={JSON.stringify(newSalesComponents)}
+						/>
+						<input type="hidden" name="name" value={newSalesName} />
+						<input type="hidden" name="salePrice" value={newSalesPrice} />
+						<input type="hidden" name="description" value={newSalesDescription} />
+						{#if newSalesIsShortcut}
+							<input type="hidden" name="isShortcut" value="true" />
+						{/if}
 
-							<div class="space-y-2">
-								<Label for="sp-name">Nombre Comercial para la Venta</Label>
-								<Input
-									id="sp-name"
-									name="name"
-									bind:value={newSalesName}
-									placeholder="Ej. Torta 20 Porciones o Combo Cumpleaños"
-									class="h-10"
-									required
-								/>
-							</div>
-
-							<!-- Lista de Productos Finales asociados (permite 1 producto o múltiples para Combos) -->
-							<div class="space-y-2.5 rounded-xl border border-border bg-muted/20 p-3.5">
-								<div class="flex items-center justify-between gap-2">
-									<div>
-										<p class="text-xs font-semibold text-foreground">
-											Productos Finales que incluye ({newSalesComponents.length})
-										</p>
-										<p class="text-[11px] text-muted-foreground">
-											Puedes asociar 1 producto final o combinar varios para armar un Combo.
-										</p>
+						<div class="p-6">
+							{#if newSalesStep === 1}
+								<!-- PASO 1: Nombre y Componentes -->
+								<div class="space-y-4">
+									<div class="space-y-2">
+										<Label for="sp-step-name">Nombre Comercial</Label>
+										<Input
+											id="sp-step-name"
+											bind:value={newSalesName}
+											placeholder="Ej. Torta Selva Negra o Combo Cumpleaños"
+											class="h-11 text-base font-medium"
+											required
+											autofocus
+										/>
 									</div>
-									<Button
-										type="button"
-										variant="outline"
-										size="sm"
-										class="h-7 px-2.5 text-xs"
-										onclick={addNewSalesComponentLine}
-									>
-										<Plus class="size-3.5" />
-										<span>Agregar otro Producto Final</span>
-									</Button>
-								</div>
 
-								<div class="space-y-2">
-									{#each newSalesComponents as comp, idx (idx)}
-										{@const selectedItem = data.items.find((i) => i.id === comp.itemId)}
-										<div class="flex items-center gap-2 rounded-lg border border-border bg-background p-2">
-											<div class="min-w-0 flex-1">
-												<select
-													aria-label="Producto Final {idx + 1}"
-													bind:value={comp.itemId}
-													onchange={() => {
-														if (newSalesComponents.length === 1) {
-															const found = data.items.find((i) => i.id === comp.itemId);
-															if (found && !newSalesName) newSalesName = found.name;
-														}
-													}}
-													class="flex h-9 w-full rounded-md border border-input bg-background px-2.5 py-1 text-xs shadow-2xs"
-													required
+									<div class="space-y-2.5 rounded-xl border border-border bg-muted/20 p-3.5">
+										<div class="flex items-center justify-between">
+											<Label class="text-xs font-semibold text-foreground">
+												Ítem de Inventario que Descuenta
+											</Label>
+											{#if !newSalesIsCombo}
+												<button
+													type="button"
+													onclick={() => (newSalesIsCombo = true)}
+													class="text-xs font-medium text-primary hover:underline"
 												>
-													{#each linkableItems as candidate (candidate.id)}
-														<option value={candidate.id}>
-															[{candidate.code}] {candidate.name} ({ITEM_TYPE_LABELS[candidate.type]} · Stock: {candidate.currentStock} {candidate.baseUnit})
-														</option>
-													{/each}
-												</select>
-											</div>
+													+ Es un combo
+												</button>
+											{/if}
+										</div>
 
-											<div class="flex items-center gap-1.5">
-												<Input
-													type="number"
-													step="any"
-													min="0.001"
-													bind:value={comp.quantity}
-													class="h-9 w-20 text-right font-mono text-xs"
-													required
-												/>
-												<span class="w-8 text-[11px] text-muted-foreground">
-													{selectedItem?.baseUnit ?? 'unit'}
-												</span>
-											</div>
+										<div class="space-y-2">
+											{#each newSalesComponents as comp, idx (idx)}
+												{@const selectedItem = data.items.find((i) => i.id === comp.itemId)}
+												<div class="flex items-center gap-2 rounded-lg border border-border bg-background p-2">
+													<div class="min-w-0 flex-1">
+														<select
+															aria-label="Ítem {idx + 1}"
+															bind:value={comp.itemId}
+															onchange={() => {
+																if (newSalesComponents.length === 1 && !newSalesName) {
+																	const found = data.items.find((i) => i.id === comp.itemId);
+																	if (found) newSalesName = found.name;
+																}
+															}}
+															class="flex h-9 w-full rounded-md border border-input bg-background px-2.5 py-1 text-xs shadow-2xs"
+															required
+														>
+															{#each linkableItems as candidate (candidate.id)}
+																<option value={candidate.id}>
+																	[{candidate.code}] {candidate.name} ({ITEM_TYPE_LABELS[candidate.type]} · {candidate.currentStock} {candidate.baseUnit})
+																</option>
+															{/each}
+														</select>
+													</div>
 
-											{#if newSalesComponents.length > 1}
+													<div class="flex items-center gap-1.5">
+														<Input
+															type="number"
+															step="any"
+															min="0.001"
+															bind:value={comp.quantity}
+															class="h-9 w-18 text-right font-mono text-xs"
+															required
+														/>
+														<span class="w-7 text-[11px] text-muted-foreground">
+															{selectedItem?.baseUnit ?? 'u'}
+														</span>
+													</div>
+
+													{#if newSalesComponents.length > 1}
+														<Button
+															type="button"
+															size="icon"
+															variant="ghost"
+															class="size-8 shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+															onclick={() => removeNewSalesComponentLine(idx)}
+														>
+															<Trash2 class="size-3.5" />
+														</Button>
+													{/if}
+												</div>
+											{/each}
+
+											{#if newSalesIsCombo}
 												<Button
 													type="button"
-													size="icon"
-													variant="ghost"
-													class="size-8 shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-													title="Quitar ítem del combo"
-													onclick={() => removeNewSalesComponentLine(idx)}
+													variant="outline"
+													size="sm"
+													class="w-full text-xs"
+													onclick={addNewSalesComponentLine}
 												>
-													<Trash2 class="size-3.5" />
+													<Plus class="size-3.5" />
+													<span>Agregar otro ítem al combo</span>
 												</Button>
 											{/if}
 										</div>
-									{/each}
-								</div>
-							</div>
-
-							<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-								<div class="space-y-2">
-									<Label for="sp-salePrice">Precio de Venta ($)</Label>
-									<Input
-										id="sp-salePrice"
-										name="salePrice"
-										type="number"
-										step="any"
-										min="0"
-										bind:value={newSalesPrice}
-										class="h-10"
-										required
-									/>
+									</div>
 								</div>
 
-								<div class="space-y-2">
-									<Label for="sp-description">Descripción / Presentación (opcional)</Label>
-									<Input
-										id="sp-description"
-										name="description"
-										placeholder="Ej. Incluye vela y caja"
-										class="h-10"
-									/>
-								</div>
-							</div>
+							{:else}
+								<!-- PASO 2: Precio y Atajos -->
+								<div class="space-y-4">
+									<div class="space-y-2">
+										<Label for="sp-step-price">Precio de Venta ($)</Label>
+										<Input
+											id="sp-step-price"
+											type="number"
+											step="any"
+											min="0"
+											bind:value={newSalesPrice}
+											class="h-11 font-mono text-xl font-bold"
+											placeholder="0.00"
+											required
+											autofocus
+										/>
+									</div>
 
-							<div class="flex items-center gap-2 pt-1">
-								<input
-									id="sp-isShortcut"
-									name="isShortcut"
-									type="checkbox"
-									value="true"
-									class="size-4 rounded border-input text-primary focus:ring-primary"
-								/>
-								<Label for="sp-isShortcut" class="text-xs font-medium cursor-pointer">
-									⭐ Fijar como Atajo Rápido en la pantalla de Ventas / Órdenes
-								</Label>
-							</div>
+									<!-- Resumen de Costo y Margen -->
+									<div class="rounded-xl border border-border bg-muted/30 p-3.5 text-xs space-y-1.5">
+										<div class="flex items-center justify-between">
+											<span class="text-muted-foreground">Costo estimado:</span>
+											<span class="font-mono font-semibold text-foreground">
+												{formatCurrency(estimatedCostForNewSalesProduct)}
+											</span>
+										</div>
+										<div class="flex items-center justify-between">
+											<span class="text-muted-foreground">Margen proyectado:</span>
+											<span
+												class="font-mono font-semibold {newSalesPrice - estimatedCostForNewSalesProduct >= 0
+													? 'text-emerald-600'
+													: 'text-destructive'}"
+											>
+												{formatCurrency(newSalesPrice - estimatedCostForNewSalesProduct)}
+												{#if newSalesPrice > 0}
+													({Math.round(((newSalesPrice - estimatedCostForNewSalesProduct) / newSalesPrice) * 100)}%)
+												{/if}
+											</span>
+										</div>
+									</div>
 
-							<div class="rounded-xl border border-border bg-muted/30 p-3.5 text-xs">
-								<div class="flex items-center justify-between">
-									<span class="text-muted-foreground">
-										Costo estimado total según Receta ({newSalesComponents.length} {newSalesComponents.length === 1 ? 'ítem' : 'ítems'}):
-									</span>
-									<span class="font-mono font-semibold text-foreground">
-										{formatCurrency(estimatedCostForNewSalesProduct)}
-									</span>
+									<label class="flex items-center gap-2.5 rounded-xl border border-border bg-muted/20 p-3 cursor-pointer">
+										<input
+											type="checkbox"
+											bind:checked={newSalesIsShortcut}
+											class="size-4 rounded border-input text-amber-500 focus:ring-amber-500"
+										/>
+										<span class="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+											<Star class="size-3.5 {newSalesIsShortcut ? 'fill-amber-500 text-amber-500' : 'text-muted-foreground'}" />
+											Fijar como atajo rápido en la pantalla de ventas
+										</span>
+									</label>
+
+									<div class="space-y-1.5">
+										<Label for="sp-step-desc">Descripción (opcional)</Label>
+										<Input
+											id="sp-step-desc"
+											bind:value={newSalesDescription}
+											placeholder="Ej. Incluye vela y cartel"
+											class="h-9 text-xs"
+										/>
+									</div>
 								</div>
-								<div class="mt-1 flex items-center justify-between">
-									<span class="text-muted-foreground">Margen bruto proyectado:</span>
-									<span
-										class="font-mono font-semibold {newSalesPrice - estimatedCostForNewSalesProduct >= 0
-											? 'text-emerald-600'
-											: 'text-destructive'}"
-									>
-										{formatCurrency(newSalesPrice - estimatedCostForNewSalesProduct)}
-									</span>
-								</div>
-							</div>
+							{/if}
 						</div>
 
-						<div class="flex items-center justify-end gap-3 border-t border-border bg-muted/20 px-6 py-4">
-							<Button
-								type="button"
-								variant="outline"
-								onclick={() => (showNewSalesProductModal = false)}
-							>
-								Cancelar
-							</Button>
-							<Button type="submit">
-								<Plus class="size-4" />
-								<span>Guardar Producto de Venta</span>
-							</Button>
+						<!-- Footer del Wizard -->
+						<div class="flex items-center justify-between border-t border-border bg-muted/20 px-6 py-4">
+							{#if newSalesStep === 1}
+								<Button
+									type="button"
+									variant="outline"
+									onclick={() => (showNewSalesProductModal = false)}
+								>
+									Cancelar
+								</Button>
+								<Button
+									type="button"
+									disabled={!newSalesName.trim()}
+									onclick={() => (newSalesStep = 2)}
+								>
+									Siguiente →
+								</Button>
+							{:else}
+								<Button
+									type="button"
+									variant="outline"
+									onclick={() => (newSalesStep = 1)}
+								>
+									← Atrás
+								</Button>
+								<Button type="submit">
+									<Check class="size-4" />
+									<span>Guardar Producto</span>
+								</Button>
+							{/if}
 						</div>
 					</form>
 				{/if}
@@ -2274,26 +2445,21 @@
 							/>
 						</div>
 
-						<!-- Lista de Productos Finales asociados -->
+						<!-- Lista de Ítems asociados -->
 						<div class="space-y-2.5 rounded-xl border border-border bg-muted/20 p-3.5">
 							<div class="flex items-center justify-between gap-2">
-								<div>
-									<p class="text-xs font-semibold text-foreground">
-										Productos Finales Asociados ({editSalesComponents.length})
-									</p>
-									<p class="text-[11px] text-muted-foreground">
-										Solo ítems de categoría Producto Final.
-									</p>
-								</div>
+								<span class="text-xs font-semibold text-foreground">
+									Ítems que incluye ({editSalesComponents.length})
+								</span>
 								<Button
 									type="button"
 									variant="outline"
 									size="sm"
-									class="h-7 px-2.5 text-xs"
+									class="h-7 px-2 text-xs"
 									onclick={addEditSalesComponentLine}
 								>
 									<Plus class="size-3.5" />
-									<span>Agregar otro Producto Final</span>
+									<span>Agregar otro ítem</span>
 								</Button>
 							</div>
 

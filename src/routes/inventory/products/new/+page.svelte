@@ -110,8 +110,8 @@
 	activeBusiness={data.activeBusiness}
 	businesses={data.businesses}
 	currentSection="inventory"
-	title="Nuevo Producto Comercial"
-	description="Configura el producto de venta, sus componentes de receta y sus escalas de descuento por cantidad"
+	title="Nuevo Producto"
+	description="Alta comercial y componentes"
 >
 	{#snippet headerActions()}
 		<Button variant="outline" href="/inventory?tab=products" class="gap-1.5">
@@ -162,9 +162,9 @@
 			<div class="rounded-2xl border border-border bg-card p-6 shadow-xs space-y-5">
 				<div class="flex items-center justify-between border-b border-border pb-3">
 					<div>
-						<h3 class="text-base font-bold text-foreground">1. Identificación Comercial</h3>
+						<h3 class="text-base font-bold text-foreground">1. Identificación</h3>
 						<p class="text-xs text-muted-foreground">
-							Nombre y código visible para el cliente y los vendedores en mostrador
+							Nombre y código visible en mostrador
 						</p>
 					</div>
 					<Badge variant="secondary" class="font-mono text-xs">
@@ -174,7 +174,7 @@
 
 				<div class="grid grid-cols-1 gap-4 sm:grid-cols-12">
 					<div class="space-y-2 sm:col-span-3">
-						<Label for="f-code">Código Comercial</Label>
+						<Label for="f-code">Código</Label>
 						<Input
 							id="f-code"
 							name="code"
@@ -185,59 +185,53 @@
 					</div>
 
 					<div class="space-y-2 sm:col-span-9">
-						<Label for="f-name">Nombre del Producto para la Venta</Label>
+						<Label for="f-name">Nombre Comercial</Label>
 						<Input
 							id="f-name"
 							name="name"
 							bind:value={name}
-							placeholder="Ej. Torta Selva Negra 20 Porciones o Combo Fiesta Infantil"
+							placeholder="Ej. Torta Selva Negra o Combo Cumpleaños"
 							class="font-medium"
 							required
 						/>
 					</div>
 
 					<div class="space-y-2 sm:col-span-12">
-						<Label for="f-desc">Descripción / Presentación (opcional)</Label>
+						<Label for="f-desc">Descripción (opcional)</Label>
 						<Input
 							id="f-desc"
 							name="description"
 							bind:value={description}
-							placeholder="Ej. Incluye packaging especial, vela y cartel de feliz cumpleaños"
+							placeholder="Ej. Incluye packaging especial y vela"
 						/>
 					</div>
 
 					<!-- Atajo Rápido -->
-					<div class="sm:col-span-12 pt-2">
-						<label class="flex items-center gap-3 rounded-xl border border-border bg-muted/20 p-3.5 cursor-pointer hover:bg-muted/30 transition-colors">
+					<div class="sm:col-span-12 pt-1">
+						<label class="flex items-center gap-3 rounded-xl border border-border bg-muted/20 p-3 cursor-pointer hover:bg-muted/30 transition-colors">
 							<input
 								type="checkbox"
 								bind:checked={isShortcut}
 								class="size-4.5 rounded border-input text-amber-500 focus:ring-amber-500"
 							/>
 							<div>
-								<span class="flex items-center gap-1.5 text-sm font-bold text-foreground">
-									<Star class="size-4 {isShortcut ? 'fill-amber-500 text-amber-500' : 'text-muted-foreground'}" />
-									Fijar como Atajo Rápido ⭐ en la pantalla de Ventas
+								<span class="flex items-center gap-1.5 text-xs font-bold text-foreground">
+									<Star class="size-3.5 {isShortcut ? 'fill-amber-500 text-amber-500' : 'text-muted-foreground'}" />
+									Fijar como atajo rápido en la pantalla de ventas
 								</span>
-								<p class="text-xs text-muted-foreground">
-									Aparecerá en los botones directos de un clic en el terminal de órdenes para agilizar el despacho.
-								</p>
 							</div>
 						</label>
 					</div>
 				</div>
 			</div>
 
-			<!-- BLOQUE 2: PRODUCTOS FINALES / COMBOS -->
+			<!-- BLOQUE 2: COMPONENTES / COMBOS -->
 			<div class="rounded-2xl border border-border bg-card p-6 shadow-xs space-y-5">
 				<div class="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
 					<div>
 						<h3 class="text-base font-bold text-foreground">
-							2. Productos Finales Asociados ({components.length})
+							2. Componentes que Descuenta ({components.length})
 						</h3>
-						<p class="text-xs text-muted-foreground">
-							Asocia 1 producto terminado o combina varios si se trata de una promoción o combo
-						</p>
 					</div>
 					<Button
 						type="button"
@@ -247,7 +241,7 @@
 						class="gap-1.5 text-xs"
 					>
 						<Plus class="size-3.5" />
-						<span>Agregar otro producto (Armar Combo)</span>
+						<span>Agregar ítem (Combo)</span>
 					</Button>
 				</div>
 
@@ -255,9 +249,9 @@
 					{#each components as comp, idx (idx)}
 						{@const selectedItem = data.items.find((i) => i.id === comp.itemId)}
 						{@const itemRecipeCost = selectedItem ? (data.recipeSummaries[selectedItem.id]?.estimatedUnitCost ?? getDirectUnitCost(selectedItem)) : 0}
-						<div class="flex flex-col gap-3 rounded-xl border border-border bg-muted/15 p-4 sm:flex-row sm:items-center">
+						<div class="flex flex-col gap-3 rounded-xl border border-border bg-muted/15 p-3.5 sm:flex-row sm:items-center">
 							<div class="min-w-0 flex-1 space-y-1">
-								<Label class="text-xs text-muted-foreground">Ítem del Inventario (Insumo, Sub-ensamble o Producto Final)</Label>
+								<Label class="text-xs text-muted-foreground">Ítem del Inventario</Label>
 								<select
 									bind:value={comp.itemId}
 									onchange={() => {
