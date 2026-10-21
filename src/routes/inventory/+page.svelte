@@ -117,9 +117,12 @@
 	let newItemPrepTime = $state(0);
 	let newItemNotes = $state('');
 
+	let newItemInitialType = $state<ItemType>('raw_material');
+
 	function openNewItemModal(type: ItemType = 'raw_material') {
+		newItemInitialType = type;
 		newItemType = type;
-		newItemStep = 1;
+		newItemStep = type === 'prepared' ? 2 : 1;
 		newItemName = '';
 		newItemBaseUnit = type === 'raw_material' ? 'g' : 'unit';
 		newItemCurrentStock = 0;
@@ -1226,45 +1229,45 @@
 	     VISTA 2: ESTRUCTURA DE RECETAS (2 COLUMNAS: CATÁLOGO IZQ + RECETA DER)
 	     ======================================================================== -->
 	{#if currentTab === 'recipes'}
-		<div class="grid grid-cols-1 gap-6 lg:grid-cols-12 items-start">
-			<!-- COLUMNA IZQUIERDA: CATÁLOGO DE ELABORACIONES (lg:col-span-4) -->
-			<div class="space-y-4 lg:col-span-4">
+		<div class="grid grid-cols-1 gap-5 lg:grid-cols-12 items-start">
+			<!-- COLUMNA IZQUIERDA: CATÁLOGO DE ELABORACIONES (lg:col-span-3 para maximizar espacio de tabla) -->
+			<div class="space-y-4 lg:col-span-3">
 				<Card class="border-border shadow-xs">
-					<CardHeader class="p-4 sm:p-5 pb-3">
-						<div class="flex items-center justify-between gap-2">
-							<div class="flex items-center gap-2">
-								<ChefHat class="size-5 text-purple-600 dark:text-purple-400" />
-								<CardTitle class="text-base font-bold">Elaboraciones</CardTitle>
-								<Badge variant="secondary" class="px-2 py-0.5 text-xs font-semibold">
+					<CardHeader class="p-3.5 sm:p-4 pb-2.5">
+						<div class="flex items-center justify-between gap-1.5">
+							<div class="flex items-center gap-1.5 min-w-0">
+								<ChefHat class="size-4 text-purple-600 dark:text-purple-400 shrink-0" />
+								<CardTitle class="text-sm font-bold truncate">Elaboraciones</CardTitle>
+								<Badge variant="secondary" class="px-1.5 py-0.2 text-[10px] font-semibold shrink-0">
 									{filteredRecipeCatalog.length}
 								</Badge>
 							</div>
 							<Button
 								size="sm"
-								class="h-8 gap-1 bg-purple-600 hover:bg-purple-700 text-white font-medium text-xs shadow-xs"
+								class="h-7 px-2 gap-1 bg-purple-600 hover:bg-purple-700 text-white font-medium text-xs shadow-xs shrink-0"
 								onclick={() => openNewItemModal('prepared')}
 							>
 								<Plus class="size-3.5" />
 								<span>Nueva</span>
 							</Button>
 						</div>
-						<CardDescription class="text-xs mt-1">
-							Selecciona una elaboración para ver o armar su receta
+						<CardDescription class="text-[11px] mt-0.5 leading-snug">
+							Selecciona para ver o armar su receta
 						</CardDescription>
 
 						<!-- Buscador -->
-						<div class="relative mt-3">
-							<Search class="pointer-events-none absolute top-2.5 left-2.5 size-4 text-muted-foreground" />
+						<div class="relative mt-2.5">
+							<Search class="pointer-events-none absolute top-2.5 left-2.5 size-3.5 text-muted-foreground" />
 							<Input
 								type="search"
-								placeholder="Buscar elaboración por nombre o código..."
+								placeholder="Buscar por nombre o código..."
 								bind:value={recipeSearchQuery}
-								class="h-9 pl-8.5 text-xs"
+								class="h-8.5 pl-8 text-xs"
 							/>
 						</div>
 					</CardHeader>
 
-					<CardContent class="p-4 sm:p-5 pt-0 space-y-2.5">
+					<CardContent class="p-3.5 sm:p-4 pt-0 space-y-2">
 						{#if filteredRecipeCatalog.length > 0}
 							<div class="space-y-2">
 								{#each paginatedCatalogItems as item (item.id)}
@@ -1273,36 +1276,36 @@
 									<button
 										type="button"
 										onclick={() => selectCatalogItem(item.id)}
-										class="w-full text-left rounded-xl border p-3 transition-all cursor-pointer shadow-2xs {isSelected
+										class="w-full text-left rounded-xl border p-2.5 sm:p-3 transition-all cursor-pointer shadow-2xs {isSelected
 											? 'border-purple-600 bg-purple-500/10 ring-2 ring-purple-600/30'
 											: 'border-border bg-card hover:border-purple-500/40 hover:bg-muted/30'}"
 									>
-										<div class="flex items-center justify-between gap-2">
-											<span class="rounded-md bg-muted px-2 py-0.5 font-mono text-xs font-bold text-foreground">
+										<div class="flex items-center justify-between gap-1">
+											<span class="rounded-md bg-muted px-1.5 py-0.5 font-mono text-[11px] font-bold text-foreground">
 												{item.code}
 											</span>
 											{#if item.prepTimeMinutes > 0}
-												<span class="inline-flex items-center gap-1 font-semibold text-xs text-purple-700 dark:text-purple-400">
+												<span class="inline-flex items-center gap-1 font-semibold text-[11px] text-purple-700 dark:text-purple-400">
 													<Clock class="size-3" />
 													{item.prepTimeMinutes} min
 												</span>
 											{/if}
 										</div>
 
-										<h4 class="mt-1.5 text-sm font-bold text-foreground line-clamp-1">
+										<h4 class="mt-1.5 text-xs sm:text-sm font-bold text-foreground line-clamp-1">
 											{item.name}
 										</h4>
 
-										<div class="mt-2 pt-2 border-t border-border/50 flex items-center justify-between text-xs">
-											<span class="text-muted-foreground">
+										<div class="mt-2 pt-1.5 border-t border-border/50 flex items-center justify-between text-[11px]">
+											<span class="text-muted-foreground truncate mr-1">
 												Rinde: <strong class="text-foreground">{item.yieldQuantity} {item.baseUnit}</strong>
 											</span>
-											<div class="flex items-center gap-2">
+											<div class="flex items-center gap-1.5 shrink-0">
 												<span class="font-mono font-bold text-foreground">
 													{formatCurrency(summary?.estimatedTotalCost ?? 0)}
 												</span>
-												<span class="inline-flex items-center gap-0.5 text-[11px] font-medium text-primary">
-													<Layers class="size-3" />
+												<span class="inline-flex items-center gap-0.5 font-medium text-primary text-[10px]">
+													<Layers class="size-2.5" />
 													{summary?.directComponentsCount ?? 0}
 												</span>
 											</div>
@@ -1312,7 +1315,7 @@
 							</div>
 
 							{#if filteredRecipeCatalog.length > catalogPageSize}
-								<div class="pt-2">
+								<div class="pt-1">
 									<TablePagination
 										bind:currentPage={catalogPage}
 										bind:pageSize={catalogPageSize}
@@ -1323,20 +1326,20 @@
 								</div>
 							{/if}
 						{:else}
-							<div class="py-8 text-center rounded-xl border border-dashed border-border p-4">
-								<ChefHat class="mx-auto size-8 text-muted-foreground/50" />
-								<p class="mt-2 text-sm font-semibold text-foreground">
+							<div class="py-6 text-center rounded-xl border border-dashed border-border p-3">
+								<ChefHat class="mx-auto size-7 text-muted-foreground/50" />
+								<p class="mt-1.5 text-xs font-semibold text-foreground">
 									No hay elaboraciones
 								</p>
-								<p class="mt-0.5 text-xs text-muted-foreground">
+								<p class="mt-0.5 text-[11px] text-muted-foreground">
 									Crea una elaboración para diseñar su receta.
 								</p>
 								<Button
 									size="sm"
-									class="mt-3 gap-1.5 bg-purple-600 hover:bg-purple-700 text-white"
+									class="mt-2.5 h-7 text-xs gap-1 bg-purple-600 hover:bg-purple-700 text-white"
 									onclick={() => openNewItemModal('prepared')}
 								>
-									<Plus class="size-4" />
+									<Plus class="size-3.5" />
 									<span>Crear Elaboración</span>
 								</Button>
 							</div>
@@ -1345,8 +1348,8 @@
 				</Card>
 			</div>
 
-			<!-- COLUMNA DERECHA: RECETA Y DETALLES DE LA ELABORACIÓN SELECCIONADA (lg:col-span-8) -->
-			<div class="lg:col-span-8 space-y-6">
+			<!-- COLUMNA DERECHA: RECETA Y DETALLES DE LA ELABORACIÓN SELECCIONADA (lg:col-span-9) -->
+			<div class="lg:col-span-9 space-y-6">
 				{#if selectedTree && selectedRoot}
 					{@const tree = selectedTree}
 					{@const paginatedRecipeNodes = tree.nodes.slice(
@@ -2042,8 +2045,12 @@
 				<div class="border-b border-border p-5">
 					<div class="flex items-center justify-between">
 						<div class="flex items-center gap-2">
-							<span class="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-bold text-primary">
-								Paso {newItemStep} de 3
+							<span class="rounded-full {newItemInitialType === 'prepared' ? 'bg-purple-500/10 text-purple-700 dark:text-purple-400' : 'bg-primary/10 text-primary'} px-2.5 py-0.5 text-xs font-bold">
+								{#if newItemInitialType === 'prepared'}
+									Paso {newItemStep === 2 ? 1 : 2} de 2 · Elaboración
+								{:else}
+									Paso {newItemStep} de 3
+								{/if}
 							</span>
 							<span class="text-xs font-mono text-muted-foreground">{nextAutoCode}</span>
 						</div>
@@ -2062,17 +2069,22 @@
 						{#if newItemStep === 1}
 							¿Qué tipo de ítem vas a registrar?
 						{:else if newItemStep === 2}
-							Nombre y unidad de medida
+							{newItemInitialType === 'prepared' ? 'Nueva Elaboración: Nombre y unidad' : 'Nombre y unidad de medida'}
 						{:else}
-							{newItemType === 'raw_material' ? 'Stock inicial y costos' : 'Avisos de stock'}
+							{newItemType === 'raw_material' ? 'Stock inicial y costos' : 'Avisos de stock y notas'}
 						{/if}
 					</h2>
 
 					<!-- Barra de progreso visual -->
 					<div class="mt-3 flex gap-1.5">
-						<div class="h-1 flex-1 rounded-full {newItemStep >= 1 ? 'bg-primary' : 'bg-muted'}"></div>
-						<div class="h-1 flex-1 rounded-full {newItemStep >= 2 ? 'bg-primary' : 'bg-muted'}"></div>
-						<div class="h-1 flex-1 rounded-full {newItemStep >= 3 ? 'bg-primary' : 'bg-muted'}"></div>
+						{#if newItemInitialType === 'prepared'}
+							<div class="h-1 flex-1 rounded-full {newItemStep >= 2 ? 'bg-purple-600' : 'bg-muted'}"></div>
+							<div class="h-1 flex-1 rounded-full {newItemStep >= 3 ? 'bg-purple-600' : 'bg-muted'}"></div>
+						{:else}
+							<div class="h-1 flex-1 rounded-full {newItemStep >= 1 ? 'bg-primary' : 'bg-muted'}"></div>
+							<div class="h-1 flex-1 rounded-full {newItemStep >= 2 ? 'bg-primary' : 'bg-muted'}"></div>
+							<div class="h-1 flex-1 rounded-full {newItemStep >= 3 ? 'bg-primary' : 'bg-muted'}"></div>
+						{/if}
 					</div>
 				</div>
 
@@ -2312,13 +2324,24 @@
 								Siguiente →
 							</Button>
 						{:else if newItemStep === 2}
-							<Button type="button" variant="outline" onclick={() => (newItemStep = 1)}>
-								← Atrás
+							<Button
+								type="button"
+								variant="outline"
+								onclick={() => {
+									if (newItemInitialType === 'prepared') {
+										showNewItemModal = false;
+									} else {
+										newItemStep = 1;
+									}
+								}}
+							>
+								{newItemInitialType === 'prepared' ? 'Cancelar' : '← Atrás'}
 							</Button>
 							<Button
 								type="button"
 								disabled={!newItemName.trim()}
 								onclick={() => (newItemStep = 3)}
+								class={newItemType === 'prepared' ? 'bg-purple-600 hover:bg-purple-700 text-white' : ''}
 							>
 								Siguiente →
 							</Button>
@@ -2326,9 +2349,12 @@
 							<Button type="button" variant="outline" onclick={() => (newItemStep = 2)}>
 								← Atrás
 							</Button>
-							<Button type="submit">
+							<Button
+								type="submit"
+								class={newItemType === 'prepared' ? 'bg-purple-600 hover:bg-purple-700 text-white' : ''}
+							>
 								<Check class="size-4" />
-								<span>Guardar Ítem</span>
+								<span>{newItemType === 'prepared' ? 'Guardar Elaboración' : 'Guardar Ítem'}</span>
 							</Button>
 						{/if}
 					</div>
