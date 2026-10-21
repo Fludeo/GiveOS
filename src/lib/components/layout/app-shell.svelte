@@ -23,6 +23,7 @@
 	import X from '@lucide/svelte/icons/x';
 	import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
 	import PanelLeftOpen from '@lucide/svelte/icons/panel-left-open';
+	import ThemeToggle from '#lib/components/theme-toggle.svelte';
 
 	let {
 		user,
@@ -318,6 +319,7 @@
 				</button>
 			</div>
 			<div class="flex flex-wrap items-center gap-1">
+				<ThemeToggle />
 				{#each navItems as item (item.id)}
 					<a
 						href={item.href}
@@ -342,11 +344,13 @@
 					<p class="text-xs sm:text-sm text-muted-foreground">{description}</p>
 				</div>
 
-				{#if headerActions}
-					<div class="flex items-center gap-2 sm:gap-3 shrink-0">
+				<div class="flex items-center gap-2 sm:gap-3 shrink-0">
+					{#if headerActions}
 						{@render headerActions()}
-					</div>
-				{/if}
+					{/if}
+					<div class="h-5 w-px bg-border"></div>
+					<ThemeToggle />
+				</div>
 			</div>
 		</header>
 

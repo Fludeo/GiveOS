@@ -6,6 +6,7 @@
 	import { Label } from '#lib/components/ui/label';
 	import TablePagination from '#lib/components/ui/pagination/table-pagination.svelte';
 	import { toast } from '#lib/components/ui/toast/toast.svelte';
+	import ThemeToggle from '#lib/components/theme-toggle.svelte';
 
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import ArrowRight from '@lucide/svelte/icons/arrow-right';
@@ -89,16 +90,20 @@
 			</div>
 
 			<!-- Navegación Rápida a Secciones -->
-			<nav class="flex flex-wrap items-center gap-1.5 overflow-x-auto py-1">
-				{#each sections as section}
-					<a
-						href="#{section.id}"
-						class="rounded-lg px-2.5 py-1 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-					>
-						{section.label}
-					</a>
-				{/each}
-			</nav>
+			<div class="flex items-center gap-3">
+				<nav class="flex flex-wrap items-center gap-1.5 overflow-x-auto py-1">
+					{#each sections as section}
+						<a
+							href="#{section.id}"
+							class="rounded-lg px-2.5 py-1 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+						>
+							{section.label}
+						</a>
+					{/each}
+				</nav>
+				<div class="h-4 w-px bg-border"></div>
+				<ThemeToggle />
+			</div>
 		</div>
 	</header>
 
