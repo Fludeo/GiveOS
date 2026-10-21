@@ -52,8 +52,41 @@
 	import Tag from '@lucide/svelte/icons/tag';
 	import Link2 from '@lucide/svelte/icons/link-2';
 	import Star from '@lucide/svelte/icons/star';
+	import LayoutGrid from '@lucide/svelte/icons/layout-grid';
+	import List from '@lucide/svelte/icons/list';
 
 	let { data }: PageProps = $props();
+
+	// Modo de visualización: 'cards' (Tarjetas - recomendado móviles) | 'table' (Tabla clásica)
+	let stockViewMode = $state<'cards' | 'table'>('cards');
+	let salesViewMode = $state<'cards' | 'table'>('cards');
+
+	$effect(() => {
+		if (typeof window !== 'undefined') {
+			const savedStock = localStorage.getItem('giveos_stock_view');
+			if (savedStock === 'cards' || savedStock === 'table') {
+				stockViewMode = savedStock;
+			}
+			const savedSales = localStorage.getItem('giveos_sales_view');
+			if (savedSales === 'cards' || savedSales === 'table') {
+				salesViewMode = savedSales;
+			}
+		}
+	});
+
+	function toggleStockView(mode: 'cards' | 'table') {
+		stockViewMode = mode;
+		if (typeof window !== 'undefined') {
+			localStorage.setItem('giveos_stock_view', mode);
+		}
+	}
+
+	function toggleSalesView(mode: 'cards' | 'table') {
+		salesViewMode = mode;
+		if (typeof window !== 'undefined') {
+			localStorage.setItem('giveos_sales_view', mode);
+		}
+	}
 
 	// Pestaña activa: 'stock' (Inventario) | 'recipes' (Estructura de Recetas) | 'products' (Productos para Venta)
 	let activeTab = $state<'stock' | 'recipes' | 'products' | null>(null);
@@ -650,11 +683,36 @@
 							<AlertTriangle class="size-3.5" />
 							<span>Stock Bajo</span>
 						</Button>
+
+						<div class="ml-auto hidden sm:flex items-center gap-1 rounded-xl border border-border bg-muted/30 p-0.5">
+							<Button
+								type="button"
+								variant={stockViewMode === 'cards' ? 'default' : 'ghost'}
+								size="sm"
+								class="h-7 px-2 text-xs gap-1"
+								onclick={() => toggleStockView('cards')}
+								title="Vista de Tarjetas (Móvil)"
+							>
+								<LayoutGrid class="size-3.5" />
+								<span>Tarjetas</span>
+							</Button>
+							<Button
+								type="button"
+								variant={stockViewMode === 'table' ? 'default' : 'ghost'}
+								size="sm"
+								class="h-7 px-2 text-xs gap-1"
+								onclick={() => toggleStockView('table')}
+								title="Vista de Tabla"
+							>
+								<List class="size-3.5" />
+								<span>Tabla</span>
+							</Button>
+						</div>
 					</div>
 				</div>
 			</CardHeader>
 
-			<CardContent class="p-6 pt-2 sm:p-8 sm:pt-4">
+			<CardContent class="p-4 pt-2 sm:p-6 sm:pt-4">
 				{#if filteredItems.length > 0}
 					{#if editingItemId}
 						{@const activeEditItem = filteredItems.find((i) => i.id === editingItemId)}
@@ -688,235 +746,441 @@
 					{/if}
 
 					<div class="space-y-4">
-						<div class="overflow-x-auto rounded-xl border border-border">
-							<table class="w-full text-left text-sm">
-								<thead class="border-b border-border bg-muted/50 text-xs uppercase tracking-wider text-muted-foreground">
-									<tr>
-										<th class="py-3.5 pr-4 pl-5 font-semibold whitespace-nowrap">Ítem</th>
-										<th class="px-4 py-3.5 font-semibold whitespace-nowrap">Tipo</th>
-										<th class="px-4 py-3.5 font-semibold whitespace-nowrap">Stock / Mín.</th>
-										<th class="px-4 py-3.5 font-semibold whitespace-nowrap">Costo Unit.</th>
-										<th class="py-3.5 pr-5 pl-4 text-right font-semibold whitespace-nowrap">Acciones</th>
-									</tr>
-								</thead>
-								<tbody class="divide-y divide-border/60">
-									{#each paginatedItems as item (item.id)}
-										{@const isLow = item.minStock > 0 && item.currentStock <= item.minStock}
-										{@const recipeSummary = data.recipeSummaries[item.id]}
-										{@const isEditing = editingItemId === item.id}
-										<tr
-											class="transition-colors {isEditing
-												? 'bg-primary/5'
-												: 'hover:bg-muted/20'}"
-										>
-											<td class="py-4 pr-4 pl-5 align-middle">
-												<div class="flex items-center gap-2.5">
-													<span class="shrink-0 whitespace-nowrap rounded-md bg-muted px-2 py-0.5 font-mono text-xs font-semibold">
-														{item.code}
-													</span>
-													<button
-														type="button"
-														onclick={() => selectCatalogItem(item.id)}
-														class="text-left font-medium text-foreground hover:text-primary hover:underline"
-													>
-														{item.name}
-													</button>
+						{#if stockViewMode === 'cards'}
+							<!-- VISTA DE TARJETAS (MOBILE-FIRST) -->
+							<div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+								{#each paginatedItems as item (item.id)}
+									{@const isLow = item.minStock > 0 && item.currentStock <= item.minStock}
+									{@const recipeSummary = data.recipeSummaries[item.id]}
+									{@const isEditing = editingItemId === item.id}
+									<div
+										class="flex flex-col justify-between rounded-2xl border p-4 transition-all shadow-2xs {isEditing
+											? 'border-primary ring-2 ring-primary/20 bg-background'
+											: isLow
+												? 'border-destructive/40 bg-card hover:border-destructive/60'
+												: 'border-border bg-card hover:border-border/80'}"
+									>
+										<div>
+											<div class="flex items-center justify-between gap-2">
+												<span class="rounded-md bg-muted px-2 py-0.5 font-mono text-xs font-semibold text-muted-foreground">
+													{item.code}
+												</span>
+												<div class="flex items-center gap-1.5">
 													{#if isLow}
-														<Badge variant="destructive" class="shrink-0 text-[10px]">Reponer</Badge>
+														<Badge variant="destructive" class="text-[10px] px-1.5 py-0">Bajo Stock</Badge>
 													{/if}
+													<ItemTypeBadge type={item.type} short={true} />
 												</div>
+											</div>
+
+											<div class="mt-2.5">
+												<button
+													type="button"
+													onclick={() => selectCatalogItem(item.id)}
+													class="text-left font-bold text-base text-foreground hover:text-primary transition-colors line-clamp-1"
+												>
+													{item.name}
+												</button>
 												{#if item.notes}
-													<p class="mt-1 text-xs text-muted-foreground">{item.notes}</p>
+													<p class="mt-0.5 text-xs text-muted-foreground line-clamp-1">{item.notes}</p>
 												{/if}
-											</td>
+											</div>
 
-											<td class="px-4 py-4 align-middle whitespace-nowrap">
-												<ItemTypeBadge type={item.type} short={true} />
-											</td>
-
-											<td class="px-4 py-4 align-middle whitespace-nowrap">
+											<!-- Métricas: Stock y Costo -->
+											<div class="mt-3.5 grid grid-cols-2 gap-2 rounded-xl border border-border/60 bg-muted/20 p-2.5">
 												{#if isEditing}
-													<div class="space-y-3 rounded-xl border border-border bg-background p-3 shadow-2xs">
-														<div class="flex items-center justify-between gap-2">
-															<span class="text-xs font-medium text-muted-foreground">
-																Stock actual:
-															</span>
-															<div class="flex items-center gap-1.5">
-																<Input
-																	form="inv-form-{item.id}"
-																	name="currentStock"
-																	type="number"
-																	step="any"
-																	min="0"
-																	value={item.currentStock}
-																	aria-label="Stock actual de {item.name}"
-																	class="h-8 w-24 font-mono text-xs"
-																/>
-																<span class="text-xs text-muted-foreground">{item.baseUnit}</span>
-															</div>
-														</div>
-
-														<div class="flex items-center justify-between gap-2 border-t border-border/60 pt-2">
-															<span class="text-xs font-medium text-muted-foreground">
-																Punto de alerta:
-															</span>
-															<div class="flex items-center gap-1.5">
-																<Input
-																	form="inv-form-{item.id}"
-																	name="minStock"
-																	type="number"
-																	step="any"
-																	min="0"
-																	bind:value={editingMinStock}
-																	aria-label="Punto de alerta de {item.name}"
-																	class="h-8 w-24 font-mono text-xs"
-																/>
-																<span class="text-xs text-muted-foreground">{item.baseUnit}</span>
-															</div>
-														</div>
-													</div>
-												{:else}
-													<div class="space-y-0.5">
-														<p class="font-mono text-xs font-semibold {isLow ? 'text-destructive' : 'text-foreground'}">
-															{item.currentStock} {item.baseUnit}
-														</p>
-														<p class="font-mono text-[11px] text-muted-foreground">
-															Mín: {item.minStock} {item.baseUnit}
-														</p>
-													</div>
-												{/if}
-											</td>
-
-											<td class="px-4 py-4 align-middle whitespace-nowrap">
-												{#if item.type === 'raw_material'}
-													{#if isEditing}
-														<div class="flex items-center gap-1.5">
-															<span class="text-xs text-muted-foreground">$</span>
+													<div class="space-y-1">
+														<span class="text-[11px] font-medium text-muted-foreground">Stock actual:</span>
+														<div class="flex items-center gap-1">
 															<Input
 																form="inv-form-{item.id}"
-																name="referenceCost"
+																name="currentStock"
 																type="number"
 																step="any"
 																min="0"
-																value={item.referenceCost}
-																aria-label="Costo de referencia de {item.name}"
-																class="h-8 w-24 font-mono text-xs"
-															/>
-															<span class="text-xs text-muted-foreground">por</span>
-															<Input
-																form="inv-form-{item.id}"
-																name="purchaseQuantity"
-																type="number"
-																step="any"
-																min="0.001"
-																value={item.purchaseQuantity}
-																aria-label="Cantidad de compra de {item.name}"
-																class="h-8 w-16 font-mono text-xs"
+																value={item.currentStock}
+																class="h-8 font-mono text-xs"
 															/>
 															<span class="text-xs text-muted-foreground">{item.baseUnit}</span>
 														</div>
-													{:else}
-														<div class="space-y-0.5">
-															<p class="font-mono text-xs font-semibold text-foreground">
-																{formatCurrency(item.referenceCost)}
-																<span class="font-sans font-normal text-muted-foreground">
-																	por {item.purchaseQuantity} {item.baseUnit}
-																</span>
-															</p>
-															{#if item.purchaseQuantity !== 1}
-																<p class="font-mono text-[11px] text-muted-foreground">
-																	({formatCurrency(getDirectUnitCost(item))} / {item.baseUnit})
-																</p>
-															{/if}
+													</div>
+													<div class="space-y-1">
+														<span class="text-[11px] font-medium text-muted-foreground">Aviso mínimo:</span>
+														<div class="flex items-center gap-1">
+															<Input
+																form="inv-form-{item.id}"
+																name="minStock"
+																type="number"
+																step="any"
+																min="0"
+																bind:value={editingMinStock}
+																class="h-8 font-mono text-xs"
+															/>
+															<span class="text-xs text-muted-foreground">{item.baseUnit}</span>
+														</div>
+													</div>
+													{#if item.type === 'raw_material'}
+														<div class="col-span-2 pt-1 border-t border-border/40 grid grid-cols-2 gap-2">
+															<div class="space-y-1">
+																<span class="text-[11px] font-medium text-muted-foreground">Costo compra ($):</span>
+																<Input
+																	form="inv-form-{item.id}"
+																	name="referenceCost"
+																	type="number"
+																	step="any"
+																	min="0"
+																	value={item.referenceCost}
+																	class="h-8 font-mono text-xs"
+																/>
+															</div>
+															<div class="space-y-1">
+																<span class="text-[11px] font-medium text-muted-foreground">Envase ({item.baseUnit}):</span>
+																<Input
+																	form="inv-form-{item.id}"
+																	name="purchaseQuantity"
+																	type="number"
+																	step="any"
+																	min="0.001"
+																	value={item.purchaseQuantity}
+																	class="h-8 font-mono text-xs"
+																/>
+															</div>
 														</div>
 													{/if}
-												{:else if recipeSummary && recipeSummary.directComponentsCount > 0}
-													<div class="space-y-0.5">
-														<p class="font-mono text-xs font-semibold text-foreground">
-															{formatCurrency(recipeSummary.estimatedUnitCost)} / {item.baseUnit}
+												{:else}
+													<div>
+														<span class="text-[11px] font-medium text-muted-foreground">Stock Actual</span>
+														<p class="font-mono text-base font-bold {isLow ? 'text-destructive' : 'text-foreground'}">
+															{item.currentStock} <span class="text-xs font-normal text-muted-foreground">{item.baseUnit}</span>
 														</p>
-														<p class="text-[11px] text-muted-foreground">
-															Calculado por Receta ({recipeSummary.directComponentsCount} ingr. · rinde {item.yieldQuantity} {item.baseUnit})
+														<p class="font-mono text-[10px] text-muted-foreground">
+															Mínimo: {item.minStock} {item.baseUnit}
 														</p>
 													</div>
-												{:else}
-													<button
-														type="button"
-														onclick={() => selectCatalogItem(item.id)}
-														class="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-													>
-														<span>Armar Receta →</span>
-													</button>
+													<div>
+														<span class="text-[11px] font-medium text-muted-foreground">Costo Unit.</span>
+														{#if item.type === 'raw_material'}
+															<p class="font-mono text-base font-bold text-foreground">
+																{formatCurrency(getDirectUnitCost(item))}
+															</p>
+															<p class="text-[10px] text-muted-foreground">
+																por {item.baseUnit}
+															</p>
+														{:else if recipeSummary && recipeSummary.directComponentsCount > 0}
+															<p class="font-mono text-base font-bold text-foreground">
+																{formatCurrency(recipeSummary.estimatedUnitCost)}
+															</p>
+															<p class="text-[10px] text-muted-foreground">
+																{recipeSummary.directComponentsCount} ingr. · rinde {item.yieldQuantity} {item.baseUnit}
+															</p>
+														{:else}
+															<button
+																type="button"
+																onclick={() => selectCatalogItem(item.id)}
+																class="text-xs font-medium text-primary hover:underline mt-1 block"
+															>
+																+ Armar Receta
+															</button>
+														{/if}
+													</div>
 												{/if}
-											</td>
+											</div>
+										</div>
 
-											<td class="py-4 pr-5 pl-4 text-right align-middle whitespace-nowrap">
-												{#if isEditing}
-													<div class="inline-flex items-center justify-end gap-1.5">
+										<div class="mt-3.5 flex items-center justify-between border-t border-border/50 pt-3">
+											{#if isEditing}
+												<Button
+													type="button"
+													variant="ghost"
+													size="sm"
+													class="text-destructive hover:bg-destructive/10 h-8 text-xs"
+													onclick={() => (deletingItemId = item.id)}
+												>
+													<Trash2 class="size-3.5 mr-1" />
+													Eliminar
+												</Button>
+												<div class="flex items-center gap-1.5">
+													<Button
+														type="button"
+														variant="outline"
+														size="sm"
+														class="h-8 text-xs"
+														onclick={() => (editingItemId = null)}
+													>
+														Cancelar
+													</Button>
+													<Button
+														form="inv-form-{item.id}"
+														type="submit"
+														size="sm"
+														class="h-8 text-xs font-semibold"
+													>
+														<Check class="size-3.5 mr-1" />
+														Guardar
+													</Button>
+												</div>
+											{:else}
+												<div class="flex items-center gap-1.5">
+													{#if item.type !== 'raw_material'}
 														<Button
-															form="inv-form-{item.id}"
-															type="submit"
+															type="button"
+															variant="outline"
 															size="sm"
-															class="h-8 px-2.5 text-xs"
-															title="Guardar cambios"
+															class="h-8 text-xs gap-1"
+															onclick={() => selectCatalogItem(item.id)}
 														>
-															<Check class="size-3.5" />
-															<span>Guardar</span>
+															<Layers class="size-3.5" />
+															<span>Receta</span>
 														</Button>
-														<Button
+													{/if}
+												</div>
+												<Button
+													type="button"
+													variant="secondary"
+													size="sm"
+													class="h-8 text-xs gap-1"
+													onclick={() => startEditing(item)}
+												>
+													<Pencil class="size-3.5" />
+													<span>Ajustar Stock</span>
+												</Button>
+											{/if}
+										</div>
+									</div>
+								{/each}
+							</div>
+						{:else}
+							<!-- VISTA DE TABLA -->
+							<div class="overflow-x-auto rounded-xl border border-border">
+								<table class="w-full text-left text-sm">
+									<thead class="border-b border-border bg-muted/50 text-xs uppercase tracking-wider text-muted-foreground">
+										<tr>
+											<th class="py-3.5 pr-4 pl-5 font-semibold whitespace-nowrap">Ítem</th>
+											<th class="px-4 py-3.5 font-semibold whitespace-nowrap">Tipo</th>
+											<th class="px-4 py-3.5 font-semibold whitespace-nowrap">Stock / Mín.</th>
+											<th class="px-4 py-3.5 font-semibold whitespace-nowrap">Costo Unit.</th>
+											<th class="py-3.5 pr-5 pl-4 text-right font-semibold whitespace-nowrap">Acciones</th>
+										</tr>
+									</thead>
+									<tbody class="divide-y divide-border/60">
+										{#each paginatedItems as item (item.id)}
+											{@const isLow = item.minStock > 0 && item.currentStock <= item.minStock}
+											{@const recipeSummary = data.recipeSummaries[item.id]}
+											{@const isEditing = editingItemId === item.id}
+											<tr
+												class="transition-colors {isEditing
+													? 'bg-primary/5'
+													: 'hover:bg-muted/20'}"
+											>
+												<td class="py-4 pr-4 pl-5 align-middle">
+													<div class="flex items-center gap-2.5">
+														<span class="shrink-0 whitespace-nowrap rounded-md bg-muted px-2 py-0.5 font-mono text-xs font-semibold">
+															{item.code}
+														</span>
+														<button
 															type="button"
-															size="icon"
-															variant="ghost"
-															class="size-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-															title="Eliminar ítem"
-															onclick={() => (deletingItemId = item.id)}
+															onclick={() => selectCatalogItem(item.id)}
+															class="text-left font-medium text-foreground hover:text-primary hover:underline"
 														>
-															<Trash2 class="size-4" />
-														</Button>
-														<Button
-															type="button"
-															size="icon"
-															variant="ghost"
-															class="size-8 text-muted-foreground hover:text-foreground"
-															title="Cancelar edición"
-															onclick={() => (editingItemId = null)}
-														>
-															<X class="size-4" />
-														</Button>
+															{item.name}
+														</button>
+														{#if isLow}
+															<Badge variant="destructive" class="shrink-0 text-[10px]">Reponer</Badge>
+														{/if}
 													</div>
-												{:else}
-													<div class="inline-flex items-center justify-end gap-1">
-														{#if item.type !== 'raw_material'}
+													{#if item.notes}
+														<p class="mt-1 text-xs text-muted-foreground">{item.notes}</p>
+													{/if}
+												</td>
+
+												<td class="px-4 py-4 align-middle whitespace-nowrap">
+													<ItemTypeBadge type={item.type} short={true} />
+												</td>
+
+												<td class="px-4 py-4 align-middle whitespace-nowrap">
+													{#if isEditing}
+														<div class="space-y-3 rounded-xl border border-border bg-background p-3 shadow-2xs">
+															<div class="flex items-center justify-between gap-2">
+																<span class="text-xs font-medium text-muted-foreground">
+																	Stock actual:
+																</span>
+																<div class="flex items-center gap-1.5">
+																	<Input
+																		form="inv-form-{item.id}"
+																		name="currentStock"
+																		type="number"
+																		step="any"
+																		min="0"
+																		value={item.currentStock}
+																		aria-label="Stock actual de {item.name}"
+																		class="h-8 w-24 font-mono text-xs"
+																	/>
+																	<span class="text-xs text-muted-foreground">{item.baseUnit}</span>
+																</div>
+															</div>
+
+															<div class="flex items-center justify-between gap-2 border-t border-border/60 pt-2">
+																<span class="text-xs font-medium text-muted-foreground">
+																	Punto de alerta:
+																</span>
+																<div class="flex items-center gap-1.5">
+																	<Input
+																		form="inv-form-{item.id}"
+																		name="minStock"
+																		type="number"
+																		step="any"
+																		min="0"
+																		bind:value={editingMinStock}
+																		aria-label="Punto de alerta de {item.name}"
+																		class="h-8 w-24 font-mono text-xs"
+																	/>
+																	<span class="text-xs text-muted-foreground">{item.baseUnit}</span>
+																</div>
+															</div>
+														</div>
+													{:else}
+														<div class="space-y-0.5">
+															<p class="font-mono text-xs font-semibold {isLow ? 'text-destructive' : 'text-foreground'}">
+																{item.currentStock} {item.baseUnit}
+															</p>
+															<p class="font-mono text-[11px] text-muted-foreground">
+																Mín: {item.minStock} {item.baseUnit}
+															</p>
+														</div>
+													{/if}
+												</td>
+
+												<td class="px-4 py-4 align-middle whitespace-nowrap">
+													{#if item.type === 'raw_material'}
+														{#if isEditing}
+															<div class="flex items-center gap-1.5">
+																<span class="text-xs text-muted-foreground">$</span>
+																<Input
+																	form="inv-form-{item.id}"
+																	name="referenceCost"
+																	type="number"
+																	step="any"
+																	min="0"
+																	value={item.referenceCost}
+																	aria-label="Costo de referencia de {item.name}"
+																	class="h-8 w-24 font-mono text-xs"
+																/>
+																<span class="text-xs text-muted-foreground">por</span>
+																<Input
+																	form="inv-form-{item.id}"
+																	name="purchaseQuantity"
+																	type="number"
+																	step="any"
+																	min="0.001"
+																	value={item.purchaseQuantity}
+																	aria-label="Cantidad de compra de {item.name}"
+																	class="h-8 w-16 font-mono text-xs"
+																/>
+																<span class="text-xs text-muted-foreground">{item.baseUnit}</span>
+															</div>
+														{:else}
+															<div class="space-y-0.5">
+																<p class="font-mono text-xs font-semibold text-foreground">
+																	{formatCurrency(item.referenceCost)}
+																	<span class="font-sans font-normal text-muted-foreground">
+																		por {item.purchaseQuantity} {item.baseUnit}
+																	</span>
+																</p>
+																{#if item.purchaseQuantity !== 1}
+																	<p class="font-mono text-[11px] text-muted-foreground">
+																		({formatCurrency(getDirectUnitCost(item))} / {item.baseUnit})
+																	</p>
+																{/if}
+															</div>
+														{/if}
+													{:else if recipeSummary && recipeSummary.directComponentsCount > 0}
+														<div class="space-y-0.5">
+															<p class="font-mono text-xs font-semibold text-foreground">
+																{formatCurrency(recipeSummary.estimatedUnitCost)} / {item.baseUnit}
+															</p>
+															<p class="text-[11px] text-muted-foreground">
+																Calculado por Receta ({recipeSummary.directComponentsCount} ingr. · rinde {item.yieldQuantity} {item.baseUnit})
+															</p>
+														</div>
+													{:else}
+														<button
+															type="button"
+															onclick={() => selectCatalogItem(item.id)}
+															class="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+														>
+															<span>Armar Receta →</span>
+														</button>
+													{/if}
+												</td>
+
+												<td class="py-4 pr-5 pl-4 text-right align-middle whitespace-nowrap">
+													{#if isEditing}
+														<div class="inline-flex items-center justify-end gap-1.5">
+															<Button
+																form="inv-form-{item.id}"
+																type="submit"
+																size="sm"
+																class="h-8 px-2.5 text-xs"
+																title="Guardar cambios"
+															>
+																<Check class="size-3.5" />
+																<span>Guardar</span>
+															</Button>
 															<Button
 																type="button"
-																size="sm"
+																size="icon"
 																variant="ghost"
-																class="h-8 gap-1.5 px-2.5 text-xs text-muted-foreground hover:text-primary"
-																title="Ver receta"
-																onclick={() => (viewingRecipeItemId = item.id)}
+																class="size-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+																title="Eliminar ítem"
+																onclick={() => (deletingItemId = item.id)}
 															>
-																<BookOpen class="size-3.5" />
-																<span>Receta</span>
+																<Trash2 class="size-4" />
 															</Button>
-														{/if}
-														<Button
-															type="button"
-															size="icon"
-															variant="ghost"
-															class="size-8 text-muted-foreground hover:text-foreground"
-															title="Editar fila"
-															onclick={() => startEditing(item)}
-														>
-															<Pencil class="size-4" />
-														</Button>
-													</div>
-												{/if}
-											</td>
-										</tr>
-									{/each}
-								</tbody>
-							</table>
-						</div>
+															<Button
+																type="button"
+																size="icon"
+																variant="ghost"
+																class="size-8 text-muted-foreground hover:text-foreground"
+																title="Cancelar edición"
+																onclick={() => (editingItemId = null)}
+															>
+																<X class="size-4" />
+															</Button>
+														</div>
+													{:else}
+														<div class="inline-flex items-center justify-end gap-1">
+															{#if item.type !== 'raw_material'}
+																<Button
+																	type="button"
+																	size="sm"
+																	variant="ghost"
+																	class="h-8 gap-1.5 px-2.5 text-xs text-muted-foreground hover:text-primary"
+																	title="Ver receta"
+																	onclick={() => (viewingRecipeItemId = item.id)}
+																>
+																	<BookOpen class="size-3.5" />
+																	<span>Receta</span>
+																</Button>
+															{/if}
+															<Button
+																type="button"
+																size="icon"
+																variant="ghost"
+																class="size-8 text-muted-foreground hover:text-foreground"
+																title="Editar fila"
+																onclick={() => startEditing(item)}
+															>
+																<Pencil class="size-4" />
+															</Button>
+														</div>
+													{/if}
+												</td>
+											</tr>
+										{/each}
+									</tbody>
+								</table>
+							</div>
+						{/if}
 
 						<TablePagination
 							bind:currentPage
@@ -1197,7 +1461,7 @@
 										onclick={() => (showAddRecipeLineModal = true)}
 									>
 										<Plus class="size-4" />
-										<span>Agregar Ingrediente / Base a la Receta</span>
+										<span>Agregar Ingrediente</span>
 									</Button>
 								{/if}
 							</div>
@@ -1298,8 +1562,8 @@
 						</CardDescription>
 					</div>
 
-					<div class="flex flex-wrap items-center gap-3">
-						<div class="relative w-64">
+					<div class="flex flex-wrap items-center gap-2">
+						<div class="relative w-full sm:w-64">
 							<Search class="pointer-events-none absolute top-3 left-3 size-4 text-muted-foreground" />
 							<Input
 								type="search"
@@ -1308,6 +1572,32 @@
 								class="h-10 pl-9"
 							/>
 						</div>
+
+						<div class="ml-auto hidden sm:flex items-center gap-1 rounded-xl border border-border bg-muted/30 p-0.5">
+							<Button
+								type="button"
+								variant={salesViewMode === 'cards' ? 'default' : 'ghost'}
+								size="sm"
+								class="h-7 px-2 text-xs gap-1"
+								onclick={() => toggleSalesView('cards')}
+								title="Vista de Tarjetas (Móvil)"
+							>
+								<LayoutGrid class="size-3.5" />
+								<span>Tarjetas</span>
+							</Button>
+							<Button
+								type="button"
+								variant={salesViewMode === 'table' ? 'default' : 'ghost'}
+								size="sm"
+								class="h-7 px-2 text-xs gap-1"
+								onclick={() => toggleSalesView('table')}
+								title="Vista de Tabla"
+							>
+								<List class="size-3.5" />
+								<span>Tabla</span>
+							</Button>
+						</div>
+
 						<Button onclick={openNewSalesProductModal} class="gap-1.5 font-semibold shadow-xs">
 							<Plus class="size-4" />
 							<span>Nuevo Producto</span>
@@ -1316,37 +1606,29 @@
 				</div>
 			</CardHeader>
 
-			<CardContent class="p-6 pt-2 sm:p-8 sm:pt-4">
+			<CardContent class="p-4 pt-2 sm:p-6 sm:pt-4">
 				{#if filteredSalesProducts.length > 0}
 					<div class="space-y-4">
-						<div class="overflow-x-auto rounded-xl border border-border">
-							<table class="w-full text-left text-sm">
-								<thead class="border-b border-border bg-muted/50 text-xs uppercase tracking-wider text-muted-foreground">
-									<tr>
-										<th class="py-3.5 pr-4 pl-5 font-semibold">Producto</th>
-										<th class="px-4 py-3.5 font-semibold">Composición</th>
-										<th class="px-4 py-3.5 text-right font-semibold">Costo Est.</th>
-										<th class="px-4 py-3.5 text-right font-semibold">Precio</th>
-										<th class="px-4 py-3.5 text-right font-semibold">Margen</th>
-										<th class="py-3.5 pr-5 pl-4 text-right font-semibold">Acciones</th>
-									</tr>
-								</thead>
-								<tbody class="divide-y divide-border/60">
-									{#each paginatedSalesProducts as sp (sp.id)}
-										{@const margin = sp.salePrice - sp.estimatedRecipeCost}
-										{@const marginPct =
-											sp.salePrice > 0 ? Math.round((margin / sp.salePrice) * 100) : 0}
-										<tr class="transition-colors hover:bg-muted/20">
-											<td class="py-4 pr-4 pl-5 align-middle">
-												<div class="flex flex-wrap items-center gap-2">
-													<span class="rounded-md bg-primary/10 px-2 py-0.5 font-mono text-xs font-semibold text-primary">
-														{sp.code}
-													</span>
-													<span class="font-semibold text-foreground">{sp.name}</span>
+						{#if salesViewMode === 'cards'}
+							<!-- VISTA DE TARJETAS (MOBILE-FIRST) -->
+							<div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+								{#each paginatedSalesProducts as sp (sp.id)}
+									{@const margin = sp.salePrice - sp.estimatedRecipeCost}
+									{@const marginPct =
+										sp.salePrice > 0 ? Math.round((margin / sp.salePrice) * 100) : 0}
+									<div
+										class="flex flex-col justify-between rounded-2xl border border-border bg-card p-4 transition-all shadow-2xs hover:border-border/80"
+									>
+										<div>
+											<div class="flex items-center justify-between gap-2">
+												<span class="rounded-md bg-primary/10 px-2 py-0.5 font-mono text-xs font-semibold text-primary">
+													{sp.code}
+												</span>
+												<div class="flex items-center gap-1.5">
 													{#if sp.isShortcut}
 														<Badge variant="outline" class="gap-1 border-amber-500/40 bg-amber-500/10 text-amber-700 text-[10px]">
 															<Star class="size-2.5 fill-amber-500 text-amber-500" />
-															Atajo Rápido
+															Atajo
 														</Badge>
 													{/if}
 													{#if sp.isCombo}
@@ -1358,107 +1640,239 @@
 														<Badge variant="outline" class="text-[10px]">Pausado</Badge>
 													{/if}
 												</div>
+											</div>
+
+											<div class="mt-2.5">
+												<h3 class="font-bold text-base text-foreground line-clamp-1">{sp.name}</h3>
 												{#if sp.description}
-													<p class="mt-1 text-xs text-muted-foreground">{sp.description}</p>
+													<p class="mt-0.5 text-xs text-muted-foreground line-clamp-1">{sp.description}</p>
 												{/if}
-											</td>
+											</div>
 
-											<td class="px-4 py-4 align-middle">
-												{#if sp.components.length > 0}
-													<div class="flex flex-col gap-1.5">
-														{#each sp.components as comp (comp.id)}
-															{#if comp.item}
-																<div class="flex flex-wrap items-center gap-2">
-																	<span class="inline-flex items-center gap-1 rounded bg-muted px-2 py-0.5 font-mono text-xs font-medium">
-																		<Link2 class="size-3 text-muted-foreground" />
-																		{comp.item.code}
-																	</span>
-																	<button
-																		type="button"
-																		onclick={() => selectCatalogItem(comp.item!.id)}
-																		class="text-xs font-medium text-foreground hover:text-primary hover:underline"
-																	>
-																		{comp.item.name}
-																	</button>
-																	<ItemTypeBadge type={comp.item.type} short={true} />
-																	<span class="font-mono text-xs text-muted-foreground">
-																		× {comp.quantity} {comp.item.baseUnit} (Stock: {comp.item.currentStock} {comp.item.baseUnit})
-																	</span>
-																</div>
-															{:else}
-																<span class="text-xs text-destructive">Ítem eliminado</span>
-															{/if}
-														{/each}
-													</div>
-												{:else}
-													<span class="text-xs text-destructive">Sin productos asociados</span>
-												{/if}
-											</td>
+											<!-- Componentes que descuenta -->
+											<div class="mt-3 flex flex-wrap gap-1.5">
+												{#each sp.components as comp (comp.id)}
+													{#if comp.item}
+														<span class="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-[11px] font-medium text-foreground">
+															<span class="font-mono text-muted-foreground">[{comp.item.code}]</span>
+															<span class="truncate max-w-[120px]">{comp.item.name}</span>
+															<span class="font-bold text-primary">×{comp.quantity}</span>
+														</span>
+													{/if}
+												{/each}
+											</div>
 
-											<td class="px-4 py-4 text-right align-middle font-mono text-xs text-muted-foreground">
-												{formatCurrency(sp.estimatedRecipeCost)}
-											</td>
-
-											<td class="px-4 py-4 text-right align-middle">
-												<span class="font-mono text-sm font-bold text-foreground block">
-													{formatCurrency(sp.salePrice)}
-												</span>
-												{#if sp.pricingTiers && sp.pricingTiers.length > 0}
-													<div class="mt-1 flex flex-wrap justify-end gap-1">
-														{#each sp.pricingTiers as tier}
-															<span class="rounded bg-sky-500/10 px-1.5 py-0.2 text-[10px] font-mono font-medium text-sky-700" title="Escala por cantidad">
-																≥{tier.minQuantity}u: {tier.type === 'percentage' ? `-${tier.value}%` : formatCurrency(tier.value)}
-															</span>
-														{/each}
-													</div>
-												{/if}
-											</td>
-
-											<td class="px-4 py-4 text-right align-middle font-mono text-xs">
-												<span class={margin >= 0 ? 'font-semibold text-emerald-600' : 'font-semibold text-destructive'}>
-													{formatCurrency(margin)} ({marginPct}%)
-												</span>
-											</td>
-
-											<td class="py-4 pr-5 pl-4 text-right align-middle whitespace-nowrap">
-												<div class="inline-flex items-center justify-end gap-1">
-													<form method="POST" action="?/toggleSalesProductShortcut" use:enhance class="inline">
-														<input type="hidden" name="businessId" value={data.activeBusiness.id} />
-														<input type="hidden" name="id" value={sp.id} />
-														<button
-															type="submit"
-															class="inline-flex size-8 items-center justify-center rounded-md hover:bg-muted {sp.isShortcut ? 'text-amber-500' : 'text-muted-foreground/40 hover:text-muted-foreground'}"
-															title={sp.isShortcut ? 'Quitar de atajos rápidos' : 'Marcar como atajo rápido en ventas'}
-														>
-															<Star class="size-4 {sp.isShortcut ? 'fill-amber-500' : ''}" />
-														</button>
-													</form>
-													<Button
-														href="/inventory/products/{sp.id}/edit"
-														size="icon"
-														variant="ghost"
-														class="size-8 text-muted-foreground hover:text-foreground"
-														title="Editar producto de venta (Pantalla Completa)"
-													>
-														<Pencil class="size-4" />
-													</Button>
-													<Button
-														type="button"
-														size="icon"
-														variant="ghost"
-														class="size-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-														title="Eliminar producto de venta"
-														onclick={() => (deletingSalesProduct = sp)}
-													>
-														<Trash2 class="size-4" />
-													</Button>
+											<!-- Tarjeta de Precio y Margen -->
+											<div class="mt-3.5 grid grid-cols-2 gap-2 rounded-xl border border-border/60 bg-muted/20 p-2.5">
+												<div>
+													<span class="text-[11px] font-medium text-muted-foreground">Precio Venta</span>
+													<p class="font-mono text-lg font-bold text-foreground">
+														{formatCurrency(sp.salePrice)}
+													</p>
+													{#if sp.pricingTiers && sp.pricingTiers.length > 0}
+														<div class="mt-1 flex flex-wrap gap-1">
+															{#each sp.pricingTiers as tier}
+																<span class="rounded bg-sky-500/10 px-1 py-0.2 text-[9px] font-mono text-sky-700">
+																	≥{tier.minQuantity}u: {tier.type === 'percentage' ? `-${tier.value}%` : formatCurrency(tier.value)}
+																</span>
+															{/each}
+														</div>
+													{/if}
 												</div>
-											</td>
+												<div>
+													<span class="text-[11px] font-medium text-muted-foreground">Margen</span>
+													<p class="font-mono text-base font-bold {margin >= 0 ? 'text-emerald-600' : 'text-destructive'}">
+														{formatCurrency(margin)}
+														<span class="text-xs font-normal">({marginPct}%)</span>
+													</p>
+													<p class="text-[10px] text-muted-foreground">
+														Costo: {formatCurrency(sp.estimatedRecipeCost)}
+													</p>
+												</div>
+											</div>
+										</div>
+
+										<!-- Footer con Acciones -->
+										<div class="mt-3.5 flex items-center justify-between border-t border-border/50 pt-3">
+											<form method="POST" action="?/toggleSalesProductShortcut" use:enhance class="inline">
+												<input type="hidden" name="businessId" value={data.activeBusiness.id} />
+												<input type="hidden" name="id" value={sp.id} />
+												<button
+													type="submit"
+													class="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+													title={sp.isShortcut ? 'Quitar de atajos rápidos' : 'Marcar como atajo rápido en ventas'}
+												>
+													<Star class="size-3.5 {sp.isShortcut ? 'fill-amber-500 text-amber-500' : ''}" />
+													<span>{sp.isShortcut ? 'En mostrador' : 'Atajo'}</span>
+												</button>
+											</form>
+											<div class="flex items-center gap-1.5">
+												<Button
+													variant="ghost"
+													size="sm"
+													class="h-8 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+													onclick={() => (deletingSalesProduct = sp)}
+												>
+													<Trash2 class="size-3.5 mr-1" />
+													<span>Eliminar</span>
+												</Button>
+												<Button
+													variant="outline"
+													size="sm"
+													class="h-8 text-xs gap-1"
+													onclick={() => openEditSalesProduct(sp)}
+												>
+													<Pencil class="size-3.5" />
+													<span>Editar</span>
+												</Button>
+											</div>
+										</div>
+									</div>
+								{/each}
+							</div>
+						{:else}
+							<!-- VISTA DE TABLA -->
+							<div class="overflow-x-auto rounded-xl border border-border">
+								<table class="w-full text-left text-sm">
+									<thead class="border-b border-border bg-muted/50 text-xs uppercase tracking-wider text-muted-foreground">
+										<tr>
+											<th class="py-3.5 pr-4 pl-5 font-semibold">Producto</th>
+											<th class="px-4 py-3.5 font-semibold">Composición</th>
+											<th class="px-4 py-3.5 text-right font-semibold">Costo Est.</th>
+											<th class="px-4 py-3.5 text-right font-semibold">Precio</th>
+											<th class="px-4 py-3.5 text-right font-semibold">Margen</th>
+											<th class="py-3.5 pr-5 pl-4 text-right font-semibold">Acciones</th>
 										</tr>
-									{/each}
-								</tbody>
-							</table>
-						</div>
+									</thead>
+									<tbody class="divide-y divide-border/60">
+										{#each paginatedSalesProducts as sp (sp.id)}
+											{@const margin = sp.salePrice - sp.estimatedRecipeCost}
+											{@const marginPct =
+												sp.salePrice > 0 ? Math.round((margin / sp.salePrice) * 100) : 0}
+											<tr class="transition-colors hover:bg-muted/20">
+												<td class="py-4 pr-4 pl-5 align-middle">
+													<div class="flex flex-wrap items-center gap-2">
+														<span class="rounded-md bg-primary/10 px-2 py-0.5 font-mono text-xs font-semibold text-primary">
+															{sp.code}
+														</span>
+														<span class="font-semibold text-foreground">{sp.name}</span>
+														{#if sp.isShortcut}
+															<Badge variant="outline" class="gap-1 border-amber-500/40 bg-amber-500/10 text-amber-700 text-[10px]">
+																<Star class="size-2.5 fill-amber-500 text-amber-500" />
+																Atajo Rápido
+															</Badge>
+														{/if}
+														{#if sp.isCombo}
+															<Badge variant="secondary" class="text-[10px]">
+																Combo ({sp.components.length})
+															</Badge>
+														{/if}
+														{#if !sp.isActive}
+															<Badge variant="outline" class="text-[10px]">Pausado</Badge>
+														{/if}
+													</div>
+													{#if sp.description}
+														<p class="mt-1 text-xs text-muted-foreground">{sp.description}</p>
+													{/if}
+												</td>
+
+												<td class="px-4 py-4 align-middle">
+													{#if sp.components.length > 0}
+														<div class="flex flex-col gap-1.5">
+															{#each sp.components as comp (comp.id)}
+																{#if comp.item}
+																	<div class="flex flex-wrap items-center gap-2">
+																		<span class="inline-flex items-center gap-1 rounded bg-muted px-2 py-0.5 font-mono text-xs font-medium">
+																			<Link2 class="size-3 text-muted-foreground" />
+																			{comp.item.code}
+																		</span>
+																		<button
+																			type="button"
+																			onclick={() => selectCatalogItem(comp.item!.id)}
+																			class="text-xs font-medium text-foreground hover:text-primary hover:underline"
+																		>
+																			{comp.item.name}
+																		</button>
+																		<ItemTypeBadge type={comp.item.type} short={true} />
+																		<span class="font-mono text-xs text-muted-foreground">
+																			× {comp.quantity} {comp.item.baseUnit} (Stock: {comp.item.currentStock} {comp.item.baseUnit})
+																		</span>
+																	</div>
+																{:else}
+																	<span class="text-xs text-destructive">Ítem eliminado</span>
+																{/if}
+															{/each}
+														</div>
+													{:else}
+														<span class="text-xs text-destructive">Sin productos asociados</span>
+													{/if}
+												</td>
+
+												<td class="px-4 py-4 text-right align-middle font-mono text-xs text-muted-foreground">
+													{formatCurrency(sp.estimatedRecipeCost)}
+												</td>
+
+												<td class="px-4 py-4 text-right align-middle">
+													<span class="font-mono text-sm font-bold text-foreground block">
+														{formatCurrency(sp.salePrice)}
+													</span>
+													{#if sp.pricingTiers && sp.pricingTiers.length > 0}
+														<div class="mt-1 flex flex-wrap justify-end gap-1">
+															{#each sp.pricingTiers as tier}
+																<span class="rounded bg-sky-500/10 px-1.5 py-0.2 text-[10px] font-mono font-medium text-sky-700" title="Escala por cantidad">
+																	≥{tier.minQuantity}u: {tier.type === 'percentage' ? `-${tier.value}%` : formatCurrency(tier.value)}
+																</span>
+															{/each}
+														</div>
+													{/if}
+												</td>
+
+												<td class="px-4 py-4 text-right align-middle font-mono text-xs">
+													<span class={margin >= 0 ? 'font-semibold text-emerald-600' : 'font-semibold text-destructive'}>
+														{formatCurrency(margin)} ({marginPct}%)
+													</span>
+												</td>
+
+												<td class="py-4 pr-5 pl-4 text-right align-middle whitespace-nowrap">
+													<div class="inline-flex items-center justify-end gap-1">
+														<form method="POST" action="?/toggleSalesProductShortcut" use:enhance class="inline">
+															<input type="hidden" name="businessId" value={data.activeBusiness.id} />
+															<input type="hidden" name="id" value={sp.id} />
+															<button
+																type="submit"
+																class="inline-flex size-8 items-center justify-center rounded-md hover:bg-muted {sp.isShortcut ? 'text-amber-500' : 'text-muted-foreground/40 hover:text-muted-foreground'}"
+																title={sp.isShortcut ? 'Quitar de atajos rápidos' : 'Marcar como atajo rápido en ventas'}
+															>
+																<Star class="size-4 {sp.isShortcut ? 'fill-amber-500' : ''}" />
+															</button>
+														</form>
+														<Button
+															href="/inventory/products/{sp.id}/edit"
+															size="icon"
+															variant="ghost"
+															class="size-8 text-muted-foreground hover:text-foreground"
+															title="Editar producto de venta (Pantalla Completa)"
+														>
+															<Pencil class="size-4" />
+														</Button>
+														<Button
+															type="button"
+															size="icon"
+															variant="ghost"
+															class="size-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+															title="Eliminar producto de venta"
+															onclick={() => (deletingSalesProduct = sp)}
+														>
+															<Trash2 class="size-4" />
+														</Button>
+													</div>
+												</td>
+											</tr>
+										{/each}
+									</tbody>
+								</table>
+							</div>
+						{/if}
 
 						<TablePagination
 							bind:currentPage={salesProductPage}
