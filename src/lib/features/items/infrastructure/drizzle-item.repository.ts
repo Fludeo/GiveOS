@@ -64,6 +64,7 @@ export class DrizzleItemRepository implements IItemRepository {
 				yieldQuantity: input.yieldQuantity && input.yieldQuantity > 0 ? input.yieldQuantity : 1,
 				prepTimeMinutes:
 					input.prepTimeMinutes && input.prepTimeMinutes >= 0 ? input.prepTimeMinutes : 0,
+				isPrepTimeScalable: input.isPrepTimeScalable ?? false,
 				currentStock: input.currentStock ?? 0,
 				minStock: input.minStock ?? 0,
 				batches: input.batches ?? [],
@@ -86,6 +87,9 @@ export class DrizzleItemRepository implements IItemRepository {
 		}
 		if (input.yieldQuantity !== undefined) {
 			updateData.yieldQuantity = input.yieldQuantity > 0 ? input.yieldQuantity : 1;
+		}
+		if (input.isPrepTimeScalable !== undefined) {
+			updateData.isPrepTimeScalable = Boolean(input.isPrepTimeScalable);
 		}
 		if (input.prepTimeMinutes !== undefined) {
 			updateData.prepTimeMinutes = input.prepTimeMinutes >= 0 ? input.prepTimeMinutes : 0;

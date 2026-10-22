@@ -35,6 +35,9 @@ export async function updateItemAction({ request, locals, url }: RequestEvent) {
 	const minStock = formData.has('minStock')
 		? Number(formData.get('minStock'))
 		: existing.minStock;
+	const isPrepTimeScalable = formData.has('isPrepTimeScalable')
+		? formData.get('isPrepTimeScalable') === 'true' || formData.get('isPrepTimeScalable') === 'on'
+		: existing.isPrepTimeScalable;
 	const prepTimeMinutes = formData.has('prepTimeMinutes')
 		? Number(formData.get('prepTimeMinutes') ?? 0)
 		: existing.prepTimeMinutes;
@@ -56,6 +59,7 @@ export async function updateItemAction({ request, locals, url }: RequestEvent) {
 				prepTimeMinutes !== undefined && Number.isFinite(prepTimeMinutes) && prepTimeMinutes >= 0
 					? Math.round(prepTimeMinutes)
 					: undefined,
+			isPrepTimeScalable: Boolean(isPrepTimeScalable),
 			notes
 		});
 		return {

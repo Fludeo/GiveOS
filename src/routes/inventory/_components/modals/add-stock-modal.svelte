@@ -180,14 +180,24 @@
 	const hasAnyDeficit = $derived(impacts.some((i) => i.isDeficit));
 	const deficitCount = $derived(impacts.filter((i) => i.isDeficit).length);
 
-	// Cálculo del tiempo estimado de preparación/horneado
-	// Para recetas parciales o hasta 1 tanda base no lleva menos tiempo (tiempo fijo de horneado)
+		// Cálculo del tiempo estimado de preparación/horneado
+	// Si isPrepTimeScalable es true, escala proporcionalmente por unidad producida.
+	// Si es false, se calcula por tandas completas (tiempo fijo de horneado/lote).
 	const estimatedTimeMinutes = $derived.by(() => {
 		if (!item || item.type !== 'prepared' || !item.prepTimeMinutes || item.prepTimeMinutes <= 0) {
 			return 0;
 		}
 		const inputQty =
-			typeof stockIntakeQty === 'number' && !isNaN(stockIntakeQty) ? stockIntakeQty : 0;
+			typeof stockIntakeQty === 'number' && !isNaN(stockIntakeQty) && stockIntakeQty > 0
+				? stockIntakeQty
+				: 0;
+
+		if (item.isPrepTimeScalable) {
+			if (inputQty <= 0) return 0;
+			const yieldQty = yieldQuantity > 0 ? yieldQuantity : 1;
+			return Math.round((item.prepTimeMinutes / yieldQty) * inputQty);
+		}
+
 		if (inputQty <= 0) {
 			return item.prepTimeMinutes;
 		}
@@ -424,7 +434,7 @@
 								{#if item.type === 'prepared' && estimatedTimeMinutes > 0}
 									<div
 										class="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-muted/30 px-2.5 font-mono text-xs font-semibold text-foreground/90 select-none"
-										title="Tiempo estimado (tanda completa u horneado fijo)"
+										title={item.isPrepTimeScalable ? "Tiempo estimado proporcional a las unidades elaboradas" : "Tiempo estimado por tanda completa u horneado fijo"}
 									>
 										<Clock class="size-3.5 text-secondary shrink-0" />
 										<span>{formatDuration(estimatedTimeMinutes)}</span>

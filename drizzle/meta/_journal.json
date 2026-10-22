@@ -8,6 +8,13 @@
       "when": 1792641990066,
       "tag": "0000_loving_sphinx",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792654549324,
+      "tag": "0001_oval_hercules",
+      "breakpoints": true
     }
   ]
 }

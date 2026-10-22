@@ -22,6 +22,7 @@ export async function createItemAction({ request, locals, url }: RequestEvent) {
 	const referenceCost = Number(formData.get('referenceCost') ?? 0);
 	const purchaseQuantity = Number(formData.get('purchaseQuantity') ?? 1);
 	const yieldQuantity = Number(formData.get('yieldQuantity') ?? 1);
+	const isPrepTimeScalable = formData.get('isPrepTimeScalable') === 'true' || formData.get('isPrepTimeScalable') === 'on';
 	const prepTimeMinutes = formData.has('prepTimeMinutes')
 		? Number(formData.get('prepTimeMinutes') ?? 0)
 		: 0;
@@ -48,6 +49,7 @@ export async function createItemAction({ request, locals, url }: RequestEvent) {
 			yieldQuantity: Number.isFinite(yieldQuantity) && yieldQuantity > 0 ? yieldQuantity : 1,
 			prepTimeMinutes:
 				Number.isFinite(prepTimeMinutes) && prepTimeMinutes >= 0 ? Math.round(prepTimeMinutes) : 0,
+			isPrepTimeScalable: Boolean(isPrepTimeScalable),
 			currentStock: Number.isFinite(currentStock) && currentStock >= 0 ? currentStock : 0,
 			minStock: Number.isFinite(minStock) && minStock >= 0 ? minStock : 0,
 			notes

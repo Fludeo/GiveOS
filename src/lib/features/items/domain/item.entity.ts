@@ -63,6 +63,7 @@ export interface Item {
 	purchaseQuantity: number;
 	yieldQuantity: number;
 	prepTimeMinutes: number;
+	isPrepTimeScalable?: boolean;
 	currentStock: number;
 	minStock: number;
 	notes: string | null;
@@ -81,6 +82,7 @@ export interface CreateItemInput {
 	purchaseQuantity: number;
 	yieldQuantity?: number;
 	prepTimeMinutes?: number;
+	isPrepTimeScalable?: boolean;
 	currentStock?: number;
 	minStock?: number;
 	notes?: string | null;
@@ -96,6 +98,7 @@ export interface UpdateItemInput {
 	purchaseQuantity?: number;
 	yieldQuantity?: number;
 	prepTimeMinutes?: number;
+	isPrepTimeScalable?: boolean;
 	currentStock?: number;
 	minStock?: number;
 	notes?: string | null;

@@ -25,6 +25,7 @@
 	let editYieldQuantity = $state<number | ''>(1);
 	let editPrepTimeMinutes = $state<number | ''>(0);
 	let editNotes = $state('');
+	let editIsPrepTimeScalable = $state(false);
 	let isSubmitting = $state(false);
 
 	$effect(() => {
@@ -32,6 +33,7 @@
 			editName = item.name;
 			editYieldQuantity = item.yieldQuantity > 0 ? item.yieldQuantity : 1;
 			editPrepTimeMinutes = item.prepTimeMinutes ?? 0;
+			editIsPrepTimeScalable = Boolean(item.isPrepTimeScalable);
 			editNotes = item.notes ?? '';
 			isSubmitting = false;
 		}
@@ -151,10 +153,35 @@
 							bind:value={editPrepTimeMinutes}
 							class="h-10 font-mono text-sm"
 						/>
-						<p class="text-[11px] text-muted-foreground">
-							Duración de preparación u horneado.
+												<p class="text-[11px] text-muted-foreground">
+							Duración base de preparación u horneado.
 						</p>
 					</div>
+				</div>
+
+				<!-- Modo de Tiempo: Fijo por lote vs Fraccional por unidad -->
+				<div class="rounded-xl border border-border/70 bg-muted/15 p-3.5 space-y-2">
+					<div class="flex items-center justify-between gap-2">
+						<Label for="edit-isPrepTimeScalable" class="text-xs font-semibold text-foreground cursor-pointer flex items-center gap-1.5">
+							<Clock class="size-3.5 text-secondary" />
+							<span>Tiempo fraccionable por unidad</span>
+						</Label>
+						<input
+							id="edit-isPrepTimeScalable"
+							type="checkbox"
+							name="isPrepTimeScalable"
+							value="true"
+							bind:checked={editIsPrepTimeScalable}
+							class="size-4 rounded border-border text-primary focus:ring-primary cursor-pointer"
+						/>
+					</div>
+					<p class="text-[11px] leading-relaxed text-muted-foreground">
+						{#if editIsPrepTimeScalable}
+							<strong>Modo proporcional:</strong> El tiempo se calcula según las unidades producidas (ej. 10 min por unidad producida en lugar de la tanda completa).
+						{:else}
+							<strong>Modo lote fijo:</strong> El tiempo se considera fijo por horneada o tanda completa (ej. 90 min aunque se elabore una fracción).
+						{/if}
+					</p>
 				</div>
 
 				<!-- Notas -->

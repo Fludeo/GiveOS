@@ -155,6 +155,8 @@ export const items = pgTable(
 		yieldQuantity: doublePrecision('yield_quantity').notNull().default(1),
 		/** Tiempo estimado de elaboración en minutos */
 		prepTimeMinutes: integer('prep_time_minutes').notNull().default(0),
+		/** Si el tiempo de preparación es proporcional por unidad producida o fijo por lote completo */
+		isPrepTimeScalable: boolean('is_prep_time_scalable').notNull().default(false),
 		/** Stock actual en unidad base */
 		currentStock: doublePrecision('current_stock').notNull().default(0),
 		/** Stock mínimo de alerta en unidad base */
