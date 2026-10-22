@@ -23,6 +23,7 @@
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import History from '@lucide/svelte/icons/history';
 	import CirclePile from '@lucide/svelte/icons/circle-pile';
+	import FilterX from '@lucide/svelte/icons/filter-x';
 	import { formatCurrency, formatQuantity, getDaysAgo } from '../utils';
 
 	interface Props {
@@ -607,18 +608,41 @@
 				/>
 			</div>
 		{:else}
+			{@const hasActiveFilters = searchQuery.trim() !== '' || filterType !== 'all' || onlyLowStock}
 			<div class="rounded-xl border border-dashed border-border p-12 text-center">
-				<Package class="mx-auto size-10 text-muted-foreground/60" />
-				<p class="mt-3 text-base font-semibold text-foreground">
-					No se encontraron ítems
-				</p>
-				<p class="mt-1 text-sm text-muted-foreground">
-					Registra insumos o productos para comenzar el control de stock.
-				</p>
-				<Button variant="tertiary" class="mt-4" onclick={onOpenNewItem}>
-					<Plus class="size-4" />
-					<span>Nuevo Ítem</span>
-				</Button>
+				{#if hasActiveFilters}
+					<FilterX class="mx-auto size-10 text-muted-foreground/60" />
+					<p class="mt-3 text-base font-semibold text-foreground">
+						No se encontraron ítems con los filtros aplicados
+					</p>
+					<p class="mt-1 text-sm text-muted-foreground">
+						Prueba restablecer los filtros o cambiar el término de búsqueda.
+					</p>
+					<Button
+						variant="outline"
+						class="mt-4 gap-1.5 cursor-pointer"
+						onclick={() => {
+							searchQuery = '';
+							filterType = 'all';
+							onlyLowStock = false;
+						}}
+					>
+						<FilterX class="size-4" />
+						<span>Quitar Filtros</span>
+					</Button>
+				{:else}
+					<Package class="mx-auto size-10 text-muted-foreground/60" />
+					<p class="mt-3 text-base font-semibold text-foreground">
+						No hay ítems registrados en el inventario
+					</p>
+					<p class="mt-1 text-sm text-muted-foreground">
+						Registra insumos o productos para comenzar el control de stock.
+					</p>
+					<Button variant="tertiary" class="mt-4 gap-1.5 cursor-pointer" onclick={onOpenNewItem}>
+						<Plus class="size-4" />
+						<span>Nuevo Ítem</span>
+					</Button>
+				{/if}
 			</div>
 		{/if}
 	</CardContent>
