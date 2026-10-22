@@ -306,7 +306,7 @@
 										<button
 											type="button"
 											onclick={() => onSelectCatalogItem(item.id)}
-											class="text-left font-bold text-base text-foreground hover:text-primary transition-colors line-clamp-1"
+											class="text-left font-bold text-base text-foreground hover:text-primary transition-colors line-clamp-1 cursor-pointer"
 										>
 											{item.name}
 										</button>
@@ -315,54 +315,82 @@
 										{/if}
 									</div>
 
-									<!-- Métricas: Stock y Costo -->
-									<div class="mt-3.5 grid grid-cols-2 gap-2 rounded-xl border border-border/60 bg-muted/20 p-2.5">
-										<div>
-											<span class="text-[11px] font-medium text-muted-foreground">Stock Actual</span>
-											<p class="font-mono text-base font-bold {isLow ? 'text-destructive' : 'text-foreground'}">
-												{item.currentStock} <span class="text-xs font-normal text-muted-foreground">{item.baseUnit}</span>
-											</p>
-											<div class="flex items-center gap-1 font-mono text-[10px] text-muted-foreground">
-												<AlertTriangle class="size-3 text-muted-foreground/70" />
-												<span>{item.minStock} {item.baseUnit}</span>
+									<!-- HERO: Stock Actual Protagonista Grande con Ícono -->
+									<div class="mt-3.5 flex items-center justify-between rounded-xl border border-border/70 bg-muted/20 p-3">
+										<div class="flex items-center gap-3">
+											<div
+												class="flex size-11 shrink-0 items-center justify-center rounded-2xl {isLow
+													? 'bg-destructive/15 text-destructive'
+													: item.type === 'prepared'
+														? 'bg-secondary/15 text-secondary'
+														: 'bg-amber-500/15 text-amber-600 dark:text-amber-400'}"
+											>
+												{#if item.type === 'prepared'}
+													<Layers class="size-6" />
+												{:else}
+													<Package class="size-6" />
+												{/if}
+											</div>
+											<div>
+												<span class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block">
+													Stock Disponible
+												</span>
+												<div class="flex items-baseline gap-1.5 font-mono">
+													<span class="text-2xl sm:text-3xl font-black tracking-tight {isLow ? 'text-destructive' : 'text-foreground'}">
+														{item.currentStock}
+													</span>
+													<span class="text-xs font-semibold text-muted-foreground uppercase font-sans">
+														{item.baseUnit}
+													</span>
+												</div>
 											</div>
 										</div>
-										<div>
-											<span class="text-[11px] font-medium text-muted-foreground">Costo Unit.</span>
+
+										<div class="text-right">
+											<div class="flex items-center justify-end gap-1 font-mono text-[11px] {isLow ? 'text-destructive font-bold' : 'text-muted-foreground'}">
+												<AlertTriangle class="size-3.5 {isLow ? 'text-destructive' : 'text-muted-foreground/70'}" />
+												<span>Mín: {item.minStock} {item.baseUnit}</span>
+											</div>
+											{#if isLow}
+												<span class="text-[10px] text-destructive font-semibold">Stock Crítico</span>
+											{:else}
+												<span class="text-[10px] text-muted-foreground/70">Al día</span>
+											{/if}
+										</div>
+									</div>
+
+									<!-- Metadata Secundaria: Costo Unitario y Última Carga -->
+									<div class="mt-2.5 flex items-center justify-between gap-2 px-1 text-xs">
+										<div class="flex items-center gap-1.5 text-muted-foreground text-[11px] truncate">
+											<History class="size-3.5 shrink-0 text-muted-foreground/70" />
+											{#if latestBatch}
+												<span class="truncate">Últ: <strong class="text-foreground/90 font-medium">{getDaysAgo(latestBatch.createdAt)}</strong> <span class="{item.type === 'prepared' ? 'text-secondary' : 'text-primary'} font-bold">(+{formatQuantity(latestBatch.initialQuantity)} {item.baseUnit})</span></span>
+											{:else}
+												<span class="text-muted-foreground/60">Sin cargas</span>
+											{/if}
+										</div>
+
+										<div class="shrink-0 text-right">
 											{#if item.type === 'raw_material'}
-												<p class="font-mono text-base font-bold text-foreground">
+												<span class="font-mono text-xs font-bold text-foreground">
 													{formatCurrency(getDirectUnitCost(item))}
-												</p>
-												<p class="text-[10px] text-muted-foreground">
-													por {item.baseUnit}
-												</p>
+												</span>
+												<span class="text-[10px] text-muted-foreground">/{item.baseUnit}</span>
 											{:else if recipeSummary && recipeSummary.directComponentsCount > 0}
-												<p class="font-mono text-base font-bold text-foreground">
+												<span class="font-mono text-xs font-bold text-foreground">
 													{formatCurrency(recipeSummary.estimatedUnitCost)}
-												</p>
-												<p class="text-[10px] text-muted-foreground">
-													por {item.baseUnit}
-												</p>
+												</span>
+												<span class="text-[10px] text-muted-foreground">/{item.baseUnit}</span>
 											{:else}
 												<button
 													type="button"
 													onclick={() => onSelectCatalogItem(item.id)}
-													class="text-xs font-medium text-primary hover:underline mt-1 block"
+													class="text-[11px] font-semibold text-primary hover:underline"
 												>
 													+ Armar Receta
 												</button>
 											{/if}
 										</div>
-									</div>
-
-									<!-- Última carga de stock -->
-									<div class="mt-2 flex items-center gap-1 text-[10px] text-muted-foreground px-0.5">
-										<History class="size-3 shrink-0 text-muted-foreground/70" />
-										{#if latestBatch}
-											<span>Últ. carga: <strong class="text-foreground/80 font-medium">{getDaysAgo(latestBatch.createdAt)}</strong> <span class="text-primary font-bold">(+{formatQuantity(latestBatch.initialQuantity)} {item.baseUnit})</span></span>
-										{:else}
-											<span class="text-muted-foreground/60">Sin cargas de stock registradas</span>
-										{/if}
 									</div>
 								</div>
 
