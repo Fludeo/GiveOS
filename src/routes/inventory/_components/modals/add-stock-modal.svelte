@@ -24,6 +24,7 @@
 	import Layers from '@lucide/svelte/icons/layers';
 	import ArrowUpRight from '@lucide/svelte/icons/arrow-up-right';
 	import Clock from '@lucide/svelte/icons/clock';
+	import ClockFading from '@lucide/svelte/icons/clock-fading';
 	import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
 	import { formatCurrency, formatDate, getDaysAgo, formatQuantity } from '../utils';
 
@@ -194,8 +195,7 @@
 
 		if (item.isPrepTimeScalable) {
 			if (inputQty <= 0) return 0;
-			const yieldQty = yieldQuantity > 0 ? yieldQuantity : 1;
-			return Math.round((item.prepTimeMinutes / yieldQty) * inputQty);
+			return Math.round(item.prepTimeMinutes * inputQty);
 		}
 
 		if (inputQty <= 0) {
@@ -434,9 +434,13 @@
 								{#if item.type === 'prepared' && estimatedTimeMinutes > 0}
 									<div
 										class="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-muted/30 px-2.5 font-mono text-xs font-semibold text-foreground/90 select-none"
-										title={item.isPrepTimeScalable ? "Tiempo estimado proporcional a las unidades elaboradas" : "Tiempo estimado por tanda completa u horneado fijo"}
+										title={item.isPrepTimeScalable ? `Tiempo estimado proporcional (${item.prepTimeMinutes} min/u × ${stockIntakeQty || 0} ${item.baseUnit})` : "Tiempo estimado por tanda completa u horneado fijo"}
 									>
-										<Clock class="size-3.5 text-secondary shrink-0" />
+										{#if item.isPrepTimeScalable}
+											<ClockFading class="size-3.5 text-secondary shrink-0" />
+										{:else}
+											<Clock class="size-3.5 text-secondary shrink-0" />
+										{/if}
 										<span>{formatDuration(estimatedTimeMinutes)}</span>
 									</div>
 								{/if}

@@ -10,6 +10,7 @@
 	import GraphHub from '@lucide/svelte/icons/graph-hub';
 	import Search from '@lucide/svelte/icons/search';
 	import Clock from '@lucide/svelte/icons/clock';
+	import ClockFading from '@lucide/svelte/icons/clock-fading';
 	import CirclePile from '@lucide/svelte/icons/circle-pile';
 	import Layers from '@lucide/svelte/icons/layers';
 	import Calculator from '@lucide/svelte/icons/calculator';
@@ -161,9 +162,14 @@
 											{summary?.directComponentsCount ?? 0}
 										</span>
 										{#if item.prepTimeMinutes > 0}
-											<span class="inline-flex items-center gap-1 font-semibold text-[11px] text-secondary">
-												<Clock class="size-3" />
-												{item.prepTimeMinutes} min
+											<span class="inline-flex items-center gap-1 font-semibold text-[11px] text-secondary" title={item.isPrepTimeScalable ? "Tiempo por unidad (fraccionable)" : "Tiempo por lote"}>
+												{#if item.isPrepTimeScalable}
+													<ClockFading class="size-3" />
+													{item.prepTimeMinutes} min/u
+												{:else}
+													<Clock class="size-3" />
+													{item.prepTimeMinutes} min
+												{/if}
 											</span>
 										{/if}
 									</div>
@@ -280,19 +286,23 @@
 							</span>
 							<div class="flex items-center gap-3 pt-0.5">
 								<div class="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-amber-500/15 text-amber-600 dark:text-amber-400">
-									<Clock class="size-6" />
+									{#if selectedRoot.isPrepTimeScalable}
+										<ClockFading class="size-6" />
+									{:else}
+										<Clock class="size-6" />
+									{/if}
 								</div>
 								<div class="flex items-baseline gap-1.5 font-mono">
 									<span class="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
 										{selectedRoot.prepTimeMinutes ? selectedRoot.prepTimeMinutes : 0}
 									</span>
 									<span class="text-sm font-semibold text-muted-foreground">
-										minutos
+										{selectedRoot.isPrepTimeScalable ? 'min / unidad' : 'minutos'}
 									</span>
 								</div>
 							</div>
 							<p class="text-xs text-muted-foreground">
-								Preparación y producción
+								{selectedRoot.isPrepTimeScalable ? 'Tiempo proporcional por unidad' : 'Preparación y producción por lote'}
 							</p>
 						</div>
 

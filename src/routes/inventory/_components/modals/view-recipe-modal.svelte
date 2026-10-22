@@ -8,6 +8,7 @@
 	import Layers from '@lucide/svelte/icons/layers';
 	import CirclePile from '@lucide/svelte/icons/circle-pile';
 	import Clock from '@lucide/svelte/icons/clock';
+	import ClockFading from '@lucide/svelte/icons/clock-fading';
 	import { formatCurrency } from '../utils';
 
 	interface Props {
@@ -65,8 +66,13 @@
 						{#if item.prepTimeMinutes && item.prepTimeMinutes > 0}
 							<span class="text-muted-foreground/40">•</span>
 							<span class="inline-flex items-center gap-1 font-medium text-foreground">
-								<Clock class="size-3.5 text-secondary shrink-0" />
-								<span>Tiempo: <strong>{item.prepTimeMinutes} min</strong></span>
+								{#if item.isPrepTimeScalable}
+									<ClockFading class="size-3.5 text-secondary shrink-0" />
+									<span>Tiempo: <strong>{item.prepTimeMinutes} min/u</strong> (fraccionable)</span>
+								{:else}
+									<Clock class="size-3.5 text-secondary shrink-0" />
+									<span>Tiempo: <strong>{item.prepTimeMinutes} min/lote</strong></span>
+								{/if}
 							</span>
 						{/if}
 					</div>

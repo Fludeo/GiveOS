@@ -9,6 +9,7 @@
 	import ArrowUpRight from '@lucide/svelte/icons/arrow-up-right';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import Clock from '@lucide/svelte/icons/clock';
+	import ClockFading from '@lucide/svelte/icons/clock-fading';
 
 	let {
 		node,
@@ -84,9 +85,14 @@
 
 		<td class="px-4 py-4 text-center align-middle font-mono text-xs">
 			{#if current.component.type === 'prepared' && current.component.prepTimeMinutes > 0}
-				<span class="inline-flex items-center gap-1 rounded-full border border-secondary/30 bg-secondary/10 px-2 py-0.5 text-xs text-secondary font-semibold">
-					<Clock class="size-3" />
-					{current.component.prepTimeMinutes} min
+				<span class="inline-flex items-center gap-1 rounded-full border border-secondary/30 bg-secondary/10 px-2 py-0.5 text-xs text-secondary font-semibold" title={current.component.isPrepTimeScalable ? "Tiempo por unidad (fraccionable)" : "Tiempo por lote"}>
+					{#if current.component.isPrepTimeScalable}
+						<ClockFading class="size-3" />
+						{current.component.prepTimeMinutes} min/u
+					{:else}
+						<Clock class="size-3" />
+						{current.component.prepTimeMinutes} min
+					{/if}
 				</span>
 			{:else}
 				<span class="text-muted-foreground/40">-</span>

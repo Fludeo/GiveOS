@@ -9,6 +9,7 @@
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import CirclePile from '@lucide/svelte/icons/circle-pile';
 	import Clock from '@lucide/svelte/icons/clock';
+	import ClockFading from '@lucide/svelte/icons/clock-fading';
 	import Check from '@lucide/svelte/icons/check';
 
 	interface Props {
@@ -139,10 +140,15 @@
 						</p>
 					</div>
 
-					<div class="space-y-1.5">
+										<div class="space-y-1.5">
 						<Label for="edit-prepTimeMinutes" class="flex items-center gap-1.5 font-semibold text-foreground">
-							<Clock class="size-3.5 text-secondary" />
-							<span>Tiempo de Elaboración (min)</span>
+							{#if editIsPrepTimeScalable}
+								<ClockFading class="size-3.5 text-secondary" />
+								<span>Tiempo por Unidad (min/u)</span>
+							{:else}
+								<Clock class="size-3.5 text-secondary" />
+								<span>Tiempo por Tanda (min/lote)</span>
+							{/if}
 						</Label>
 						<Input
 							id="edit-prepTimeMinutes"
@@ -153,17 +159,21 @@
 							bind:value={editPrepTimeMinutes}
 							class="h-10 font-mono text-sm"
 						/>
-												<p class="text-[11px] text-muted-foreground">
-							Duración base de preparación u horneado.
+						<p class="text-[11px] text-muted-foreground">
+							{#if editIsPrepTimeScalable}
+								Minutos de elaboración requeridos por cada 1 {item.baseUnit}.
+							{:else}
+								Duración fija de horneado o preparación para la tanda completa.
+							{/if}
 						</p>
 					</div>
 				</div>
 
 				<!-- Modo de Tiempo: Fijo por lote vs Fraccional por unidad -->
-				<div class="rounded-xl border border-border/70 bg-muted/15 p-3.5 space-y-2">
+				<div class="rounded-xl border {editIsPrepTimeScalable ? 'border-secondary/40 bg-secondary/5' : 'border-border/70 bg-muted/15'} p-3.5 space-y-2 transition-colors">
 					<div class="flex items-center justify-between gap-2">
 						<Label for="edit-isPrepTimeScalable" class="text-xs font-semibold text-foreground cursor-pointer flex items-center gap-1.5">
-							<Clock class="size-3.5 text-secondary" />
+							<ClockFading class="size-3.5 text-secondary" />
 							<span>Tiempo fraccionable por unidad</span>
 						</Label>
 						<input
@@ -177,9 +187,9 @@
 					</div>
 					<p class="text-[11px] leading-relaxed text-muted-foreground">
 						{#if editIsPrepTimeScalable}
-							<strong>Modo proporcional:</strong> El tiempo se calcula según las unidades producidas (ej. 10 min por unidad producida en lugar de la tanda completa).
+							<strong class="text-secondary">Modo por unidad activo:</strong> El tiempo ingresado arriba corresponde a 1 {item.baseUnit}. Al fabricar stock, el tiempo estimado total aumentará linealmente según la cantidad producida (ej. {editPrepTimeMinutes || 0} min × unidades fabricadas).
 						{:else}
-							<strong>Modo lote fijo:</strong> El tiempo se considera fijo por horneada o tanda completa (ej. 90 min aunque se elabore una fracción).
+							<strong>Modo lote completo:</strong> El tiempo ingresado arriba es fijo para toda la tanda u horneada completa de {editYieldQuantity || 1} {item.baseUnit}.
 						{/if}
 					</p>
 				</div>
