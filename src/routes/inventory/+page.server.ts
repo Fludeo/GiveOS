@@ -1,7 +1,7 @@
 import { redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { getServices } from '#lib/server/container';
-import { resolveBusinessOrRedirect } from './_actions/resolve-business';
+import { resolveBusinessOrRedirect } from '#lib/server/business-resolver';
 import * as inventoryActions from './_actions';
 
 export const load: PageServerLoad = async ({ url, locals }) => {
@@ -49,7 +49,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 	return {
 		user: locals.user,
 		activeBusiness,
-		businesses: memberships.map((m) => ({ ...m.business, role: m.role })),
+		businesses: memberships.map((m: any) => ({ ...m.business, role: m.role })),
 		items,
 		recipeSummaries,
 		selectedRecipeTree,

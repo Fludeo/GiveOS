@@ -1,7 +1,7 @@
 import { fail, redirect, type RequestEvent } from '@sveltejs/kit';
 import { getServices } from '#lib/server/container';
 import type { UnitOfMeasure } from '#lib/features/items/domain/item.entity';
-import { resolveBusinessOrRedirect } from './resolve-business';
+import { resolveBusinessOrRedirect } from '#lib/server/business-resolver';
 
 export async function addRecipeLineAction({ request, locals, url }: RequestEvent) {
 	if (!locals.user) throw redirect(302, '/login');

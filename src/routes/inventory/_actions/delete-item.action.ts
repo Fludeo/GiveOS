@@ -1,6 +1,6 @@
 import { fail, redirect, type RequestEvent } from '@sveltejs/kit';
 import { getServices } from '#lib/server/container';
-import { resolveBusinessOrRedirect } from './resolve-business';
+import { resolveBusinessOrRedirect } from '#lib/server/business-resolver';
 
 export async function deleteItemAction({ request, locals, url }: RequestEvent) {
 	if (!locals.user) throw redirect(302, '/login');

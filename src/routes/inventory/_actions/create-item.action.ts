@@ -6,7 +6,7 @@ import {
 	type ItemType,
 	type UnitOfMeasure
 } from '#lib/features/items/domain/item.entity';
-import { resolveBusinessOrRedirect } from './resolve-business';
+import { resolveBusinessOrRedirect } from '#lib/server/business-resolver';
 
 export async function createItemAction({ request, locals, url }: RequestEvent) {
 	if (!locals.user) throw redirect(302, '/login');
