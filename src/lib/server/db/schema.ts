@@ -1,8 +1,10 @@
 // GiveOS PostgreSQL Schema - Drizzle ORM
+import { v7 as uuidv7 } from 'uuid';
 import {
 	boolean,
 	doublePrecision,
 	integer,
+	jsonb,
 	pgTable,
 	text,
 	timestamp,
@@ -89,7 +91,7 @@ export type BusinessRole = (typeof BUSINESS_ROLES)[number];
 export const businesses = pgTable('businesses', {
 	id: text('id')
 		.primaryKey()
-		.$defaultFn(() => crypto.randomUUID()),
+		.$defaultFn(() => uuidv7()),
 	name: text('name').notNull(),
 	description: text('description').notNull().default(''),
 	whatsapp: text('whatsapp').notNull().default(''),
@@ -104,7 +106,7 @@ export const userBusinesses = pgTable(
 	{
 		id: text('id')
 			.primaryKey()
-			.$defaultFn(() => crypto.randomUUID()),
+			.$defaultFn(() => uuidv7()),
 		userId: text('user_id')
 			.notNull()
 			.references(() => user.id, { onDelete: 'cascade' }),
@@ -130,13 +132,14 @@ export type ItemType = (typeof ITEM_TYPES)[number];
 
 export const UNITS_OF_MEASURE = ['g', 'kg', 'ml', 'l', 'unit'] as const;
 export type UnitOfMeasure = (typeof UNITS_OF_MEASURE)[number];
+import type { ItemStockBatch } from '#lib/features/items/domain/item.entity';
 
 export const items = pgTable(
 	'items',
 	{
 		id: text('id')
 			.primaryKey()
-			.$defaultFn(() => crypto.randomUUID()),
+			.$defaultFn(() => uuidv7()),
 		businessId: text('business_id')
 			.notNull()
 			.references(() => businesses.id, { onDelete: 'cascade' }),
@@ -157,6 +160,7 @@ export const items = pgTable(
 		/** Stock mínimo de alerta en unidad base */
 		minStock: doublePrecision('min_stock').notNull().default(0),
 		notes: text('notes'),
+		batches: jsonb('batches').$type<ItemStockBatch[]>().notNull().default([]),
 		createdAt: timestamp('created_at', { mode: 'date' })
 			.notNull()
 			.$defaultFn(() => new Date())
@@ -167,7 +171,7 @@ export const items = pgTable(
 export const recipeLines = pgTable('recipe_lines', {
 	id: text('id')
 		.primaryKey()
-		.$defaultFn(() => crypto.randomUUID()),
+		.$defaultFn(() => uuidv7()),
 	parentItemId: text('parent_item_id')
 		.notNull()
 		.references(() => items.id, { onDelete: 'cascade' }),
@@ -189,7 +193,7 @@ export const salesProducts = pgTable(
 	{
 		id: text('id')
 			.primaryKey()
-			.$defaultFn(() => crypto.randomUUID()),
+			.$defaultFn(() => uuidv7()),
 		businessId: text('business_id')
 			.notNull()
 			.references(() => businesses.id, { onDelete: 'cascade' }),
@@ -210,7 +214,7 @@ export const salesProducts = pgTable(
 export const salesProductItems = pgTable('sales_product_items', {
 	id: text('id')
 		.primaryKey()
-		.$defaultFn(() => crypto.randomUUID()),
+		.$defaultFn(() => uuidv7()),
 	salesProductId: text('sales_product_id')
 		.notNull()
 		.references(() => salesProducts.id, { onDelete: 'cascade' }),
@@ -237,7 +241,7 @@ export const orders = pgTable(
 	{
 		id: text('id')
 			.primaryKey()
-			.$defaultFn(() => crypto.randomUUID()),
+			.$defaultFn(() => uuidv7()),
 		businessId: text('business_id')
 			.notNull()
 			.references(() => businesses.id, { onDelete: 'cascade' }),
@@ -263,7 +267,7 @@ export const orders = pgTable(
 export const orderItems = pgTable('order_items', {
 	id: text('id')
 		.primaryKey()
-		.$defaultFn(() => crypto.randomUUID()),
+		.$defaultFn(() => uuidv7()),
 	orderId: text('order_id')
 		.notNull()
 		.references(() => orders.id, { onDelete: 'cascade' }),

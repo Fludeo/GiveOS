@@ -10,9 +10,10 @@
 	import type { AuthUser } from '#lib/features/auth/domain/auth.entity';
 	import { Button } from '#lib/components/ui/button';
 	import { Badge } from '#lib/components/ui/badge';
-	import CakeSlice from '@lucide/svelte/icons/cake-slice';
+	import ScanFace from '@lucide/svelte/icons/scan-face';
 	import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard';
 	import ShoppingBag from '@lucide/svelte/icons/shopping-bag';
+	import ShoppingCart from '@lucide/svelte/icons/shopping-cart';
 	import Package from '@lucide/svelte/icons/package';
 	import Settings from '@lucide/svelte/icons/settings';
 	import Store from '@lucide/svelte/icons/store';
@@ -109,9 +110,9 @@
 			<div class="flex items-center {isCollapsed ? 'flex-col gap-2' : 'justify-between gap-3'}">
 				<div class="flex items-center gap-3 min-w-0">
 					<div
-						class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-xs"
+						class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-secondary text-secondary-foreground shadow-xs"
 					>
-						<CakeSlice class="size-5" />
+						<ScanFace class="size-5" />
 					</div>
 					{#if !isCollapsed}
 						<div class="min-w-0">
@@ -206,19 +207,19 @@
 		<nav class="flex-1 space-y-1.5 overflow-y-auto {isCollapsed ? 'p-2' : 'p-4'}">
 			<div class="pb-2">
 				{#if !isCollapsed}
-					<Button href="/orders/new" variant="secondary" class="w-full justify-center gap-2 shadow-xs font-semibold">
-						<Plus class="size-4" />
+					<Button href="/orders/new" variant="tertiary" class="w-full justify-center gap-2 shadow-xs font-semibold">
+						<ShoppingCart class="size-4" />
 						<span>Nueva Orden</span>
 					</Button>
 				{:else}
 					<Button
 						href="/orders/new"
-						variant="secondary"
+						variant="tertiary"
 						size="icon"
 						class="w-full h-10 justify-center shadow-xs"
-						title="Nueva Orden de Compra"
+						title="Nueva Orden"
 					>
-						<Plus class="size-4" />
+						<ShoppingCart class="size-4" />
 					</Button>
 				{/if}
 			</div>
@@ -301,9 +302,9 @@
 		>
 			<div class="flex items-center gap-2">
 				<div
-					class="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground"
+					class="flex size-8 items-center justify-center rounded-lg bg-secondary text-secondary-foreground"
 				>
-					<CakeSlice class="size-4" />
+					<ScanFace class="size-4" />
 				</div>
 				<span class="font-bold text-sm text-foreground truncate max-w-[140px] sm:max-w-none">
 					{activeBusiness.name}

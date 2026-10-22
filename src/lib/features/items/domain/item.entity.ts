@@ -1,3 +1,5 @@
+import { v7 as uuidv7 } from 'uuid';
+
 export const ITEM_TYPES = ['raw_material', 'prepared'] as const;
 export type ItemType = (typeof ITEM_TYPES)[number];
 
@@ -19,8 +21,8 @@ export const ITEM_TYPE_CONFIG = {
 		label: 'Insumo',
 		shortLabel: 'Insumo',
 		prefix: 'INS',
-		badgeClass: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
-		color: 'emerald'
+		badgeClass: 'border-tertiary/40 bg-tertiary/20 text-yellow-900 dark:text-yellow-300',
+		color: 'tertiary'
 	},
 	prepared: {
 		label: 'Elaboración',
@@ -39,6 +41,17 @@ export const UNIT_LABELS: Record<UnitOfMeasure, string> = {
 	unit: 'Unidad (u)'
 };
 
+export interface ItemStockBatch {
+	id: string;
+	createdAt: string; // ISO 8601 string
+	initialQuantity: number;
+	remainingQuantity: number;
+	totalCost: number;
+	unitCost: number;
+	supplier?: string | null;
+	notes?: string | null;
+}
+
 export interface Item {
 	id: string;
 	businessId: string;
@@ -53,6 +66,7 @@ export interface Item {
 	currentStock: number;
 	minStock: number;
 	notes: string | null;
+	batches?: ItemStockBatch[];
 	createdAt: Date;
 }
 
@@ -70,6 +84,7 @@ export interface CreateItemInput {
 	currentStock?: number;
 	minStock?: number;
 	notes?: string | null;
+	batches?: ItemStockBatch[];
 }
 
 export interface UpdateItemInput {
@@ -84,6 +99,7 @@ export interface UpdateItemInput {
 	currentStock?: number;
 	minStock?: number;
 	notes?: string | null;
+	batches?: ItemStockBatch[];
 }
 
 /**
@@ -145,4 +161,131 @@ export function convertQuantity(
 export function getDirectUnitCost(item: Pick<Item, 'referenceCost' | 'purchaseQuantity'>): number {
 	if (!item.purchaseQuantity || item.purchaseQuantity <= 0) return 0;
 	return item.referenceCost / item.purchaseQuantity;
+}
+
+/**
+ * Calcula el costo unitario ponderado sobre las capas de stock activas (FIFO).
+ * Si no quedan capas activas, mantiene el fallbackCost previo.
+ */
+export function calculateWeightedUnitCost(batches: ItemStockBatch[] = [], fallbackCost: number = 0): number {
+	const active = batches.filter((b) => b.remainingQuantity > 0);
+	if (active.length === 0) {
+		if (batches.length > 0) {
+			return batches[batches.length - 1].unitCost;
+		}
+		return fallbackCost;
+	}
+	let totalValue = 0;
+	let totalQty = 0;
+	for (const b of active) {
+		totalValue += b.remainingQuantity * b.unitCost;
+		totalQty += b.remainingQuantity;
+	}
+	return totalQty > 0 ? totalValue / totalQty : fallbackCost;
+}
+
+/**
+ * Registra una nueva carga de stock (compra) y devuelve los lotes actualizados y el nuevo costo unitario ponderado.
+ */
+export function applyStockIntake(
+	batches: ItemStockBatch[] = [],
+	intake: {
+		quantity: number;
+		totalCost: number;
+		supplier?: string | null;
+		notes?: string | null;
+	}
+): { batches: ItemStockBatch[]; newReferenceCost: number; addedBatch: ItemStockBatch } {
+	const qty = Math.max(0.0001, intake.quantity);
+	const unitCost = intake.totalCost / qty;
+	const newBatch: ItemStockBatch = {
+		id: uuidv7(),
+		createdAt: new Date().toISOString(),
+		initialQuantity: qty,
+		remainingQuantity: qty,
+		totalCost: intake.totalCost,
+		unitCost,
+		supplier: intake.supplier?.trim() || null,
+		notes: intake.notes?.trim() || null
+	};
+
+	const activeOrRecent = [...batches.filter((b) => b.remainingQuantity > 0), newBatch];
+	const updatedBatches = activeOrRecent.slice(-30);
+	const newReferenceCost = calculateWeightedUnitCost(updatedBatches, unitCost);
+
+	return {
+		batches: updatedBatches,
+		newReferenceCost,
+		addedBatch: newBatch
+	};
+}
+
+/**
+ * Consume stock según la regla First-In, First-Out (FIFO) descontando de las capas más antiguas primero.
+ */
+export function applyStockConsumption(
+	batches: ItemStockBatch[] = [],
+	quantityToConsume: number,
+	currentReferenceCost: number = 0
+): { batches: ItemStockBatch[]; consumedCost: number; newReferenceCost: number } {
+	let remainingToDeduct = Math.max(0, quantityToConsume);
+	let consumedCost = 0;
+
+	const updated = batches.map((batch) => {
+		if (remainingToDeduct <= 0 || batch.remainingQuantity <= 0) {
+			return batch;
+		}
+		const deductFromThis = Math.min(batch.remainingQuantity, remainingToDeduct);
+		remainingToDeduct -= deductFromThis;
+		consumedCost += deductFromThis * batch.unitCost;
+		return {
+			...batch,
+			remainingQuantity: Math.max(0, batch.remainingQuantity - deductFromThis)
+		};
+	});
+
+	const newReferenceCost = calculateWeightedUnitCost(updated, currentReferenceCost);
+
+	return {
+		batches: updated,
+		consumedCost,
+		newReferenceCost
+	};
+}
+
+/**
+ * Elimina una carga de stock (lote) existente, ajustando el stock actual y recalculando el costo de referencia.
+ */
+export function removeStockBatch(
+	batches: ItemStockBatch[] = [],
+	batchId: string,
+	currentStock: number,
+	fallbackCost: number = 0
+): {
+	batches: ItemStockBatch[];
+	newStock: number;
+	newReferenceCost: number;
+	removedBatch: ItemStockBatch | null;
+} {
+	const targetIndex = batches.findIndex((b) => b.id === batchId);
+	if (targetIndex === -1) {
+		return {
+			batches,
+			newStock: currentStock,
+			newReferenceCost: fallbackCost,
+			removedBatch: null
+		};
+	}
+
+	const removedBatch = batches[targetIndex];
+	const updatedBatches = batches.filter((b) => b.id !== batchId);
+	const newStock = Math.max(0, currentStock - removedBatch.remainingQuantity);
+	const newReferenceCost = calculateWeightedUnitCost(updatedBatches, fallbackCost);
+
+	return {
+		batches: updatedBatches,
+		newStock,
+		newReferenceCost,
+		removedBatch
+	};
 }

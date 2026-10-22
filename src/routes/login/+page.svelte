@@ -11,7 +11,7 @@
 		CardHeader,
 		CardTitle
 	} from '#lib/components/ui/card';
-	import CakeSlice from '@lucide/svelte/icons/cake-slice';
+	import ScanFace from '@lucide/svelte/icons/scan-face';
 	import LogIn from '@lucide/svelte/icons/log-in';
 
 	let { form }: PageProps = $props();
@@ -26,8 +26,8 @@
 	<div class="w-full max-w-md space-y-8">
 		<!-- Marca / Encabezado -->
 		<div class="flex flex-col items-center space-y-3 text-center">
-			<div class="flex size-12 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
-				<CakeSlice class="size-6" />
+			<div class="flex size-12 items-center justify-center rounded-xl bg-secondary text-secondary-foreground shadow-sm">
+				<ScanFace class="size-6" />
 			</div>
 			<div class="space-y-1">
 				<h1 class="text-2xl font-bold tracking-tight">GiveOS</h1>

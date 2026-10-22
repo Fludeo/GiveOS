@@ -66,6 +66,7 @@ export class DrizzleItemRepository implements IItemRepository {
 					input.prepTimeMinutes && input.prepTimeMinutes >= 0 ? input.prepTimeMinutes : 0,
 				currentStock: input.currentStock ?? 0,
 				minStock: input.minStock ?? 0,
+				batches: input.batches ?? [],
 				notes: input.notes?.trim() || null
 			})
 			.returning();
@@ -95,6 +96,9 @@ export class DrizzleItemRepository implements IItemRepository {
 		if (input.minStock !== undefined) {
 			updateData.minStock = input.minStock >= 0 ? input.minStock : 0;
 		}
+		if (input.batches !== undefined) {
+			updateData.batches = input.batches;
+		}
 		if (input.notes !== undefined) updateData.notes = input.notes?.trim() || null;
 
 		const [updated] = await this.db
@@ -110,7 +114,8 @@ export class DrizzleItemRepository implements IItemRepository {
 		const deleted = await this.db
 			.delete(schema.items)
 			.where(and(eq(schema.items.id, id), eq(schema.items.businessId, businessId)))
-			.returning({ id: schema.items.id });
+			.returning();
+
 		return deleted.length > 0;
 	}
 }

@@ -1,8 +1,11 @@
+import { v7 as uuidv7 } from 'uuid';
 import {
+	applyStockConsumption,
 	areUnitsCompatible,
 	convertQuantity,
 	getDirectUnitCost,
-	type Item
+	type Item,
+	type ItemStockBatch
 } from '#lib/features/items/domain/item.entity';
 import type { IItemRepository } from '#lib/features/items/domain/item.repository';
 import type {
@@ -239,7 +242,8 @@ export class RecipeService {
 	async produceItemBatch(
 		businessId: string,
 		parentItemId: string,
-		producedQty: number
+		producedQty: number,
+		notes?: string | null
 	): Promise<{ parent: Item; consumedComponents: Array<{ item: Item; consumedQty: number }> }> {
 		if (producedQty <= 0) {
 			throw new Error('La cantidad a producir debe ser mayor a 0.');
@@ -272,8 +276,17 @@ export class RecipeService {
 				comp.baseUnit
 			);
 			const nextStock = Math.max(0, Number((comp.currentStock - requiredInCompBase).toFixed(4)));
+			let newBatches = comp.batches;
+			let newRefCost = comp.referenceCost;
+			if (comp.batches && comp.batches.length > 0) {
+				const res = applyStockConsumption(comp.batches, requiredInCompBase, comp.referenceCost);
+				newBatches = res.batches;
+				newRefCost = res.newReferenceCost;
+			}
 			const updatedComp = await this.itemRepo.update(comp.id, businessId, {
-				currentStock: nextStock
+				currentStock: nextStock,
+				referenceCost: newRefCost,
+				batches: newBatches
 			});
 			if (updatedComp) {
 				itemsById.set(comp.id, updatedComp);
@@ -282,8 +295,21 @@ export class RecipeService {
 		}
 
 		const nextParentStock = Number((parent.currentStock + producedQty).toFixed(4));
+		const newBatch: ItemStockBatch = {
+			id: uuidv7(),
+			createdAt: new Date().toISOString(),
+			initialQuantity: producedQty,
+			remainingQuantity: producedQty,
+			totalCost: 0,
+			unitCost: 0,
+			notes: notes?.trim() || null
+		};
+		const currentBatches = parent.batches ?? [];
+		const updatedBatches = [...currentBatches.slice(-29), newBatch];
+
 		const updatedParent = await this.itemRepo.update(parent.id, businessId, {
-			currentStock: nextParentStock
+			currentStock: nextParentStock,
+			batches: updatedBatches
 		});
 
 		return {

@@ -188,6 +188,10 @@ export const actions: Actions = {
 
 		const { itemService, recipeService } = getServices();
 		const id = String(formData.get('id') ?? '');
+		const name = formData.has('name') ? String(formData.get('name') ?? '').trim() : undefined;
+		const baseUnit = formData.has('baseUnit')
+			? (String(formData.get('baseUnit') ?? '') as UnitOfMeasure)
+			: undefined;
 		const currentStock = Number(formData.get('currentStock') ?? 0);
 		const minStock = Number(formData.get('minStock') ?? 0);
 		const referenceCost = Number(formData.get('referenceCost') ?? 0);
@@ -208,7 +212,9 @@ export const actions: Actions = {
 			}
 
 			const updated = await itemService.updateItem(id, activeBusiness.id, {
-				currentStock: targetStock,
+				name: name ? name : undefined,
+				baseUnit: baseUnit ? baseUnit : undefined,
+				currentStock: formData.has('currentStock') ? targetStock : undefined,
 				minStock: Number.isFinite(minStock) && minStock >= 0 ? minStock : 0,
 				referenceCost: Number.isFinite(referenceCost) && referenceCost >= 0 ? referenceCost : 0,
 				purchaseQuantity:
@@ -224,6 +230,86 @@ export const actions: Actions = {
 		} catch (e) {
 			return fail(400, {
 				error: e instanceof Error ? e.message : 'Error al actualizar el inventario.'
+			});
+		}
+	},
+
+	addStockBatch: async ({ request, locals, url }) => {
+		if (!locals.user) throw redirect(302, '/login');
+		const formData = await request.formData();
+		const businessIdParam =
+			String(formData.get('businessId') ?? '') || url.searchParams.get('business');
+		const { activeBusiness } = await resolveBusinessOrRedirect(locals.user.id, businessIdParam);
+
+		const { itemService, recipeService } = getServices();
+		const id = String(formData.get('id') ?? '');
+		const quantity = Number(formData.get('quantity') ?? 0);
+		const totalCost = Number(formData.get('totalCost') ?? 0);
+		const supplier = String(formData.get('supplier') ?? '').trim() || null;
+		const notes = String(formData.get('notes') ?? '').trim() || null;
+
+		try {
+			const existing = await itemService.getItemById(id, activeBusiness.id);
+			if (!existing) {
+				return fail(404, { error: 'Ítem no encontrado.' });
+			}
+
+			if (existing.type === 'prepared') {
+				const prod = await recipeService.produceItemBatch(activeBusiness.id, id, quantity, notes);
+				const hasDeducted = prod.consumedComponents.length > 0;
+				return {
+					success: true,
+					message: hasDeducted
+						? `Producción registrada: +${quantity} ${prod.parent.baseUnit} de "${prod.parent.name}" e ingredientes de receta descontados.`
+						: `Stock de elaboración aumentado: +${quantity} ${prod.parent.baseUnit} de "${prod.parent.name}".`
+				};
+			} else {
+				const { item, addedBatch } = await itemService.addStockBatch(id, activeBusiness.id, {
+					quantity,
+					totalCost,
+					supplier,
+					notes
+				});
+				const formattedUnitCost = new Intl.NumberFormat('es-AR', {
+					minimumFractionDigits: 2,
+					maximumFractionDigits: 2
+				}).format(addedBatch.unitCost);
+				return {
+					success: true,
+					message: `Carga exitosa: +${addedBatch.initialQuantity} ${item.baseUnit} de "${item.name}" ($ ${formattedUnitCost} / ${item.baseUnit}).`
+				};
+			}
+		} catch (e) {
+			return fail(400, {
+				error: e instanceof Error ? e.message : 'Error al registrar la carga de stock.'
+			});
+		}
+	},
+
+	deleteStockBatch: async ({ request, locals, url }) => {
+		if (!locals.user) throw redirect(302, '/login');
+		const formData = await request.formData();
+		const businessIdParam =
+			String(formData.get('businessId') ?? '') || url.searchParams.get('business');
+		const { activeBusiness } = await resolveBusinessOrRedirect(locals.user.id, businessIdParam);
+
+		const { itemService } = getServices();
+		const id = String(formData.get('id') ?? '');
+		const batchId = String(formData.get('batchId') ?? '');
+
+		try {
+			const { item, removedBatch } = await itemService.deleteStockBatch(
+				id,
+				activeBusiness.id,
+				batchId
+			);
+			return {
+				success: true,
+				message: `Carga de stock eliminada (-${removedBatch.remainingQuantity} ${item.baseUnit} de "${item.name}").`
+			};
+		} catch (e) {
+			return fail(400, {
+				error: e instanceof Error ? e.message : 'Error al eliminar la carga de stock.'
 			});
 		}
 	},

@@ -24,7 +24,7 @@
 	class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap {config.badgeClass} {className}"
 >
 	{#if type === 'raw_material'}
-		<Wheat class="size-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+		<Wheat class="size-3.5 shrink-0 text-yellow-800 dark:text-yellow-400" />
 	{:else}
 		<GraphHub class="size-3.5 shrink-0 text-secondary" />
 	{/if}

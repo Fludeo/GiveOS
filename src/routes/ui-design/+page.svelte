@@ -438,7 +438,7 @@
 				<div class="rounded-2xl border border-border bg-card p-5 space-y-3">
 					<h3 class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tipos de Ítem (GiveOS)</h3>
 					<div class="flex flex-wrap gap-2">
-						<Badge variant="outline" class="border-blue-500/30 bg-blue-500/10 text-blue-700 text-xs">
+						<Badge variant="outline" class="border-tertiary/40 bg-tertiary/20 text-yellow-900 dark:text-yellow-300 text-xs font-semibold">
 							Materia Prima (Insumo)
 						</Badge>
 						<Badge variant="secondary" class="gap-1.5 text-xs">

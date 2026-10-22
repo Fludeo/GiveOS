@@ -18,7 +18,7 @@
 		CardHeader,
 		CardTitle
 	} from '#lib/components/ui/card';
-	import CakeSlice from '@lucide/svelte/icons/cake-slice';
+	import ScanFace from '@lucide/svelte/icons/scan-face';
 	import Check from '@lucide/svelte/icons/check';
 	import ArrowRight from '@lucide/svelte/icons/arrow-right';
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
@@ -114,8 +114,8 @@
 	<div class="w-full max-w-2xl space-y-8">
 		<!-- Encabezado de bienvenida -->
 		<div class="flex flex-col items-center space-y-3 text-center">
-			<div class="flex size-12 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
-				<CakeSlice class="size-6" />
+			<div class="flex size-12 items-center justify-center rounded-xl bg-secondary text-secondary-foreground shadow-sm">
+				<ScanFace class="size-6" />
 			</div>
 			<div class="space-y-1.5">
 				<Badge variant="secondary" class="px-3 py-0.5 text-xs">

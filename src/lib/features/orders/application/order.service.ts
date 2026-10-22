@@ -1,4 +1,4 @@
-import { convertQuantity, getDirectUnitCost, type Item } from '#lib/features/items/domain/item.entity';
+import { applyStockConsumption, convertQuantity, getDirectUnitCost, type Item } from '#lib/features/items/domain/item.entity';
 import type { IItemRepository } from '#lib/features/items/domain/item.repository';
 import type { RecipeService } from '#lib/features/recipes/application/recipe.service';
 import type { RecipeTreeNode } from '#lib/features/recipes/domain/recipe.entity';
@@ -309,11 +309,20 @@ export class OrderService {
 								0,
 								Number((targetItem.currentStock - consumeQty).toFixed(4))
 							);
+							let newBatches = targetItem.batches;
+							let newRefCost = targetItem.referenceCost;
+							if (targetItem.batches && targetItem.batches.length > 0) {
+								const res = applyStockConsumption(targetItem.batches, consumeQty, targetItem.referenceCost);
+								newBatches = res.batches;
+								newRefCost = res.newReferenceCost;
+							}
 							const updatedItem = await this.itemRepo.update(
 								targetItem.id,
 								input.businessId,
 								{
-									currentStock: nextStock
+									currentStock: nextStock,
+									referenceCost: newRefCost,
+									batches: newBatches
 								}
 							);
 							if (updatedItem) {
@@ -511,11 +520,20 @@ export class OrderService {
 							0,
 							Number((targetItem.currentStock - consumeQty).toFixed(4))
 						);
+						let newBatches = targetItem.batches;
+						let newRefCost = targetItem.referenceCost;
+						if (targetItem.batches && targetItem.batches.length > 0) {
+							const res = applyStockConsumption(targetItem.batches, consumeQty, targetItem.referenceCost);
+							newBatches = res.batches;
+							newRefCost = res.newReferenceCost;
+						}
 						const updatedItem = await this.itemRepo.update(
 							targetItem.id,
 							businessId,
 							{
-								currentStock: nextStock
+								currentStock: nextStock,
+								referenceCost: newRefCost,
+								batches: newBatches
 							}
 						);
 						if (updatedItem) {

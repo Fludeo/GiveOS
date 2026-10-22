@@ -47,6 +47,7 @@
 	import X from '@lucide/svelte/icons/x';
 	import BookOpen from '@lucide/svelte/icons/book-open';
 	import Wheat from '@lucide/svelte/icons/wheat';
+	import ScanFace from '@lucide/svelte/icons/scan-face';
 	import CakeSlice from '@lucide/svelte/icons/cake-slice';
 	import ChefHat from '@lucide/svelte/icons/chef-hat';
 	import Clock from '@lucide/svelte/icons/clock';
@@ -57,6 +58,8 @@
 	import Star from '@lucide/svelte/icons/star';
 	import LayoutGrid from '@lucide/svelte/icons/layout-grid';
 	import List from '@lucide/svelte/icons/list';
+	import PackagePlus from '@lucide/svelte/icons/package-plus';
+	import History from '@lucide/svelte/icons/history';
 
 	let { data }: PageProps = $props();
 
@@ -207,7 +210,7 @@
 		recipeModalPage = 1;
 	});
 
-	// Si venimos desde Dashboard con ?restock=ID, posicionar y abrir edición
+	// Si venimos desde Dashboard con ?restock=ID, posicionar y abrir modal correspondiente
 	$effect(() => {
 		if (data.restockItemId) {
 			activeTab = 'stock';
@@ -215,20 +218,111 @@
 			if (idx !== -1) {
 				currentPage = Math.floor(idx / pageSize) + 1;
 				const target = filteredItems[idx];
-				editingItemId = target.id;
-				editingMinStock = target.minStock;
+				if (target.type === 'raw_material') {
+					openAddStockModal(target);
+				} else {
+					openAdjustModal(target);
+				}
 			}
 		}
 	});
 
-	function startEditing(item: Item) {
-		editingItemId = item.id;
-		editingMinStock = item.minStock;
-	}
-
 	const paginatedItems = $derived(
 		filteredItems.slice((currentPage - 1) * pageSize, currentPage * pageSize)
 	);
+
+	// =========================================================================
+	// MODAL: AJUSTAR ÍTEM (NOMBRE, UNIDAD, ALERTA STOCK MÍNIMO)
+	// =========================================================================
+	let showAdjustItemModal = $state(false);
+	let adjustItemId = $state<string | null>(null);
+	let adjustItemName = $state('');
+	let adjustItemBaseUnit = $state<UnitOfMeasure>('g');
+	let adjustItemMinStock = $state<number>(0);
+	let isSubmittingAdjust = $state(false);
+
+	const adjustingItem = $derived(
+		adjustItemId ? (data.items.find((i) => i.id === adjustItemId) ?? null) : null
+	);
+
+	function openAdjustModal(item: Item) {
+		adjustItemId = item.id;
+		adjustItemName = item.name;
+		adjustItemBaseUnit = item.baseUnit;
+		adjustItemMinStock = item.minStock;
+		showAdjustItemModal = true;
+	}
+
+	function closeAdjustModal() {
+		showAdjustItemModal = false;
+		adjustItemId = null;
+	}
+
+	// =========================================================================
+	// MODAL: CARGAR STOCK FIFO (INSUMOS)
+	// =========================================================================
+	let showAddStockModal = $state(false);
+	let selectedStockItemId = $state<string | null>(null);
+	let stockIntakeQty = $state<number | ''>('');
+	let stockIntakeTotalCost = $state<number | ''>('');
+	let stockIntakeSupplier = $state('');
+	let stockIntakeNotes = $state('');
+	let isSubmittingStock = $state(false);
+
+	const selectedStockItem = $derived(
+		selectedStockItemId ? (data.items.find((i) => i.id === selectedStockItemId) ?? null) : null
+	);
+
+	function openAddStockModal(item: Item) {
+		selectedStockItemId = item.id;
+		stockIntakeQty = '';
+		stockIntakeTotalCost = '';
+		stockIntakeSupplier = '';
+		stockIntakeNotes = '';
+		showAddStockModal = true;
+	}
+
+	function closeAddStockModal() {
+		showAddStockModal = false;
+		selectedStockItemId = null;
+		stockIntakeQty = '';
+		stockIntakeTotalCost = '';
+		stockIntakeSupplier = '';
+		stockIntakeNotes = '';
+	}
+
+	function formatDate(iso: string): string {
+		try {
+			const d = new Date(iso);
+			return new Intl.DateTimeFormat('es-AR', {
+				dateStyle: 'short',
+				timeStyle: 'short'
+			}).format(d);
+		} catch {
+			return iso;
+		}
+	}
+
+	function getDaysAgo(iso: string): string {
+		try {
+			const ms = Date.now() - new Date(iso).getTime();
+			const days = Math.floor(ms / (1000 * 60 * 60 * 24));
+			if (days <= 0) return 'hoy';
+			if (days === 1) return 'hace 1 día';
+			return `hace ${days} días`;
+		} catch {
+			return '';
+		}
+	}
+
+	const calculatedIntakeUnitCost = $derived.by(() => {
+		const qty = Number(stockIntakeQty);
+		const cost = Number(stockIntakeTotalCost);
+		if (qty > 0 && cost >= 0) {
+			return cost / qty;
+		}
+		return 0;
+	});
 
 	// =========================================================================
 	// TAB 2: ESTRUCTURA DE RECETAS (MULTINIVEL)
@@ -488,6 +582,23 @@
 			maximumFractionDigits: 2
 		}).format(val)}`;
 	}
+
+	function getUnitPriceLabel(unit: UnitOfMeasure): string {
+		switch (unit) {
+			case 'kg':
+				return 'Costo por kilogramo ($ / kg)';
+			case 'g':
+				return 'Costo por gramo ($ / g)';
+			case 'l':
+				return 'Costo por litro ($ / l)';
+			case 'ml':
+				return 'Costo por mililitro ($ / ml)';
+			case 'unit':
+				return 'Costo por unidad ($ / u)';
+			default:
+				return `Costo por ${unit} ($)`;
+		}
+	}
 </script>
 
 <svelte:head>
@@ -628,7 +739,7 @@
 							class="gap-1.5"
 							onclick={() => (filterType = 'raw_material')}
 						>
-							<Wheat class="size-3.5" />
+							<Wheat class="size-3.5 {filterType === 'raw_material' ? 'text-primary-foreground' : 'text-yellow-600 dark:text-yellow-400'}" />
 							<span>Insumos</span>
 						</Button>
 						<Button
@@ -637,15 +748,16 @@
 							class="gap-1.5"
 							onclick={() => (filterType = 'prepared')}
 						>
-							<GraphHub class="size-3.5 text-secondary" />
+							<GraphHub class="size-3.5 {filterType === 'prepared' ? 'text-primary-foreground' : 'text-secondary'}" />
 							<span>Elaboraciones</span>
 						</Button>
 						<Button
 							size="sm"
 							variant={onlyLowStock ? 'destructive' : 'outline'}
+							class="gap-1.5"
 							onclick={() => (onlyLowStock = !onlyLowStock)}
 						>
-							<AlertTriangle class="size-3.5" />
+							<AlertTriangle class="size-3.5 {onlyLowStock ? 'text-destructive-foreground' : 'text-destructive'}" />
 							<span>Stock Bajo</span>
 						</Button>
 
@@ -688,37 +800,6 @@
 
 			<CardContent class="p-4 pt-2 sm:p-6 sm:pt-4">
 				{#if filteredItems.length > 0}
-					{#if editingItemId}
-						{@const activeEditItem = filteredItems.find((i) => i.id === editingItemId)}
-						{#if activeEditItem}
-							<form
-								id="inv-form-{activeEditItem.id}"
-								method="POST"
-								action="?/updateStockAndCost"
-								use:enhance={() => {
-									return async ({ result, update }) => {
-										await update();
-										if (result.type === 'success') {
-											editingItemId = null;
-										}
-									};
-								}}
-								class="hidden"
-							>
-								<input type="hidden" name="businessId" value={data.activeBusiness.id} />
-								<input type="hidden" name="id" value={activeEditItem.id} />
-								{#if activeEditItem.type !== 'raw_material'}
-									<input type="hidden" name="referenceCost" value={activeEditItem.referenceCost} />
-									<input
-										type="hidden"
-										name="purchaseQuantity"
-										value={activeEditItem.purchaseQuantity}
-									/>
-								{/if}
-							</form>
-						{/if}
-					{/if}
-
 					<div class="space-y-4">
 						{#if stockViewMode === 'cards'}
 							<!-- VISTA DE TARJETAS (MOBILE-FIRST) -->
@@ -726,17 +807,14 @@
 								{#each paginatedItems as item (item.id)}
 									{@const isLow = item.minStock > 0 && item.currentStock <= item.minStock}
 									{@const recipeSummary = data.recipeSummaries[item.id]}
-									{@const isEditing = editingItemId === item.id}
 									<div
-										class="flex flex-col justify-between rounded-2xl border p-4 transition-all shadow-2xs {isEditing
-											? 'border-primary ring-2 ring-primary/20 bg-background'
-											: isLow
-												? 'border-destructive/40 bg-card hover:border-destructive/60'
-												: 'border-border bg-card hover:border-border/80'}"
+										class="flex flex-col justify-between rounded-2xl border p-4 transition-all shadow-2xs {isLow
+											? 'border-destructive/40 bg-card hover:border-destructive/60'
+											: 'border-border bg-card hover:border-border/80'}"
 									>
 										<div>
 											<div class="flex items-center justify-between gap-2">
-												<span class="rounded-md bg-muted px-2 py-0.5 font-mono text-xs font-semibold text-muted-foreground">
+												<span class="rounded px-1.5 py-0.5 font-mono text-[10px] font-semibold tracking-tight {item.type === 'raw_material' ? 'bg-tertiary/20 text-yellow-900 dark:text-yellow-300 border border-tertiary/40' : 'bg-muted text-muted-foreground'}">
 													{item.code}
 												</span>
 												<div class="flex items-center gap-1.5">
@@ -768,163 +846,95 @@
 
 											<!-- Métricas: Stock y Costo -->
 											<div class="mt-3.5 grid grid-cols-2 gap-2 rounded-xl border border-border/60 bg-muted/20 p-2.5">
-												{#if isEditing}
-													<div class="space-y-1">
-														<span class="text-[11px] font-medium text-muted-foreground">Stock actual:</span>
-														<div class="flex items-center gap-1">
-															<Input
-																form="inv-form-{item.id}"
-																name="currentStock"
-																type="number"
-																step="any"
-																min="0"
-																value={item.currentStock}
-																class="h-8 font-mono text-xs"
-															/>
-															<span class="text-xs text-muted-foreground">{item.baseUnit}</span>
-														</div>
+												<div>
+													<span class="text-[11px] font-medium text-muted-foreground">Stock Actual</span>
+													<p class="font-mono text-base font-bold {isLow ? 'text-destructive' : 'text-foreground'}">
+														{item.currentStock} <span class="text-xs font-normal text-muted-foreground">{item.baseUnit}</span>
+													</p>
+													<div class="flex items-center gap-1 font-mono text-[10px] text-muted-foreground">
+														<AlertTriangle class="size-3 text-muted-foreground/70" />
+														<span>{item.minStock} {item.baseUnit}</span>
 													</div>
-													<div class="space-y-1">
-														<span class="text-[11px] font-medium text-muted-foreground">Aviso mínimo:</span>
-														<div class="flex items-center gap-1">
-															<Input
-																form="inv-form-{item.id}"
-																name="minStock"
-																type="number"
-																step="any"
-																min="0"
-																bind:value={editingMinStock}
-																class="h-8 font-mono text-xs"
-															/>
-															<span class="text-xs text-muted-foreground">{item.baseUnit}</span>
-														</div>
-													</div>
+												</div>
+												<div>
+													<span class="text-[11px] font-medium text-muted-foreground">Costo Unit.</span>
 													{#if item.type === 'raw_material'}
-														<div class="col-span-2 pt-1 border-t border-border/40 grid grid-cols-2 gap-2">
-															<div class="space-y-1">
-																<span class="text-[11px] font-medium text-muted-foreground">Costo compra ($):</span>
-																<Input
-																	form="inv-form-{item.id}"
-																	name="referenceCost"
-																	type="number"
-																	step="any"
-																	min="0"
-																	value={item.referenceCost}
-																	class="h-8 font-mono text-xs"
-																/>
-															</div>
-															<div class="space-y-1">
-																<span class="text-[11px] font-medium text-muted-foreground">Envase ({item.baseUnit}):</span>
-																<Input
-																	form="inv-form-{item.id}"
-																	name="purchaseQuantity"
-																	type="number"
-																	step="any"
-																	min="0.001"
-																	value={item.purchaseQuantity}
-																	class="h-8 font-mono text-xs"
-																/>
-															</div>
+														<p class="font-mono text-base font-bold text-foreground">
+															{formatCurrency(getDirectUnitCost(item))}
+														</p>
+														<div class="flex items-center gap-1 text-[10px] text-muted-foreground">
+															<span>por {item.baseUnit}</span>
+															{#if item.batches && item.batches.length > 0}
+																{@const activeBatches = item.batches.filter((b) => b.remainingQuantity > 0)}
+																{#if activeBatches.length > 0}
+																	<span class="text-primary font-semibold">· {activeBatches.length} {activeBatches.length === 1 ? 'lote' : 'lotes'}</span>
+																{/if}
+															{/if}
 														</div>
+													{:else if recipeSummary && recipeSummary.directComponentsCount > 0}
+														<p class="font-mono text-base font-bold text-foreground">
+															{formatCurrency(recipeSummary.estimatedUnitCost)}
+														</p>
+														<p class="text-[10px] text-muted-foreground">
+															{recipeSummary.directComponentsCount} ingr. · rinde {item.yieldQuantity} {item.baseUnit}
+														</p>
+													{:else}
+														<button
+															type="button"
+															onclick={() => selectCatalogItem(item.id)}
+															class="text-xs font-medium text-primary hover:underline mt-1 block"
+														>
+															+ Armar Receta
+														</button>
 													{/if}
-												{:else}
-													<div>
-														<span class="text-[11px] font-medium text-muted-foreground">Stock Actual</span>
-														<p class="font-mono text-base font-bold {isLow ? 'text-destructive' : 'text-foreground'}">
-															{item.currentStock} <span class="text-xs font-normal text-muted-foreground">{item.baseUnit}</span>
-														</p>
-														<p class="font-mono text-[10px] text-muted-foreground">
-															Mínimo: {item.minStock} {item.baseUnit}
-														</p>
-													</div>
-													<div>
-														<span class="text-[11px] font-medium text-muted-foreground">Costo Unit.</span>
-														{#if item.type === 'raw_material'}
-															<p class="font-mono text-base font-bold text-foreground">
-																{formatCurrency(getDirectUnitCost(item))}
-															</p>
-															<p class="text-[10px] text-muted-foreground">
-																por {item.baseUnit}
-															</p>
-														{:else if recipeSummary && recipeSummary.directComponentsCount > 0}
-															<p class="font-mono text-base font-bold text-foreground">
-																{formatCurrency(recipeSummary.estimatedUnitCost)}
-															</p>
-															<p class="text-[10px] text-muted-foreground">
-																{recipeSummary.directComponentsCount} ingr. · rinde {item.yieldQuantity} {item.baseUnit}
-															</p>
-														{:else}
-															<button
-																type="button"
-																onclick={() => selectCatalogItem(item.id)}
-																class="text-xs font-medium text-primary hover:underline mt-1 block"
-															>
-																+ Armar Receta
-															</button>
-														{/if}
-													</div>
-												{/if}
+												</div>
 											</div>
 										</div>
 
-										<div class="mt-3.5 flex items-center justify-between border-t border-border/50 pt-3">
-											{#if isEditing}
+										<div class="mt-3.5 flex items-center justify-end gap-2 border-t border-border/50 pt-3">
+											{#if item.type === 'raw_material'}
 												<Button
 													type="button"
-													variant="ghost"
-													size="sm"
-													class="text-destructive hover:bg-destructive/10 h-8 text-xs"
-													onclick={() => (deletingItemId = item.id)}
-												>
-													<Trash2 class="size-3.5 mr-1" />
-													Eliminar
-												</Button>
-												<div class="flex items-center gap-1.5">
-													<Button
-														type="button"
-														variant="outline"
-														size="sm"
-														class="h-8 text-xs"
-														onclick={() => (editingItemId = null)}
-													>
-														Cancelar
-													</Button>
-													<Button
-														form="inv-form-{item.id}"
-														type="submit"
-														size="sm"
-														class="h-8 text-xs font-semibold"
-													>
-														<Check class="size-3.5 mr-1" />
-														Guardar
-													</Button>
-												</div>
-											{:else}
-												<div class="flex items-center gap-1.5">
-													{#if item.type !== 'raw_material'}
-														<Button
-															type="button"
-															variant="outline"
-															size="sm"
-															class="h-8 text-xs gap-1"
-															onclick={() => selectCatalogItem(item.id)}
-														>
-															<Layers class="size-3.5" />
-															<span>Receta</span>
-														</Button>
-													{/if}
-												</div>
-												<Button
-													type="button"
-													variant="secondary"
+													variant="outline"
 													size="sm"
 													class="h-8 text-xs gap-1"
-													onclick={() => startEditing(item)}
+													onclick={() => openAddStockModal(item)}
 												>
-													<Pencil class="size-3.5" />
-													<span>Ajustar Stock</span>
+													<PackagePlus class="size-3.5 text-yellow-600 dark:text-yellow-400" />
+													<span>Cargar Stock</span>
+												</Button>
+											{:else}
+												<Button
+													type="button"
+													variant="outline"
+													size="sm"
+													class="h-8 text-xs gap-1"
+													onclick={() => openAddStockModal(item)}
+												>
+													<PackagePlus class="size-3.5 text-secondary" />
+													<span>Cargar Stock</span>
+												</Button>
+												<Button
+													type="button"
+													variant="outline"
+													size="sm"
+													class="h-8 text-xs gap-1"
+													onclick={() => selectCatalogItem(item.id)}
+												>
+													<Layers class="size-3.5 text-secondary" />
+													<span>Receta</span>
 												</Button>
 											{/if}
+											<Button
+												type="button"
+												variant="outline"
+												size="sm"
+												class="h-8 text-xs gap-1 text-muted-foreground hover:text-foreground"
+												onclick={() => openAdjustModal(item)}
+											>
+												<Pencil class="size-3.5" />
+												<span>Ajustar</span>
+											</Button>
 										</div>
 									</div>
 								{/each}
@@ -937,7 +947,7 @@
 										<tr>
 											<th class="py-3.5 pr-4 pl-5 font-semibold whitespace-nowrap">Ítem</th>
 											<th class="px-4 py-3.5 font-semibold whitespace-nowrap">Tipo</th>
-											<th class="px-4 py-3.5 font-semibold whitespace-nowrap">Stock / Mín.</th>
+											<th class="px-4 py-3.5 font-semibold whitespace-nowrap">Stock / Alerta</th>
 											<th class="px-4 py-3.5 font-semibold whitespace-nowrap">Costo Unit.</th>
 											<th class="py-3.5 pr-5 pl-4 text-right font-semibold whitespace-nowrap">Acciones</th>
 										</tr>
@@ -946,15 +956,10 @@
 										{#each paginatedItems as item (item.id)}
 											{@const isLow = item.minStock > 0 && item.currentStock <= item.minStock}
 											{@const recipeSummary = data.recipeSummaries[item.id]}
-											{@const isEditing = editingItemId === item.id}
-											<tr
-												class="transition-colors {isEditing
-													? 'bg-primary/5'
-													: 'hover:bg-muted/20'}"
-											>
+											<tr class="transition-colors hover:bg-muted/20">
 												<td class="py-4 pr-4 pl-5 align-middle">
 													<div class="flex items-center gap-2.5">
-														<span class="shrink-0 whitespace-nowrap rounded-md bg-muted px-2 py-0.5 font-mono text-xs font-semibold">
+														<span class="shrink-0 whitespace-nowrap rounded px-1.5 py-0.5 font-mono text-[10px] font-semibold tracking-tight {item.type === 'raw_material' ? 'bg-tertiary/20 text-yellow-900 dark:text-yellow-300 border border-tertiary/40' : 'bg-muted text-muted-foreground'}">
 															{item.code}
 														</span>
 														<button
@@ -978,101 +983,35 @@
 												</td>
 
 												<td class="px-4 py-4 align-middle whitespace-nowrap">
-													{#if isEditing}
-														<div class="space-y-3 rounded-xl border border-border bg-background p-3 shadow-2xs">
-															<div class="flex items-center justify-between gap-2">
-																<span class="text-xs font-medium text-muted-foreground">
-																	Stock actual:
-																</span>
-																<div class="flex items-center gap-1.5">
-																	<Input
-																		form="inv-form-{item.id}"
-																		name="currentStock"
-																		type="number"
-																		step="any"
-																		min="0"
-																		value={item.currentStock}
-																		aria-label="Stock actual de {item.name}"
-																		class="h-8 w-24 font-mono text-xs"
-																	/>
-																	<span class="text-xs text-muted-foreground">{item.baseUnit}</span>
-																</div>
-															</div>
-
-															<div class="flex items-center justify-between gap-2 border-t border-border/60 pt-2">
-																<span class="text-xs font-medium text-muted-foreground">
-																	Punto de alerta:
-																</span>
-																<div class="flex items-center gap-1.5">
-																	<Input
-																		form="inv-form-{item.id}"
-																		name="minStock"
-																		type="number"
-																		step="any"
-																		min="0"
-																		bind:value={editingMinStock}
-																		aria-label="Punto de alerta de {item.name}"
-																		class="h-8 w-24 font-mono text-xs"
-																	/>
-																	<span class="text-xs text-muted-foreground">{item.baseUnit}</span>
-																</div>
-															</div>
+													<div class="space-y-0.5">
+														<p class="font-mono text-xs font-semibold {isLow ? 'text-destructive' : 'text-foreground'}">
+															{item.currentStock} {item.baseUnit}
+														</p>
+														<div class="flex items-center gap-1 font-mono text-[11px] text-muted-foreground">
+															<AlertTriangle class="size-3 text-muted-foreground/70" />
+															<span>{item.minStock} {item.baseUnit}</span>
 														</div>
-													{:else}
-														<div class="space-y-0.5">
-															<p class="font-mono text-xs font-semibold {isLow ? 'text-destructive' : 'text-foreground'}">
-																{item.currentStock} {item.baseUnit}
-															</p>
-															<p class="font-mono text-[11px] text-muted-foreground">
-																Mín: {item.minStock} {item.baseUnit}
-															</p>
-														</div>
-													{/if}
+													</div>
 												</td>
 
 												<td class="px-4 py-4 align-middle whitespace-nowrap">
 													{#if item.type === 'raw_material'}
-														{#if isEditing}
-															<div class="flex items-center gap-1.5">
-																<span class="text-xs text-muted-foreground">$</span>
-																<Input
-																	form="inv-form-{item.id}"
-																	name="referenceCost"
-																	type="number"
-																	step="any"
-																	min="0"
-																	value={item.referenceCost}
-																	aria-label="Costo de referencia de {item.name}"
-																	class="h-8 w-24 font-mono text-xs"
-																/>
-																<span class="text-xs text-muted-foreground">por</span>
-																<Input
-																	form="inv-form-{item.id}"
-																	name="purchaseQuantity"
-																	type="number"
-																	step="any"
-																	min="0.001"
-																	value={item.purchaseQuantity}
-																	aria-label="Cantidad de compra de {item.name}"
-																	class="h-8 w-16 font-mono text-xs"
-																/>
-																<span class="text-xs text-muted-foreground">{item.baseUnit}</span>
-															</div>
-														{:else}
-															<div class="space-y-0.5">
-																<p class="font-mono text-xs font-semibold text-foreground">
-																	{formatCurrency(item.referenceCost)}
-																	<span class="font-sans font-normal text-muted-foreground">
-																		por {item.purchaseQuantity} {item.baseUnit}
-																	</span>
-																</p>
-																{#if item.purchaseQuantity !== 1}
-																	<p class="font-mono text-[11px] text-muted-foreground">
-																		({formatCurrency(getDirectUnitCost(item))} / {item.baseUnit})
+														<div class="space-y-0.5">
+															<p class="font-mono text-xs font-semibold text-foreground">
+																{formatCurrency(getDirectUnitCost(item))}
+																<span class="font-sans font-normal text-muted-foreground">
+																	/ {item.baseUnit}
+																</span>
+															</p>
+															{#if item.batches && item.batches.length > 0}
+																{@const activeBatches = item.batches.filter((b) => b.remainingQuantity > 0)}
+																{#if activeBatches.length > 0}
+																	<p class="font-mono text-[10px] text-primary font-medium">
+																		{activeBatches.length} {activeBatches.length === 1 ? 'lote activo' : 'lotes activos'}
 																	</p>
 																{/if}
-															</div>
-														{/if}
+															{/if}
+														</div>
 													{:else if recipeSummary && recipeSummary.directComponentsCount > 0}
 														<div class="space-y-0.5">
 															<p class="font-mono text-xs font-semibold text-foreground">
@@ -1094,66 +1033,54 @@
 												</td>
 
 												<td class="py-4 pr-5 pl-4 text-right align-middle whitespace-nowrap">
-													{#if isEditing}
-														<div class="inline-flex items-center justify-end gap-1.5">
+													<div class="inline-flex items-center justify-end gap-1.5">
+														{#if item.type === 'raw_material'}
 															<Button
-																form="inv-form-{item.id}"
-																type="submit"
+																type="button"
 																size="sm"
-																class="h-8 px-2.5 text-xs"
-																title="Guardar cambios"
+																variant="outline"
+																class="h-8 gap-1.5 px-2.5 text-xs"
+																title="Cargar stock"
+																onclick={() => openAddStockModal(item)}
 															>
-																<Check class="size-3.5" />
-																<span>Guardar</span>
+																<PackagePlus class="size-3.5 text-yellow-600 dark:text-yellow-400" />
+																<span>Cargar Stock</span>
+															</Button>
+														{:else}
+															<Button
+																type="button"
+																size="sm"
+																variant="outline"
+																class="h-8 gap-1.5 px-2.5 text-xs"
+																title="Cargar stock elaborado"
+																onclick={() => openAddStockModal(item)}
+															>
+																<PackagePlus class="size-3.5 text-secondary" />
+																<span>Cargar Stock</span>
 															</Button>
 															<Button
 																type="button"
-																size="icon"
-																variant="ghost"
-																class="size-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-																title="Eliminar ítem"
-																onclick={() => (deletingItemId = item.id)}
+																size="sm"
+																variant="outline"
+																class="h-8 gap-1.5 px-2.5 text-xs"
+																title="Ver receta"
+																onclick={() => (viewingRecipeItemId = item.id)}
 															>
-																<Trash2 class="size-4" />
+																<BookOpen class="size-3.5 text-secondary" />
+																<span>Receta</span>
 															</Button>
-															<Button
-																type="button"
-																size="icon"
-																variant="ghost"
-																class="size-8 text-muted-foreground hover:text-foreground"
-																title="Cancelar edición"
-																onclick={() => (editingItemId = null)}
-															>
-																<X class="size-4" />
-															</Button>
-														</div>
-													{:else}
-														<div class="inline-flex items-center justify-end gap-1">
-															{#if item.type !== 'raw_material'}
-																<Button
-																	type="button"
-																	size="sm"
-																	variant="ghost"
-																	class="h-8 gap-1.5 px-2.5 text-xs text-muted-foreground hover:text-primary"
-																	title="Ver receta"
-																	onclick={() => (viewingRecipeItemId = item.id)}
-																>
-																	<BookOpen class="size-3.5" />
-																	<span>Receta</span>
-																</Button>
-															{/if}
-															<Button
-																type="button"
-																size="icon"
-																variant="ghost"
-																class="size-8 text-muted-foreground hover:text-foreground"
-																title="Editar fila"
-																onclick={() => startEditing(item)}
-															>
-																<Pencil class="size-4" />
-															</Button>
-														</div>
-													{/if}
+														{/if}
+														<Button
+															type="button"
+															size="icon"
+															variant="outline"
+															class="size-8 text-muted-foreground hover:text-foreground"
+															title="Ajustar ítem"
+															onclick={() => openAdjustModal(item)}
+														>
+															<Pencil class="size-3.5" />
+														</Button>
+													</div>
 												</td>
 											</tr>
 										{/each}
@@ -1889,14 +1816,20 @@
 				<div class="border-b border-border p-5">
 					<div class="flex items-center justify-between">
 						<div class="flex items-center gap-2">
-							<span class="rounded-full {newItemInitialType === 'prepared' ? 'bg-secondary/10 text-secondary' : 'bg-primary/10 text-primary'} px-2.5 py-0.5 text-xs font-bold">
+							<span class="rounded-full {newItemStep === 1 ? 'bg-muted text-muted-foreground' : newItemType === 'prepared' ? 'bg-secondary/15 text-secondary' : 'bg-tertiary/25 text-yellow-900 dark:text-yellow-300'} px-2.5 py-0.5 text-xs font-bold">
 								{#if newItemInitialType === 'prepared'}
 									Paso {newItemStep === 2 ? 1 : 2} de 2 · Elaboración
+								{:else if newItemStep === 1}
+									Paso 1 de 3
 								{:else}
-									Paso {newItemStep} de 3
+									Paso {newItemStep} de 3 · {newItemType === 'prepared' ? 'Elaboración' : 'Insumo'}
 								{/if}
 							</span>
-							<span class="text-xs font-mono text-muted-foreground">{nextAutoCode}</span>
+							{#if newItemStep > 1}
+								<span class="rounded-md px-2 py-0.5 text-xs font-mono font-semibold {newItemType === 'prepared' ? 'bg-secondary/15 text-secondary border border-secondary/30' : 'bg-tertiary/20 text-yellow-900 dark:text-yellow-300 border border-tertiary/40'}">
+									{nextAutoCode}
+								</span>
+							{/if}
 						</div>
 						<Button
 							type="button"
@@ -1915,7 +1848,7 @@
 						{:else if newItemStep === 2}
 							{newItemInitialType === 'prepared' ? 'Nueva Elaboración: Nombre y unidad' : 'Nombre y unidad de medida'}
 						{:else}
-							{newItemType === 'raw_material' ? 'Stock inicial y costos' : 'Avisos de stock y notas'}
+							Alerta de stock y notas
 						{/if}
 					</h2>
 
@@ -1953,17 +1886,17 @@
 					<input type="hidden" name="type" value={newItemType} />
 					<input type="hidden" name="name" value={newItemName} />
 					<input type="hidden" name="baseUnit" value={newItemBaseUnit} />
-					<input type="hidden" name="currentStock" value={newItemType === 'raw_material' ? newItemCurrentStock : 0} />
+					<input type="hidden" name="currentStock" value="0" />
 					<input type="hidden" name="minStock" value={newItemMinStock} />
 					<input
 						type="hidden"
 						name="referenceCost"
-						value={newItemType === 'raw_material' ? newItemRefCost : 0}
+						value="0"
 					/>
 					<input
 						type="hidden"
 						name="purchaseQuantity"
-						value={newItemType === 'raw_material' ? newItemPurchaseQty : 1}
+						value="1"
 					/>
 					<input type="hidden" name="yieldQuantity" value="1" />
 					<input type="hidden" name="prepTimeMinutes" value={newItemPrepTime} />
@@ -1980,17 +1913,17 @@
 										newItemBaseUnit = 'g';
 										newItemStep = 2;
 									}}
-									class="flex flex-col items-center justify-center rounded-2xl border-2 p-6 text-center transition-all cursor-pointer {newItemType ===
-									'raw_material'
-										? 'border-primary bg-primary/5 text-primary shadow-xs'
-										: 'border-border hover:border-muted-foreground/30 hover:bg-muted/30'}"
+									class="group flex flex-col items-center justify-center rounded-2xl border-2 border-tertiary/60 bg-card p-6 text-center transition-all cursor-pointer hover:border-tertiary hover:bg-tertiary/10 hover:shadow-xs"
 								>
 									<div
-										class="mb-3 flex size-14 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600"
+										class="mb-3 flex size-14 items-center justify-center rounded-full bg-tertiary/20 text-yellow-900 dark:text-yellow-300 transition-transform group-hover:scale-105"
 									>
 										<Wheat class="size-7" />
 									</div>
-									<span class="text-base font-bold text-foreground">Insumo</span>
+									<div class="flex items-center gap-1.5">
+										<span class="text-base font-bold text-foreground">Insumo</span>
+										<span class="rounded-md border border-tertiary/40 bg-tertiary/20 px-1.5 py-0.2 font-mono text-[10px] font-bold text-yellow-900 dark:text-yellow-300">INS</span>
+									</div>
 									<span class="mt-1 text-xs text-muted-foreground">Materia prima que compras (harina, huevos, azúcar...)</span>
 								</button>
 
@@ -2001,18 +1934,18 @@
 										newItemBaseUnit = 'unit';
 										newItemStep = 2;
 									}}
-									class="flex flex-col items-center justify-center rounded-2xl border-2 p-6 text-center transition-all cursor-pointer {newItemType ===
-									'prepared'
-										? 'border-primary bg-primary/5 text-primary shadow-xs'
-										: 'border-border hover:border-muted-foreground/30 hover:bg-muted/30'}"
+									class="group flex flex-col items-center justify-center rounded-2xl border-2 border-secondary/60 bg-card p-6 text-center transition-all cursor-pointer hover:border-secondary hover:bg-secondary/10 hover:shadow-xs"
 								>
 									<div
-										class="mb-3 flex size-14 items-center justify-center rounded-full bg-secondary/10 text-secondary"
+										class="mb-3 flex size-14 items-center justify-center rounded-full bg-secondary/15 text-secondary transition-transform group-hover:scale-105"
 									>
 										<GraphHub class="size-7" />
 									</div>
-									<span class="text-base font-bold text-foreground">Elaboración</span>
-									<span class="mt-1 text-xs text-muted-foreground">Receta de la casa (bases, rellenos, tortas, productos)</span>
+									<div class="flex items-center gap-1.5">
+										<span class="text-base font-bold text-foreground">Elaboración</span>
+										<span class="rounded-md border border-secondary/30 bg-secondary/15 px-1.5 py-0.2 font-mono text-[10px] font-bold text-secondary">ELB</span>
+									</div>
+									<span class="mt-1 text-xs text-muted-foreground">Insumo o producto elaborado con insumos u otras elaboraciones.</span>
 								</button>
 							</div>
 						{:else if newItemStep === 2}
@@ -2040,7 +1973,7 @@
 										class="flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs"
 									>
 										{#each UNITS_OF_MEASURE as u}
-											<option value={u}>{UNIT_LABELS[u]} ({u})</option>
+											<option value={u}>{UNIT_LABELS[u]}</option>
 										{/each}
 									</select>
 								</div>
@@ -2064,86 +1997,30 @@
 								{/if}
 							</div>
 						{:else}
-							<!-- PASO 3: Stock y Costos -->
+							<!-- PASO 3: Alerta y Notas -->
 							<div class="space-y-4">
-								{#if newItemType === 'raw_material'}
-									<div class="grid grid-cols-2 gap-3">
-										<div class="space-y-1.5">
-											<Label for="inv-step-stock">Stock Inicial ({newItemBaseUnit})</Label>
-											<Input
-												id="inv-step-stock"
-												type="number"
-												step="any"
-												min="0"
-												bind:value={newItemCurrentStock}
-												class="h-11 font-mono text-base"
-											/>
-										</div>
-
-										<div class="space-y-1.5">
-											<Label for="inv-step-min">Aviso Stock Mínimo</Label>
-											<Input
-												id="inv-step-min"
-												type="number"
-												step="any"
-												min="0"
-												bind:value={newItemMinStock}
-												class="h-11 font-mono text-base"
-												placeholder="0"
-											/>
-										</div>
-									</div>
-								{:else}
-									<div class="space-y-1.5">
-										<Label for="inv-step-min">Aviso Stock Mínimo en Vitrina ({newItemBaseUnit})</Label>
-										<Input
-											id="inv-step-min"
-											type="number"
-											step="any"
-											min="0"
-											bind:value={newItemMinStock}
-											class="h-11 font-mono text-base"
-											placeholder="0"
-										/>
-										<p class="text-[11px] text-muted-foreground">
+								<div class="space-y-1.5">
+									<Label for="inv-step-min" class="flex items-center gap-1.5 font-semibold text-foreground">
+										<AlertTriangle class="size-3.5 text-destructive" />
+										<span>Aviso de Stock Mínimo (opcional)</span>
+									</Label>
+									<Input
+										id="inv-step-min"
+										type="number"
+										step="any"
+										min="0"
+										bind:value={newItemMinStock}
+										class="h-11 font-mono text-base"
+										placeholder="0 (alerta al bajar de esta cantidad)"
+									/>
+									<p class="text-[11px] text-muted-foreground">
+										{#if newItemType === 'raw_material'}
+											Recibirás una alerta cuando las existencias desciendan por debajo de este valor. Podrás cargar stock y su costo en cualquier momento con el botón "Cargar Stock".
+										{:else}
 											El stock de esta elaboración aumentará automáticamente al cocinar lotes de su receta.
-										</p>
-									</div>
-								{/if}
-
-								{#if newItemType === 'raw_material'}
-									<div class="space-y-3 rounded-xl border border-border bg-muted/20 p-3.5">
-										<div class="grid grid-cols-2 gap-3">
-											<div class="space-y-1.5">
-												<Label for="inv-step-cost">Costo de Compra ($)</Label>
-												<Input
-													id="inv-step-cost"
-													type="number"
-													step="any"
-													min="0"
-													bind:value={newItemRefCost}
-													class="h-10 font-mono"
-													placeholder="0.00"
-												/>
-											</div>
-											<div class="space-y-1.5">
-												<Label for="inv-step-pkg">Cantidad Envase ({newItemBaseUnit})</Label>
-												<Input
-													id="inv-step-pkg"
-													type="number"
-													step="any"
-													min="0.001"
-													bind:value={newItemPurchaseQty}
-													class="h-10 font-mono"
-													placeholder="1"
-												/>
-											</div>
-										</div>
-										<p class="text-[11px] text-muted-foreground">
-											Calcula el costo unitario por cada {newItemBaseUnit} para tus recetas.
-										</p>
-									</div>
-								{/if}
+										{/if}
+									</p>
+								</div>
 
 								<div class="space-y-1.5">
 									<Label for="inv-step-notes">Notas (opcional)</Label>
@@ -2423,31 +2300,22 @@
 							</div>
 
 							{#if selectedRoot.type === 'raw_material'}
-								<div class="space-y-2">
-									<Label for="edit-purchaseQuantity">Cant. Compra ({selectedRoot.baseUnit})</Label>
-									<Input
-										id="edit-purchaseQuantity"
-										name="purchaseQuantity"
-										type="number"
-										step="any"
-										min="0.001"
-										class="h-10"
-										value={selectedRoot.purchaseQuantity}
-										required
-									/>
-								</div>
-								<div class="space-y-2">
-									<Label for="edit-referenceCost">Costo Compra ($)</Label>
-									<Input
-										id="edit-referenceCost"
-										name="referenceCost"
-										type="number"
-										step="any"
-										min="0"
-										class="h-10"
-										value={selectedRoot.referenceCost}
-										required
-									/>
+								<input type="hidden" name="purchaseQuantity" value="1" />
+								<div class="space-y-2 sm:col-span-2">
+									<Label for="edit-referenceCost">{getUnitPriceLabel(selectedRoot.baseUnit)}</Label>
+									<div class="relative flex items-center">
+										<span class="pointer-events-none absolute left-3 font-semibold text-muted-foreground">$</span>
+										<Input
+											id="edit-referenceCost"
+											name="referenceCost"
+											type="number"
+											step="any"
+											min="0"
+											class="h-10 pl-8 font-mono"
+											value={selectedRoot.referenceCost}
+											required
+										/>
+									</div>
 								</div>
 								<input type="hidden" name="yieldQuantity" value={selectedRoot.yieldQuantity} />
 							{:else}
@@ -3291,6 +3159,545 @@
 	{/if}
 {/snippet}
 
+{#snippet addStockModal()}
+	<!-- ========================================================================
+	     MODAL INVENTARIO: Cargar Stock e Insumos
+	     ======================================================================== -->
+	{#if showAddStockModal && selectedStockItem}
+		{@const batches = selectedStockItem.batches ?? []}
+		{@const activeBatches = batches.filter((b) => b.remainingQuantity > 0)}
+		{@const oldestActive = activeBatches.length > 0 ? activeBatches[0] : null}
+		<div
+			class="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4 backdrop-blur-[1px]"
+			role="dialog"
+			aria-modal="true"
+		>
+			<div class="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
+				<!-- Encabezado del Modal -->
+				<div class="flex items-start justify-between gap-4 border-b border-border p-6 pb-4">
+					<div class="space-y-1">
+						<div class="flex items-center gap-2">
+							<span class="rounded px-1.5 py-0.5 font-mono text-[10px] font-bold tracking-tight {selectedStockItem.type === 'raw_material' ? 'border border-tertiary/40 bg-tertiary/20 text-yellow-900 dark:text-yellow-300' : 'bg-muted text-muted-foreground'}">
+								{selectedStockItem.code}
+							</span>
+							<span class="rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold text-muted-foreground">
+								{selectedStockItem.type === 'raw_material' ? 'Insumo' : 'Elaboración'}
+							</span>
+						</div>
+						<h2 class="text-xl font-bold text-foreground">
+							Cargar Stock: {selectedStockItem.name}
+						</h2>
+						<p class="text-xs text-muted-foreground">
+							{#if selectedStockItem.type === 'raw_material'}
+								Ingresa la cantidad comprada y el costo total abonado. El sistema actualizará el stock y calculará el costo unitario ponderado.
+							{:else}
+								Ingresa la cantidad producida. Se actualizará el stock de esta elaboración y se descontarán los ingredientes de la receta según el stock disponible.
+							{/if}
+						</p>
+					</div>
+					<Button
+						type="button"
+						size="icon"
+						variant="ghost"
+						class="size-8"
+						onclick={closeAddStockModal}
+					>
+						<X class="size-4" />
+					</Button>
+				</div>
+
+				<!-- Contenido con scroll -->
+				<div class="flex-1 space-y-5 overflow-y-auto p-6">
+					<!-- Métricas Rápidas del Ítem -->
+					<div class="grid grid-cols-2 gap-3 rounded-xl border border-border bg-muted/20 p-3.5 sm:grid-cols-4">
+						<div>
+							<span class="text-[11px] font-medium text-muted-foreground">Stock Actual</span>
+							<p class="font-mono text-base font-bold text-foreground">
+								{selectedStockItem.currentStock} <span class="text-xs font-normal text-muted-foreground">{selectedStockItem.baseUnit}</span>
+							</p>
+						</div>
+						<div>
+							<span class="text-[11px] font-medium text-muted-foreground">Costo Unit.</span>
+							<p class="font-mono text-base font-bold text-foreground">
+								{#if selectedStockItem.type === 'raw_material'}
+									{formatCurrency(getDirectUnitCost(selectedStockItem))}
+								{:else}
+									{formatCurrency(data.recipeSummaries[selectedStockItem.id]?.estimatedUnitCost ?? 0)}
+								{/if}
+							</p>
+							<p class="text-[10px] text-muted-foreground">
+								{selectedStockItem.type === 'raw_material' ? `por ${selectedStockItem.baseUnit}` : 'por receta'}
+							</p>
+						</div>
+						<div>
+							<span class="text-[11px] font-medium text-muted-foreground">{selectedStockItem.type === 'raw_material' ? 'Lotes Activos' : 'Lotes Registrados'}</span>
+							<p class="font-mono text-base font-bold text-foreground">
+								{activeBatches.length} <span class="text-xs font-normal text-muted-foreground">({batches.length} hist.)</span>
+							</p>
+						</div>
+						<div>
+							<span class="text-[11px] font-medium text-muted-foreground">{selectedStockItem.type === 'raw_material' ? 'Lote más Antiguo' : 'Última Carga'}</span>
+							{#if selectedStockItem.type === 'raw_material'}
+								{#if oldestActive}
+									<p class="text-xs font-semibold text-foreground">
+										{getDaysAgo(oldestActive.createdAt)}
+									</p>
+									<p class="text-[10px] text-muted-foreground">1º en rotación</p>
+								{:else}
+									<p class="text-xs text-muted-foreground">Sin stock previo</p>
+								{/if}
+							{:else}
+								{#if batches.length > 0}
+									{@const latestBatch = batches[batches.length - 1]}
+									<p class="text-xs font-semibold text-foreground">
+										{formatDate(latestBatch.createdAt)}
+									</p>
+									<p class="text-[10px] text-muted-foreground">{getDaysAgo(latestBatch.createdAt)}</p>
+								{:else}
+									<p class="text-xs text-muted-foreground">Sin elaboraciones previas</p>
+								{/if}
+							{/if}
+						</div>
+					</div>
+
+					<!-- Formulario de Entrada de Stock -->
+					<form
+						id="add-stock-form"
+						method="POST"
+						action="?/addStockBatch"
+						class="space-y-4"
+						use:enhance={() => {
+							isSubmittingStock = true;
+							return async ({ result, update }) => {
+								await update();
+								isSubmittingStock = false;
+								if (result.type === 'success') {
+									closeAddStockModal();
+								}
+							};
+						}}
+					>
+						<input type="hidden" name="businessId" value={data.activeBusiness.id} />
+						<input type="hidden" name="id" value={selectedStockItem.id} />
+
+						<div class="grid grid-cols-1 gap-4 {selectedStockItem.type === 'raw_material' ? 'sm:grid-cols-2' : ''}">
+							<!-- Cantidad Comprada / Producida -->
+							<div class="space-y-1.5">
+								<Label for="stock-intake-qty" class="font-semibold text-foreground">
+									{selectedStockItem.type === 'raw_material' ? 'Cantidad Comprada' : 'Cantidad Producida'} ({selectedStockItem.baseUnit}) *
+								</Label>
+								<Input
+									id="stock-intake-qty"
+									name="quantity"
+									type="number"
+									step="any"
+									min="0.001"
+									bind:value={stockIntakeQty}
+									placeholder="Ej. 5"
+									class="h-10 font-mono text-base"
+									required
+								/>
+								<p class="text-[11px] text-muted-foreground">
+									En la unidad base ({selectedStockItem.baseUnit}).
+								</p>
+							</div>
+
+							{#if selectedStockItem.type === 'raw_material'}
+								<!-- Costo Total Pagado (sólo insumos) -->
+								<div class="space-y-1.5">
+									<Label for="stock-intake-cost" class="font-semibold text-foreground">
+										Costo Total Abonado ($) *
+									</Label>
+									<div class="relative flex items-center">
+										<span class="pointer-events-none absolute left-3 font-bold text-muted-foreground">$</span>
+										<Input
+											id="stock-intake-cost"
+											name="totalCost"
+											type="number"
+											step="any"
+											min="0"
+											bind:value={stockIntakeTotalCost}
+											placeholder="0.00"
+											class="h-10 pl-7 font-mono text-base"
+											required
+										/>
+									</div>
+									<p class="text-[11px] text-muted-foreground">
+										Total pagado por el lote completo de insumo.
+									</p>
+								</div>
+							{/if}
+						</div>
+
+						<!-- Banner en Vivo: Costo Resultante (sólo insumos) -->
+						{#if selectedStockItem.type === 'raw_material' && calculatedIntakeUnitCost > 0}
+							<div class="flex items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 p-3.5">
+								<div class="space-y-0.5">
+									<span class="text-xs font-semibold text-primary">Costo Unitario Calculado</span>
+									<p class="font-mono text-lg font-extrabold text-foreground">
+										{formatCurrency(calculatedIntakeUnitCost)} <span class="text-xs font-normal text-muted-foreground">/ {selectedStockItem.baseUnit}</span>
+									</p>
+								</div>
+								{#if selectedStockItem.baseUnit === 'g'}
+									<div class="text-right">
+										<span class="text-[11px] font-medium text-muted-foreground">Equivalente por Kilo</span>
+										<p class="font-mono text-sm font-bold text-foreground">
+											{formatCurrency(calculatedIntakeUnitCost * 1000)} / kg
+										</p>
+									</div>
+								{:else if selectedStockItem.baseUnit === 'ml'}
+									<div class="text-right">
+										<span class="text-[11px] font-medium text-muted-foreground">Equivalente por Litro</span>
+										<p class="font-mono text-sm font-bold text-foreground">
+											{formatCurrency(calculatedIntakeUnitCost * 1000)} / l
+										</p>
+									</div>
+								{/if}
+							</div>
+						{/if}
+
+						<div class="grid grid-cols-1 gap-4 {selectedStockItem.type === 'raw_material' ? 'sm:grid-cols-2' : ''}">
+							{#if selectedStockItem.type === 'raw_material'}
+								<div class="space-y-1.5">
+									<Label for="stock-intake-supplier" class="font-medium text-foreground">
+										Proveedor (opcional)
+									</Label>
+									<Input
+										id="stock-intake-supplier"
+										name="supplier"
+										type="text"
+										bind:value={stockIntakeSupplier}
+										placeholder="Ej. Molinos Río de la Plata"
+										class="h-9 text-xs"
+									/>
+								</div>
+							{/if}
+
+							<div class="space-y-1.5">
+								<Label for="stock-intake-notes" class="font-medium text-foreground">
+									{selectedStockItem.type === 'raw_material' ? 'Comprobante / Lote / Notas (opcional)' : 'Lote / Notas de producción (opcional)'}
+								</Label>
+								<Input
+									id="stock-intake-notes"
+									name="notes"
+									type="text"
+									bind:value={stockIntakeNotes}
+									placeholder={selectedStockItem.type === 'raw_material' ? 'Ej. Factura A-1234 o Vto 10/2026' : 'Ej. Tanda mañana, lote #4'}
+									class="h-9 text-xs"
+								/>
+							</div>
+						</div>
+					</form>
+
+					<!-- Historial de Cargas de Stock -->
+					<div class="space-y-2.5 border-t border-border/60 pt-3">
+						<div class="flex items-center justify-between">
+							<div class="flex items-center gap-2">
+								<History class="size-4 text-muted-foreground" />
+								<h3 class="text-sm font-bold text-foreground">
+									Historial de Cargas de Stock
+								</h3>
+							</div>
+							<span class="text-xs text-muted-foreground">
+								{activeBatches.length} {activeBatches.length === 1 ? 'lote en existencia' : 'lotes en existencia'}
+							</span>
+						</div>
+
+						{#if batches.length > 0}
+							<div class="space-y-2">
+								{#each batches.slice().reverse() as batch (batch.id)}
+									{@const isOldestActive = oldestActive && batch.id === oldestActive.id}
+									{@const isExhausted = batch.remainingQuantity <= 0}
+									<div
+										class="rounded-xl border p-3 transition-colors {isOldestActive
+											? 'border-primary/50 bg-primary/5 ring-1 ring-primary/30'
+											: isExhausted
+												? 'border-border/40 bg-muted/10 opacity-55'
+												: 'border-border bg-card'}"
+									>
+										<div class="flex flex-wrap items-center justify-between gap-2">
+											<div class="flex items-center gap-2">
+												<span class="font-mono text-xs font-semibold text-foreground">
+													{formatDate(batch.createdAt)}
+												</span>
+												<span class="text-xs text-muted-foreground">
+													({getDaysAgo(batch.createdAt)})
+												</span>
+												{#if isOldestActive}
+													<span class="rounded-full border border-primary/30 bg-primary/15 px-2 py-0.5 text-[10px] font-bold text-primary">
+														1º en rotación
+													</span>
+												{:else if isExhausted}
+													<span class="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+														Agotado
+													</span>
+												{:else}
+													<span class="rounded-full border border-secondary/30 bg-secondary/15 px-2 py-0.5 text-[10px] font-medium text-secondary">
+														En cola
+													</span>
+												{/if}
+											</div>
+
+											<div class="flex items-center gap-3">
+												<div class="text-right">
+													<p class="font-mono text-xs font-bold text-foreground">
+														{batch.remainingQuantity} / {batch.initialQuantity} {selectedStockItem.baseUnit}
+													</p>
+													<p class="font-mono text-[11px] text-muted-foreground">
+														{formatCurrency(batch.unitCost)} / {selectedStockItem.baseUnit}
+													</p>
+												</div>
+
+												<!-- Botón para eliminar carga si hubo equivocación -->
+												<form
+													method="POST"
+													action="?/deleteStockBatch"
+													use:enhance={() => {
+														return async ({ update }) => {
+															await update();
+														};
+													}}
+												>
+													<input type="hidden" name="businessId" value={data.activeBusiness.id} />
+													<input type="hidden" name="id" value={selectedStockItem.id} />
+													<input type="hidden" name="batchId" value={batch.id} />
+													<Button
+														type="submit"
+														size="icon"
+														variant="ghost"
+														class="size-7 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+														title="Eliminar esta carga de stock"
+														onclick={(e) => {
+															if (
+																!confirm(
+																	`¿Eliminar esta carga de ${batch.remainingQuantity} ${selectedStockItem.baseUnit}? Se descontará del stock actual y se recalculará el costo.`
+																)
+															) {
+																e.preventDefault();
+															}
+														}}
+													>
+														<Trash2 class="size-3.5" />
+													</Button>
+												</form>
+											</div>
+										</div>
+
+										{#if batch.supplier || batch.notes}
+											<div class="mt-2 flex flex-wrap items-center gap-2 border-t border-border/40 pt-1.5 text-[11px] text-muted-foreground">
+												{#if batch.supplier}
+													<span class="font-medium text-foreground/80">Prov: {batch.supplier}</span>
+												{/if}
+												{#if batch.notes}
+													<span>· {batch.notes}</span>
+												{/if}
+											</div>
+										{/if}
+									</div>
+								{/each}
+							</div>
+						{:else}
+							<div class="rounded-xl border border-dashed border-border p-6 text-center">
+								<p class="text-xs text-muted-foreground">
+									{selectedStockItem.type === 'raw_material'
+										? 'Aún no hay compras registradas para este insumo. Al ingresar la primera carga, quedará documentada con su fecha y costo unitario.'
+										: 'Aún no hay registros de elaboración. Al cargar stock de producción, quedará registrado con la fecha y cantidad producida.'}
+								</p>
+							</div>
+						{/if}
+					</div>
+				</div>
+
+				<!-- Acciones del Modal -->
+				<div class="flex items-center justify-between border-t border-border bg-muted/20 px-6 py-4">
+					<Button
+						type="button"
+						variant="outline"
+						onclick={closeAddStockModal}
+						disabled={isSubmittingStock}
+					>
+						Cancelar
+					</Button>
+					<Button
+						type="submit"
+						form="add-stock-form"
+						disabled={isSubmittingStock || !stockIntakeQty || Number(stockIntakeQty) <= 0 || (selectedStockItem.type === 'raw_material' && (!stockIntakeTotalCost || Number(stockIntakeTotalCost) < 0))}
+					>
+						<PackagePlus class="mr-1.5 size-4" />
+						<span>{isSubmittingStock ? 'Registrando...' : (selectedStockItem.type === 'raw_material' ? 'Registrar Carga de Stock' : 'Registrar Elaboración')}</span>
+					</Button>
+				</div>
+			</div>
+		</div>
+	{/if}
+{/snippet}
+
+{#snippet adjustItemModal()}
+	<!-- ========================================================================
+	     MODAL INVENTARIO: Ajustar Ítem (Nombre, Unidad y Alerta de Stock Mínimo)
+	     ======================================================================== -->
+	{#if showAdjustItemModal && adjustingItem}
+		<div
+			class="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4 backdrop-blur-[1px]"
+			role="dialog"
+			aria-modal="true"
+		>
+			<div class="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
+				<!-- Header -->
+				<div class="flex items-start justify-between gap-4 border-b border-border p-6 pb-4">
+					<div class="space-y-1">
+						<div class="flex items-center gap-2">
+							<span class="rounded-md border border-tertiary/40 bg-tertiary/20 px-2 py-0.5 font-mono text-xs font-bold text-yellow-900 dark:text-yellow-300">
+								{adjustingItem.code}
+							</span>
+							<ItemTypeBadge type={adjustingItem.type} short={true} />
+						</div>
+						<h2 class="text-xl font-bold text-foreground">
+							Ajustar Ítem: {adjustingItem.name}
+						</h2>
+						<p class="text-xs text-muted-foreground">
+							Modifica el nombre, la unidad de medida base o el punto de alerta de stock.
+						</p>
+					</div>
+					<Button
+						type="button"
+						size="icon"
+						variant="ghost"
+						class="size-8"
+						onclick={closeAdjustModal}
+					>
+						<X class="size-4" />
+					</Button>
+				</div>
+
+				<!-- Form Body -->
+				<form
+					id="adjust-item-form"
+					method="POST"
+					action="?/updateItem"
+					class="flex-1 space-y-4 overflow-y-auto p-6"
+					use:enhance={() => {
+						isSubmittingAdjust = true;
+						return async ({ result, update }) => {
+							await update();
+							isSubmittingAdjust = false;
+							if (result.type === 'success') {
+								closeAdjustModal();
+							}
+						};
+					}}
+				>
+					<input type="hidden" name="businessId" value={data.activeBusiness.id} />
+					<input type="hidden" name="id" value={adjustingItem.id} />
+					<input type="hidden" name="referenceCost" value={adjustingItem.referenceCost} />
+					<input type="hidden" name="purchaseQuantity" value={adjustingItem.purchaseQuantity} />
+
+					<!-- Nombre -->
+					<div class="space-y-1.5">
+						<Label for="adjust-item-name" class="font-semibold text-foreground">Nombre del Ítem</Label>
+						<Input
+							id="adjust-item-name"
+							name="name"
+							bind:value={adjustItemName}
+							placeholder="Nombre del ítem"
+							class="h-10 text-sm font-medium"
+							required
+						/>
+					</div>
+
+					<!-- Unidad de Medida -->
+					<div class="space-y-1.5">
+						<Label for="adjust-item-unit" class="font-semibold text-foreground">Unidad de Medida Base</Label>
+						<select
+							id="adjust-item-unit"
+							name="baseUnit"
+							bind:value={adjustItemBaseUnit}
+							class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs"
+						>
+							{#each UNITS_OF_MEASURE as u}
+								<option value={u}>{UNIT_LABELS[u]}</option>
+							{/each}
+						</select>
+
+						<!-- Alerta de cambio de unidad solicitada por el usuario -->
+						{#if adjustItemBaseUnit !== adjustingItem.baseUnit}
+							<div class="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3.5 text-xs text-amber-950 dark:text-amber-200 space-y-1.5 mt-2">
+								<div class="flex items-center gap-1.5 font-bold text-amber-800 dark:text-amber-300">
+									<AlertTriangle class="size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+									<span>¡Atención al modificar la unidad!</span>
+								</div>
+								<p class="leading-relaxed">
+									Si se ajusta la unidad, se tienen que volver a ajustar todas las elaboraciones que usen este insumo y se tiene que hacer el re-stock para recalcular los costos y proporciones correspondientes.
+								</p>
+							</div>
+						{/if}
+					</div>
+
+					<!-- Alerta de Stock Mínimo -->
+					<div class="space-y-1.5">
+						<Label for="adjust-item-min-stock" class="flex items-center gap-1.5 font-semibold text-foreground">
+							<AlertTriangle class="size-3.5 text-destructive" />
+							<span>Alerta de Stock Mínimo ({adjustItemBaseUnit})</span>
+						</Label>
+						<Input
+							id="adjust-item-min-stock"
+							name="minStock"
+							type="number"
+							step="any"
+							min="0"
+							bind:value={adjustItemMinStock}
+							placeholder="0 (alerta al bajar de este valor)"
+							class="h-10 font-mono text-sm"
+						/>
+						<p class="text-[11px] text-muted-foreground">
+							El ítem se marcará con alerta visual cuando las existencias desciendan a este número o menos.
+						</p>
+					</div>
+				</form>
+
+				<!-- Footer -->
+				<div class="flex items-center justify-between border-t border-border bg-muted/20 px-6 py-4">
+					<Button
+						type="button"
+						variant="ghost"
+						size="sm"
+						class="text-destructive hover:bg-destructive/10 text-xs gap-1.5"
+						onclick={() => {
+							const idToDelete = adjustingItem.id;
+							closeAdjustModal();
+							deletingItemId = idToDelete;
+						}}
+					>
+						<Trash2 class="size-3.5" />
+						<span>Eliminar Ítem</span>
+					</Button>
+
+					<div class="flex items-center gap-2">
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							onclick={closeAdjustModal}
+							disabled={isSubmittingAdjust}
+						>
+							Cancelar
+						</Button>
+						<Button
+							type="submit"
+							form="adjust-item-form"
+							size="sm"
+							disabled={isSubmittingAdjust || !adjustItemName.trim()}
+						>
+							<Check class="size-3.5 mr-1" />
+							<span>{isSubmittingAdjust ? 'Guardando...' : 'Guardar Ajustes'}</span>
+						</Button>
+					</div>
+				</div>
+			</div>
+		</div>
+	{/if}
+{/snippet}
+
 <AppShell
 	user={data.user}
 	activeBusiness={data.activeBusiness}
@@ -3317,4 +3724,6 @@
 	{@render deleteSalesProductModal()}
 	{@render viewRecipeModal()}
 	{@render deleteItemModal()}
+	{@render addStockModal()}
+	{@render adjustItemModal()}
 </AppShell>
