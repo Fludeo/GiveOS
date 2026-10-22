@@ -10,14 +10,14 @@
 				default: 'bg-primary text-primary-foreground shadow hover:bg-primary/90',
 				destructive: 'bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90',
 				outline:
-					'border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground',
+					'border border-input bg-background shadow-xs hover:bg-muted hover:text-foreground',
 				secondary: 'bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80',
 				accent: 'bg-lime-400 dark:bg-lime-500 text-lime-950 font-semibold shadow-sm hover:bg-lime-300 dark:hover:bg-lime-400',
 				yellow: 'bg-yellow-400 dark:bg-yellow-500 text-yellow-950 font-semibold shadow-sm hover:bg-yellow-300 dark:hover:bg-yellow-400',
 				success: 'bg-emerald-600 text-white shadow-sm hover:bg-emerald-700',
 				warning: 'bg-amber-500 text-white shadow-sm hover:bg-amber-600',
 				muted: 'bg-muted text-muted-foreground shadow-sm hover:bg-muted/80',
-				ghost: 'hover:bg-accent hover:text-accent-foreground',
+				ghost: 'hover:bg-primary/10 hover:text-primary',
 				link: 'text-primary underline-offset-4 hover:underline'
 			},
 			size: {

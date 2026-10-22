@@ -529,28 +529,22 @@
 		<button
 			type="button"
 			onclick={() => switchTab('stock')}
-			class="inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-all {currentTab ===
+			class="inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-colors cursor-pointer {currentTab ===
 			'stock'
-				? 'bg-primary text-primary-foreground shadow-xs'
-				: 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
+				? 'bg-primary text-primary-foreground shadow-xs font-semibold'
+				: 'text-muted-foreground hover:text-foreground'}"
 		>
 			<Package class="size-4" />
 			<span>Inventario</span>
-			<Badge
-				variant={currentTab === 'stock' ? 'secondary' : 'outline'}
-				class="ml-1 px-1.5 py-0 text-[11px]"
-			>
-				{data.items.length}
-			</Badge>
 		</button>
 
 		<button
 			type="button"
 			onclick={() => switchTab('recipes')}
-			class="inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-all {currentTab ===
+			class="inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-colors cursor-pointer {currentTab ===
 			'recipes'
-				? 'bg-primary text-primary-foreground shadow-xs'
-				: 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
+				? 'bg-primary text-primary-foreground shadow-xs font-semibold'
+				: 'text-muted-foreground hover:text-foreground'}"
 		>
 			<GraphHub class="size-4" />
 			<span>Recetas</span>
@@ -559,19 +553,13 @@
 		<button
 			type="button"
 			onclick={() => switchTab('products')}
-			class="inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-all {currentTab ===
+			class="inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-colors cursor-pointer {currentTab ===
 			'products'
-				? 'bg-primary text-primary-foreground shadow-xs'
-				: 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
+				? 'bg-primary text-primary-foreground shadow-xs font-semibold'
+				: 'text-muted-foreground hover:text-foreground'}"
 		>
 			<Tag class="size-4" />
 			<span>Productos de Venta</span>
-			<Badge
-				variant={currentTab === 'products' ? 'secondary' : 'outline'}
-				class="ml-1 px-1.5 py-0 text-[11px]"
-			>
-				{data.salesProducts.length}
-			</Badge>
 		</button>
 	</div>
 {/snippet}

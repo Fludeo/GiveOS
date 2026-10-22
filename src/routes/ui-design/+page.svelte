@@ -883,24 +883,23 @@
 
 			<div class="rounded-2xl border border-border bg-card p-6 space-y-5">
 				<!-- Barra de Pestañas -->
-				<div class="flex items-center gap-1 rounded-2xl border border-border bg-muted/30 p-1.5 w-fit">
+				<div class="flex items-center gap-1 rounded-2xl border border-border bg-card p-1.5 w-fit shadow-2xs">
 					<button
 						type="button"
 						onclick={() => (activeDemoTab = 'stock')}
-						class="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-medium transition-all cursor-pointer {activeDemoTab === 'stock'
-							? 'bg-card text-foreground shadow-xs font-bold'
+						class="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-medium transition-colors cursor-pointer {activeDemoTab === 'stock'
+							? 'bg-primary text-primary-foreground shadow-xs font-semibold'
 							: 'text-muted-foreground hover:text-foreground'}"
 					>
 						<Package class="size-4" />
 						<span>Inventario de Insumos</span>
-						<Badge variant="secondary" class="ml-1 px-1.5 py-0 text-[10px]">142</Badge>
 					</button>
 
 					<button
 						type="button"
 						onclick={() => (activeDemoTab = 'recipes')}
-						class="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-medium transition-all cursor-pointer {activeDemoTab === 'recipes'
-							? 'bg-card text-foreground shadow-xs font-bold'
+						class="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-medium transition-colors cursor-pointer {activeDemoTab === 'recipes'
+							? 'bg-primary text-primary-foreground shadow-xs font-semibold'
 							: 'text-muted-foreground hover:text-foreground'}"
 					>
 						<GraphHub class="size-4" />
@@ -910,13 +909,12 @@
 					<button
 						type="button"
 						onclick={() => (activeDemoTab = 'products')}
-						class="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-medium transition-all cursor-pointer {activeDemoTab === 'products'
-							? 'bg-card text-foreground shadow-xs font-bold'
+						class="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-medium transition-colors cursor-pointer {activeDemoTab === 'products'
+							? 'bg-primary text-primary-foreground shadow-xs font-semibold'
 							: 'text-muted-foreground hover:text-foreground'}"
 					>
 						<Tag class="size-4" />
 						<span>Productos de Venta</span>
-						<Badge variant="secondary" class="ml-1 px-1.5 py-0 text-[10px]">28</Badge>
 					</button>
 				</div>
 
