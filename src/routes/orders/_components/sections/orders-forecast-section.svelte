@@ -28,13 +28,24 @@
 	import Wheat from '@lucide/svelte/icons/wheat';
 	import GraphHub from '@lucide/svelte/icons/graph-hub';
 	import Store from '@lucide/svelte/icons/store';
+	import { convertQuantity } from '#lib/features/items/domain/item.entity';
+	import type { RecipeTreeNode } from '#lib/features/recipes/domain/recipe.entity';
 
 	interface Props {
 		forecast: PreorderForecastSummary;
 		preserveDisplayStock?: boolean;
+		recipeSummaries?: Record<
+			string,
+			{
+				directComponentsCount: number;
+				estimatedTotalCost: number;
+				estimatedUnitCost: number;
+				nodes: RecipeTreeNode[];
+			}
+		>;
 	}
 
-	let { forecast, preserveDisplayStock = false }: Props = $props();
+	let { forecast, preserveDisplayStock = false, recipeSummaries = {} }: Props = $props();
 
 	function togglePreserveDisplayStock() {
 		if (typeof window !== 'undefined') {
@@ -89,6 +100,15 @@
 		return `${hours} hs ${mins} min`;
 	}
 
+	interface SubIngredientBreakdown {
+		id: string;
+		code: string;
+		name: string;
+		baseUnit: string;
+		consumedQuantity: number;
+		currentStock: number;
+	}
+
 	// Normalizamos todos los ítems para poder filtrarlos y mostrarlos homogéneamente
 	interface DisplayItem {
 		id: string;
@@ -105,6 +125,7 @@
 		deficitQuantity: number;
 		isShortage: boolean;
 		isMakeToOrder?: boolean;
+		subIngredients?: SubIngredientBreakdown[];
 		prepTimeMinutes?: number;
 		passiveTimeMinutes?: number;
 		isPrepTimeScalable?: boolean;
@@ -135,6 +156,32 @@
 						: 0;
 			const shortage = defQty > 0;
 
+			// Si es a demanda, precalculamos el desglose de sus insumos
+			let subIngredients: SubIngredientBreakdown[] | undefined;
+			if (sub.isMakeToOrder && req > 0) {
+				const summary = recipeSummaries[sub.itemId];
+				const nodes = summary?.nodes ?? [];
+				const yieldQty = sub.yieldQuantity && sub.yieldQuantity > 0 ? sub.yieldQuantity : 1;
+				const batches = req / yieldQty;
+
+				subIngredients = nodes.map((node) => {
+					const comp = node.component;
+					const consumedInCompBase = convertQuantity(
+						node.quantity * batches,
+						node.unit,
+						comp.baseUnit
+					);
+					return {
+						id: comp.id,
+						code: comp.code,
+						name: comp.name,
+						baseUnit: comp.baseUnit,
+						consumedQuantity: Number(consumedInCompBase.toFixed(2)),
+						currentStock: comp.currentStock
+					};
+				});
+			}
+
 			items.push({
 				id: sub.itemId,
 				code: sub.code,
@@ -150,6 +197,7 @@
 				deficitQuantity: defQty,
 				isShortage: shortage,
 				isMakeToOrder: sub.isMakeToOrder,
+				subIngredients,
 				prepTimeMinutes: sub.prepTimeMinutes ?? 0,
 				passiveTimeMinutes: sub.passiveTimeMinutes ?? 0,
 				isPrepTimeScalable: sub.isPrepTimeScalable,
@@ -647,41 +695,71 @@
 							</div>
 
 							<!-- BARRAS VERTICALES COMPARATIVAS (BAR CHART) -->
-							<div class="rounded-lg border border-border/60 bg-muted/20 p-3">
-								<div class="flex items-end justify-center gap-6 sm:gap-8 h-28 pt-2">
-									<!-- Columna 1: Stock (Siempre Azul) -->
-									<div class="flex flex-col items-center gap-1.5 h-full justify-end w-16 sm:w-20">
-										<span class="font-mono text-[11px] font-bold text-blue-600 dark:text-blue-400">
-											{formatNum(item.currentStock)} {formatUnit(item.baseUnit)}
+							{#if item.isMakeToOrder && item.subIngredients && item.subIngredients.length > 0}
+								<!-- Desglose de Insumos para ítems a Demanda -->
+								<div class="rounded-lg border border-secondary/30 bg-secondary/5 p-3 space-y-2">
+									<div class="flex items-center justify-between text-[11px] font-bold text-secondary uppercase tracking-wider">
+										<span class="flex items-center gap-1">
+											<Sparkles class="size-3.5" />
+											Insumos requeridos para preparar:
 										</span>
-										<div class="relative w-full rounded bg-muted/60 overflow-hidden flex flex-col justify-end h-20 border border-border/40">
-											<div
-												class="w-full rounded-sm bg-blue-500 text-white transition-all duration-300"
-												style="height: {Math.max(8, stockHeightPct)}%"
-											></div>
-										</div>
-										<span class="text-[10px] uppercase font-bold text-blue-600 dark:text-blue-400 tracking-wider">
-											Stock
-										</span>
+										<span class="font-mono text-[10px] lowercase text-muted-foreground">({item.subIngredients.length} componentes)</span>
 									</div>
-
-									<!-- Columna 2: Demanda (Siempre Rojo) -->
-									<div class="flex flex-col items-center gap-1.5 h-full justify-end w-16 sm:w-20">
-										<span class="font-mono text-[11px] font-bold text-red-600 dark:text-red-400">
-											{formatNum(item.requiredQuantity)} {formatUnit(item.baseUnit)}
-										</span>
-										<div class="relative w-full rounded bg-muted/60 overflow-hidden flex flex-col justify-end h-20 border border-border/40">
-											<div
-												class="w-full rounded-sm bg-red-500 transition-all duration-300"
-												style="height: {Math.max(8, demandHeightPct)}%"
-											></div>
-										</div>
-										<span class="text-[10px] uppercase font-bold text-red-600 dark:text-red-400 tracking-wider">
-											Demanda
-										</span>
+									<div class="space-y-1.5 pt-1">
+										{#each item.subIngredients as sub (sub.id)}
+											{@const subDeficit = sub.consumedQuantity > sub.currentStock}
+											<div class="flex items-center justify-between gap-2 text-xs font-mono py-1 px-1.5 rounded bg-background/60 border border-border/40">
+												<div class="flex items-center gap-1.5 min-w-0">
+													<span class="size-1.5 rounded-full {subDeficit ? 'bg-red-500 animate-pulse' : 'bg-emerald-500'}"></span>
+													<span class="text-muted-foreground font-semibold text-[10px]">{sub.code}</span>
+													<span class="text-foreground truncate max-w-[110px] sm:max-w-[140px]" title={sub.name}>{sub.name}</span>
+												</div>
+												<div class="flex items-center gap-1.5 shrink-0 text-[11px]">
+													<span class="font-bold text-red-600 dark:text-red-400">-{formatNum(sub.consumedQuantity)} {formatUnit(sub.baseUnit)}</span>
+													<span class="text-muted-foreground/30">|</span>
+													<span class="text-blue-600 dark:text-blue-400 font-medium">Stk {formatNum(sub.currentStock)} {formatUnit(sub.baseUnit)}</span>
+												</div>
+											</div>
+										{/each}
 									</div>
 								</div>
-							</div>
+							{:else}
+								<div class="rounded-lg border border-border/60 bg-muted/20 p-3">
+									<div class="flex items-end justify-center gap-6 sm:gap-8 h-28 pt-2">
+										<!-- Columna 1: Stock (Siempre Azul) -->
+										<div class="flex flex-col items-center gap-1.5 h-full justify-end w-16 sm:w-20">
+											<span class="font-mono text-[11px] font-bold text-blue-600 dark:text-blue-400">
+												{formatNum(item.currentStock)} {formatUnit(item.baseUnit)}
+											</span>
+											<div class="relative w-full rounded bg-muted/60 overflow-hidden flex flex-col justify-end h-20 border border-border/40">
+												<div
+													class="w-full rounded-sm bg-blue-500 text-white transition-all duration-300"
+													style="height: {Math.max(8, stockHeightPct)}%"
+												></div>
+											</div>
+											<span class="text-[10px] uppercase font-bold text-blue-600 dark:text-blue-400 tracking-wider">
+												Stock
+											</span>
+										</div>
+
+										<!-- Columna 2: Demanda (Siempre Rojo) -->
+										<div class="flex flex-col items-center gap-1.5 h-full justify-end w-16 sm:w-20">
+											<span class="font-mono text-[11px] font-bold text-red-600 dark:text-red-400">
+												{formatNum(item.requiredQuantity)} {formatUnit(item.baseUnit)}
+											</span>
+											<div class="relative w-full rounded bg-muted/60 overflow-hidden flex flex-col justify-end h-20 border border-border/40">
+												<div
+													class="w-full rounded-sm bg-red-500 transition-all duration-300"
+													style="height: {Math.max(8, demandHeightPct)}%"
+												></div>
+											</div>
+											<span class="text-[10px] uppercase font-bold text-red-600 dark:text-red-400 tracking-wider">
+												Demanda
+											</span>
+										</div>
+									</div>
+								</div>
+							{/if}
 
 							<!-- Pie: Tiempo de trabajo o estado -->
 							<div class="flex items-center justify-between text-[11px] pt-0.5 font-mono">
@@ -761,8 +839,12 @@
 									</td>
 
 									<!-- Stock Actual -->
-									<td class="py-3 px-3 align-middle text-right font-mono font-medium text-foreground whitespace-nowrap">
-										{formatNum(item.currentStock)} {formatUnit(item.baseUnit)}
+									<td class="py-3 px-3 align-middle text-right font-mono font-medium whitespace-nowrap">
+										{#if item.isMakeToOrder}
+											<span class="text-muted-foreground/60 italic text-[11px]">A demanda</span>
+										{:else}
+											<span class="text-blue-600 dark:text-blue-400 font-bold">{formatNum(item.currentStock)} {formatUnit(item.baseUnit)}</span>
+										{/if}
 									</td>
 
 									<!-- Demanda -->
@@ -770,30 +852,56 @@
 										{formatNum(item.requiredQuantity)} {formatUnit(item.baseUnit)}
 									</td>
 
-									<!-- Dos Barras Horizontales Comparativas (Stock vs Demanda) -->
-									<td class="py-3 px-3 align-middle min-w-[170px]">
-										<div class="space-y-1 font-mono text-[10px]">
-											<!-- Barra Stock (Azul) -->
-											<div class="flex items-center gap-1.5">
-												<span class="w-8 shrink-0 text-blue-600 dark:text-blue-400 font-bold text-right">Stk</span>
-												<div class="h-2 flex-1 rounded bg-muted/60 overflow-hidden">
-													<div
-														class="h-full rounded-xs bg-blue-500"
-														style="width: {Math.max(6, stockWidthPct)}%"
-													></div>
+									<!-- Dos Barras Horizontales Comparativas (Stock vs Demanda) o Desglose de Insumos -->
+									<td class="py-3 px-3 align-middle min-w-[200px]">
+										{#if item.isMakeToOrder && item.subIngredients && item.subIngredients.length > 0}
+											<div class="space-y-1 font-mono text-[10px]">
+												<div class="flex items-center gap-1 text-[9px] font-bold text-secondary uppercase">
+													<Sparkles class="size-2.5" />
+													<span>Insumos a preparar:</span>
+												</div>
+												<div class="space-y-1">
+													{#each item.subIngredients as sub (sub.id)}
+														{@const subDef = sub.consumedQuantity > sub.currentStock}
+														<div class="flex items-center justify-between gap-1.5 px-1.5 py-0.5 rounded bg-muted/40 border border-border/40 text-[10px]">
+															<div class="flex items-center gap-1 truncate max-w-[110px]">
+																<span class="size-1 rounded-full {subDef ? 'bg-red-500' : 'bg-emerald-500'}"></span>
+																<span class="text-muted-foreground font-semibold">{sub.code}</span>
+																<span class="truncate">{sub.name}</span>
+															</div>
+															<div class="flex items-center gap-1 shrink-0">
+																<span class="text-red-600 dark:text-red-400 font-bold">-{formatNum(sub.consumedQuantity)}</span>
+																<span class="text-muted-foreground/30">|</span>
+																<span class="text-blue-600 dark:text-blue-400 font-medium">Stk {formatNum(sub.currentStock)} {formatUnit(sub.baseUnit)}</span>
+															</div>
+														</div>
+													{/each}
 												</div>
 											</div>
-											<!-- Barra Demanda (Rojo) -->
-											<div class="flex items-center gap-1.5">
-												<span class="w-8 shrink-0 text-red-600 dark:text-red-400 font-bold text-right">Dem</span>
-												<div class="h-2 flex-1 rounded bg-muted/60 overflow-hidden">
-													<div
-														class="h-full rounded-xs bg-red-500"
-														style="width: {Math.max(6, demandWidthPct)}%"
-													></div>
+										{:else}
+											<div class="space-y-1 font-mono text-[10px]">
+												<!-- Barra Stock (Azul) -->
+												<div class="flex items-center gap-1.5">
+													<span class="w-8 shrink-0 text-blue-600 dark:text-blue-400 font-bold text-right">Stk</span>
+													<div class="h-2 flex-1 rounded bg-muted/60 overflow-hidden">
+														<div
+															class="h-full rounded-xs bg-blue-500"
+															style="width: {Math.max(6, stockWidthPct)}%"
+														></div>
+													</div>
+												</div>
+												<!-- Barra Demanda (Rojo) -->
+												<div class="flex items-center gap-1.5">
+													<span class="w-8 shrink-0 text-red-600 dark:text-red-400 font-bold text-right">Dem</span>
+													<div class="h-2 flex-1 rounded bg-muted/60 overflow-hidden">
+														<div
+															class="h-full rounded-xs bg-red-500"
+															style="width: {Math.max(6, demandWidthPct)}%"
+														></div>
+													</div>
 												</div>
 											</div>
-										</div>
+										{/if}
 									</td>
 
 									<!-- Balance -->

@@ -180,6 +180,7 @@
 		<OrdersForecastSection
 			forecast={data.preorderForecast}
 			preserveDisplayStock={data.preserveDisplayStock}
+			recipeSummaries={data.recipeSummaries}
 		/>
 	{/if}
 

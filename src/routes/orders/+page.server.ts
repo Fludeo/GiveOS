@@ -15,14 +15,15 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		requestedBusinessId
 	);
 
-	const { orderService } = getServices();
+	const { orderService, recipeService } = getServices();
 
 	const preserveDisplayStock = url.searchParams.get('preserveDisplay') === '1';
 
-	const [orders, salesProducts, preorderForecast] = await Promise.all([
+	const [orders, salesProducts, preorderForecast, recipeSummaries] = await Promise.all([
 		orderService.listOrders(activeBusiness.id),
 		orderService.listSalesProducts(activeBusiness.id),
-		orderService.getPreorderForecast(activeBusiness.id, preserveDisplayStock)
+		orderService.getPreorderForecast(activeBusiness.id, preserveDisplayStock),
+		recipeService.getAllRecipeSummaries(activeBusiness.id)
 	]);
 
 	const requestedTab = url.searchParams.get('tab');
@@ -39,6 +40,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		salesProducts: salesProducts.filter((p) => p.isActive),
 		allSalesProducts: salesProducts,
 		preorderForecast,
+		recipeSummaries,
 		preserveDisplayStock,
 		initialTab,
 		openNewModalOnLoad: url.searchParams.get('new') === '1',
