@@ -20,8 +20,12 @@ export async function runMigrations() {
 
 	try {
 		if (usePglite) {
-			console.log('[db:migrate] Running local PGlite migrations (development environment)...');
-			// Reuse the already initialized DB / client or create it through getDb()
+			if (isDev) {
+				// En desarrollo con PGlite, evitar re-ejecutar migraciones en cada HMR o arranque si la BD ya está inicializada
+				console.log('[db:migrate] Local PGlite environment detected. Skipping auto-migration on boot.');
+				return;
+			}
+			console.log('[db:migrate] Running local PGlite migrations...');
 			const db = getDb();
 			const client = getPgliteClient() || new PGlite(process.env.PGLITE_DATA_DIR || './.pglite_data');
 			const migDb = drizzlePglite(client);
