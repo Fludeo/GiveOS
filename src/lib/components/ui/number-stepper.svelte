@@ -78,7 +78,7 @@
 		size="icon"
 		onclick={decrement}
 		disabled={disabled || (typeof value === 'number' && value <= min)}
-		class="size-9 rounded-r-none border-r-0 hover:bg-accent active:scale-95 disabled:pointer-events-none disabled:opacity-40"
+		class="size-9 rounded-r-none border-r-0 hover:border-tertiary/60 hover:bg-tertiary/20 hover:text-yellow-950 dark:hover:text-yellow-200 transition-colors active:scale-95 disabled:pointer-events-none disabled:opacity-40"
 	>
 		<Minus class="size-3.5" />
 	</Button>
@@ -104,7 +104,7 @@
 		size="icon"
 		onclick={increment}
 		disabled={disabled || (typeof value === 'number' && max !== undefined && value >= max)}
-		class="size-9 rounded-l-none border-l-0 hover:bg-accent active:scale-95 disabled:pointer-events-none disabled:opacity-40"
+		class="size-9 rounded-l-none border-l-0 hover:border-tertiary/60 hover:bg-tertiary/20 hover:text-yellow-950 dark:hover:text-yellow-200 transition-colors active:scale-95 disabled:pointer-events-none disabled:opacity-40"
 	>
 		<Plus class="size-3.5" />
 	</Button>

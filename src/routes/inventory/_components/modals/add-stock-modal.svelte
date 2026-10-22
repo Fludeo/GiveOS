@@ -388,7 +388,7 @@
 								<Label for="stock-intake-qty" class="text-xs font-semibold text-foreground">
 									{item.type === 'raw_material' ? 'Cantidad Comprada' : 'Cantidad Producida'}
 								</Label>
-								<span class="font-mono text-xs font-bold text-primary">
+								<span class="font-mono text-xs font-bold {item.type === 'raw_material' ? 'text-yellow-700 dark:text-yellow-400' : 'text-secondary'}">
 									{stockIntakeQty ? `${formatQuantity(Number(stockIntakeQty))} ${item.baseUnit}` : `0 ${item.baseUnit}`}
 								</span>
 							</div>
