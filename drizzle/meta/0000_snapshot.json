@@ -1,5 +1,5 @@
 {
-  "id": "b389e61f-4b8b-4bd0-b1fd-0a6fe192d50c",
+  "id": "d6d34321-f1e1-473f-b938-eb9df7177675",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -224,6 +224,13 @@
           "notNull": true,
           "default": 1
         },
+        "prep_time_minutes": {
+          "name": "prep_time_minutes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
         "current_stock": {
           "name": "current_stock",
           "type": "double precision",
@@ -243,6 +250,13 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
+        },
+        "batches": {
+          "name": "batches",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
         },
         "created_at": {
           "name": "created_at",

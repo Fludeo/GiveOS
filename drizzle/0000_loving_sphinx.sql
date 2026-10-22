@@ -33,9 +33,11 @@ CREATE TABLE "items" (
 	"reference_cost" double precision DEFAULT 0 NOT NULL,
 	"purchase_quantity" double precision DEFAULT 1 NOT NULL,
 	"yield_quantity" double precision DEFAULT 1 NOT NULL,
+	"prep_time_minutes" integer DEFAULT 0 NOT NULL,
 	"current_stock" double precision DEFAULT 0 NOT NULL,
 	"min_stock" double precision DEFAULT 0 NOT NULL,
 	"notes" text,
+	"batches" jsonb DEFAULT '[]'::jsonb NOT NULL,
 	"created_at" timestamp NOT NULL
 );
 --> statement-breakpoint
