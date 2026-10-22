@@ -325,11 +325,7 @@
 														? 'bg-secondary/15 text-secondary'
 														: 'bg-amber-500/15 text-amber-600 dark:text-amber-400'}"
 											>
-												{#if item.type === 'prepared'}
-													<Layers class="size-6" />
-												{:else}
-													<Package class="size-6" />
-												{/if}
+												<Package class="size-6" />
 											</div>
 											<div>
 												<span class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block">
