@@ -52,6 +52,29 @@ export interface ItemStockBatch {
 	notes?: string | null;
 }
 
+/** Línea de costo operativo asignado a una receta */
+export interface RecipeOperationalCost {
+	id: string;
+	resourceId?: string; // id referencial si vino de BusinessSettings.operationalCosts
+	name: string;
+	type: 'active' | 'passive';
+	durationMinutes: number;
+	ratePerHour: number;
+	/** Si aplica por unidad producida (true) o por tanda completa de la receta (false) */
+	isScalable: boolean;
+	notes?: string | null;
+}
+
+/** Configuración de producción de la receta encapsulada en JSONB (agnóstica de la industria) */
+export interface ItemRecipeConfig {
+	yieldQuantity: number;
+	activeTimeMinutes: number;
+	passiveTimeMinutes?: number;
+	isScalable?: boolean;
+	operationalCosts?: RecipeOperationalCost[];
+	notes?: string | null;
+}
+
 export interface Item {
 	id: string;
 	businessId: string;
@@ -62,12 +85,14 @@ export interface Item {
 	referenceCost: number;
 	purchaseQuantity: number;
 	yieldQuantity: number;
-	prepTimeMinutes: number;
+	prepTimeMinutes?: number;
+	passiveTimeMinutes?: number;
 	isPrepTimeScalable?: boolean;
 	currentStock: number;
 	minStock: number;
 	notes: string | null;
 	batches?: ItemStockBatch[];
+	recipeConfig?: ItemRecipeConfig | null;
 	createdAt: Date;
 }
 
@@ -82,11 +107,13 @@ export interface CreateItemInput {
 	purchaseQuantity: number;
 	yieldQuantity?: number;
 	prepTimeMinutes?: number;
+	passiveTimeMinutes?: number;
 	isPrepTimeScalable?: boolean;
 	currentStock?: number;
 	minStock?: number;
 	notes?: string | null;
 	batches?: ItemStockBatch[];
+	recipeConfig?: ItemRecipeConfig | null;
 }
 
 export interface UpdateItemInput {
@@ -98,11 +125,13 @@ export interface UpdateItemInput {
 	purchaseQuantity?: number;
 	yieldQuantity?: number;
 	prepTimeMinutes?: number;
+	passiveTimeMinutes?: number;
 	isPrepTimeScalable?: boolean;
 	currentStock?: number;
 	minStock?: number;
 	notes?: string | null;
 	batches?: ItemStockBatch[];
+	recipeConfig?: ItemRecipeConfig | null;
 }
 
 /**
@@ -373,4 +402,64 @@ export function removeStockBatch(
 export function formatUnit(unit: string | null | undefined): string {
 	if (!unit) return '';
 	return unit === 'unit' ? 'un' : unit;
+}
+
+/**
+ * Calcula los tiempos y costos operativos consolidados de una receta a partir de su recipeConfig
+ */
+export function calculateRecipeOperationalSummary(
+	recipeConfig?: ItemRecipeConfig | null,
+	fallbackActiveMinutes: number = 0,
+	fallbackPassiveMinutes: number = 0,
+	fallbackScalable: boolean = false
+): {
+	activeMinutes: number;
+	passiveMinutes: number;
+	totalMinutes: number;
+	operationalTotalCost: number;
+	operationalUnitCost: number;
+	costs: RecipeOperationalCost[];
+} {
+	const costs = recipeConfig?.operationalCosts ?? [];
+	if (costs.length === 0) {
+		const active = recipeConfig?.activeTimeMinutes ?? fallbackActiveMinutes;
+		const passive = recipeConfig?.passiveTimeMinutes ?? fallbackPassiveMinutes;
+		return {
+			activeMinutes: active,
+			passiveMinutes: passive,
+			totalMinutes: active + passive,
+			operationalTotalCost: 0,
+			operationalUnitCost: 0,
+			costs: []
+		};
+	}
+
+	let activeMinutes = 0;
+	let passiveMinutes = 0;
+	let operationalTotalCost = 0;
+	const yieldQty = recipeConfig?.yieldQuantity && recipeConfig.yieldQuantity > 0 ? recipeConfig.yieldQuantity : 1;
+
+	for (const cost of costs) {
+		const dur = Number(cost.durationMinutes) || 0;
+		const rate = Number(cost.ratePerHour) || 0;
+		if (cost.type === 'active') {
+			activeMinutes += dur;
+		} else {
+			passiveMinutes += dur;
+		}
+
+		// Si isScalable es true, la duración aplica por unidad producida, por lo que para el lote completo se multiplica por el rendimiento
+		const batchDurationMinutes = cost.isScalable ? dur * yieldQty : dur;
+		const lineCost = (batchDurationMinutes / 60) * rate;
+		operationalTotalCost += lineCost;
+	}
+
+	return {
+		activeMinutes,
+		passiveMinutes,
+		totalMinutes: activeMinutes + passiveMinutes,
+		operationalTotalCost: Math.round(operationalTotalCost * 100) / 100,
+		operationalUnitCost: Math.round((operationalTotalCost / yieldQty) * 100) / 100,
+		costs
+	};
 }

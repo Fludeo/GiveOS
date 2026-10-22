@@ -17,6 +17,9 @@
 	import ShoppingCart from '@lucide/svelte/icons/shopping-cart';
 	import Clock from '@lucide/svelte/icons/clock';
 	import Timer from '@lucide/svelte/icons/timer';
+	import CalendarClock from '@lucide/svelte/icons/calendar-clock';
+	import ChefHat from '@lucide/svelte/icons/chef-hat';
+	import Flame from '@lucide/svelte/icons/flame';
 	import Sparkles from '@lucide/svelte/icons/sparkles';
 	import ArrowRight from '@lucide/svelte/icons/arrow-right';
 	import LayoutGrid from '@lucide/svelte/icons/layout-grid';
@@ -87,11 +90,14 @@
 		deficitQuantity: number;
 		isShortage: boolean;
 		prepTimeMinutes?: number;
+		passiveTimeMinutes?: number;
 		isPrepTimeScalable?: boolean;
 		yieldQuantity?: number;
 		batchesNeededForDeficit?: number;
 		laborMinutesForDeficit?: number;
 		laborMinutesTotalDemand?: number;
+		laborCostForDeficit?: number;
+		laborCostTotalDemand?: number;
 	}
 
 	const allDisplayItems = $derived.by<DisplayItem[]>(() => {
@@ -128,13 +134,16 @@
 				deficitQuantity: defQty,
 				isShortage: shortage,
 				prepTimeMinutes: sub.prepTimeMinutes ?? 0,
+				passiveTimeMinutes: sub.passiveTimeMinutes ?? 0,
 				isPrepTimeScalable: sub.isPrepTimeScalable,
 				yieldQuantity: sub.yieldQuantity ?? 1,
 				batchesNeededForDeficit:
 					sub.batchesNeededForDeficit ??
 					(defQty > 0 ? Math.ceil(defQty / (sub.yieldQuantity || 1)) : 0),
 				laborMinutesForDeficit: sub.laborMinutesForDeficit ?? 0,
-				laborMinutesTotalDemand: sub.laborMinutesTotalDemand ?? 0
+				laborMinutesTotalDemand: sub.laborMinutesTotalDemand ?? 0,
+				laborCostForDeficit: sub.laborCostForDeficit ?? 0,
+				laborCostTotalDemand: sub.laborCostTotalDemand ?? 0
 			});
 		}
 
@@ -205,13 +214,16 @@
 				deficitQuantity: defQty,
 				isShortage: shortage,
 				prepTimeMinutes: prod.prepTimeMinutes ?? 0,
+				passiveTimeMinutes: prod.passiveTimeMinutes ?? 0,
 				isPrepTimeScalable: prod.isPrepTimeScalable,
 				yieldQuantity: prod.yieldQuantity ?? 1,
 				batchesNeededForDeficit:
 					prod.batchesNeededForDeficit ??
 					(defQty > 0 ? Math.ceil(defQty / (prod.yieldQuantity || 1)) : 0),
 				laborMinutesForDeficit: prod.laborMinutesForDeficit ?? 0,
-				laborMinutesTotalDemand: prod.laborMinutesTotalDemand ?? 0
+				laborMinutesTotalDemand: prod.laborMinutesTotalDemand ?? 0,
+				laborCostForDeficit: prod.laborCostForDeficit ?? 0,
+				laborCostTotalDemand: prod.laborCostTotalDemand ?? 0
 			});
 		}
 
@@ -265,16 +277,21 @@
 			</p>
 		</div>
 
-		<!-- KPI 2: TIEMPO DE TRABAJO NECESARIO (Mano de obra) -->
+		<!-- KPI 2: TIEMPO ESTIMADO DE PRODUCCIÓN (CON TAREAS EN PARALELO) -->
 		<div
 			class="rounded-2xl border {totalLaborDeficit > 0
 				? 'border-amber-500/30 bg-amber-500/5'
-				: 'border-emerald-500/30 bg-emerald-500/5'} p-4 sm:p-5 shadow-xs space-y-2"
+				: 'border-emerald-500/30 bg-emerald-500/5'} p-4 sm:p-5 shadow-xs space-y-2.5"
 		>
 			<div class="flex items-center justify-between">
 				<span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
-					Tiempo de Trabajo Necesario
+					Tiempo Real Estimado
 				</span>
+				{#if (forecast.totalPassiveMinutesForDeficit ?? 0) > 0}
+					<span class="inline-flex items-center gap-1 rounded bg-amber-500/20 px-1.5 py-0.2 font-mono text-[10px] font-bold text-amber-700 dark:text-amber-300">
+						En paralelo
+					</span>
+				{/if}
 			</div>
 			<div class="flex items-center gap-3 pt-0.5">
 				<div
@@ -282,23 +299,42 @@
 						? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
 						: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'}"
 				>
-					<Timer class="size-6" />
+					<CalendarClock class="size-6" />
 				</div>
-				<div
-					class="font-mono text-xl sm:text-2xl font-bold tracking-tight {totalLaborDeficit > 0
-						? 'text-amber-600 dark:text-amber-400'
-						: 'text-emerald-600 dark:text-emerald-400'}"
-				>
-					{formatHoursAndMinutes(totalLaborDeficit)}
+				<div>
+					<div
+						class="font-mono text-xl sm:text-2xl font-bold tracking-tight {totalLaborDeficit > 0
+							? 'text-amber-600 dark:text-amber-400'
+							: 'text-emerald-600 dark:text-emerald-400'}"
+					>
+						{formatHoursAndMinutes(forecast.criticalPathMinutesForDeficit ?? totalLaborDeficit)}
+					</div>
+					{#if (forecast.totalPassiveMinutesForDeficit ?? 0) > 0}
+						<span class="text-[10px] text-muted-foreground block">
+							(Horas-hombre totales: {formatHoursAndMinutes(totalLaborDeficit)})
+						</span>
+					{/if}
 				</div>
 			</div>
-			<p class="text-xs text-muted-foreground truncate" title="Para fabricar todos los ensambles y productos con déficit">
-				{#if totalLaborDeficit > 0}
-					Mano de obra para fabricar los faltantes
-				{:else}
-					¡Todo elaborado y cubierto con stock!
+			<div class="flex items-center justify-between text-[11px] text-muted-foreground pt-0.5 border-t border-border/40 font-mono">
+				<div class="flex items-center gap-3">
+					<span class="inline-flex items-center gap-1" title="Mano de obra directa (amasar, batir, armar)">
+						<ChefHat class="size-3 text-secondary" />
+						<span>{formatHoursAndMinutes(forecast.totalActiveMinutesForDeficit ?? totalLaborDeficit)}</span>
+					</span>
+					{#if (forecast.totalPassiveMinutesForDeficit ?? 0) > 0}
+						<span class="inline-flex items-center gap-1" title="Tiempo pasivo / máquina / espera en paralelo">
+							<Flame class="size-3 text-amber-500" />
+							<span>{formatHoursAndMinutes(forecast.totalPassiveMinutesForDeficit)} pasivo</span>
+						</span>
+					{/if}
+				</div>
+				{#if (forecast.totalLaborCostForDeficit ?? 0) > 0}
+					<span class="font-bold text-foreground" title="Costo estimado operativo para cubrir faltantes">
+						${(forecast.totalLaborCostForDeficit ?? 0).toFixed(2)}
+					</span>
 				{/if}
-			</p>
+			</div>
 		</div>
 
 		<!-- KPI 3: Cobertura de la Demanda -->
@@ -511,239 +547,154 @@
 					</p>
 				</div>
 			{:else if viewStyle === 'cards'}
-				<!-- VISTA DE BARRAS VISUALES (CARDS) -->
-				<div class="space-y-4">
+				<!-- VISTA DE TARJETAS CON BARRAS VERTICALES (IDEAL PARA MOBILE & RESPONSIVE) -->
+				<div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3.5">
 					{#each filteredItems as item (item.id)}
 						{@const isFabricable = item.category === 'subassembly' || item.category === 'product'}
-						{@const stockPositive = Math.max(0, item.currentStock || 0)}
-						{@const demandVal = item.requiredQuantity > 0 ? item.requiredQuantity : 0.0001}
-						{@const coveragePct = Math.min(100, Math.round((stockPositive / demandVal) * 100))}
-						{@const deficitPct = Math.max(0, 100 - coveragePct)}
-
-						<!-- Para caso cubierto (Stock >= Demanda) -->
-						{@const demandOfStockPct = item.currentStock > 0 ? Math.min(100, Math.round(((item.requiredQuantity || 0) / item.currentStock) * 100)) : 100}
-						{@const remainingOfStockPct = Math.max(0, 100 - demandOfStockPct)}
+						{@const maxVal = Math.max(item.currentStock || 0, item.requiredQuantity || 0, 0.0001)}
+						{@const stockHeightPct = Math.min(100, Math.round(((item.currentStock || 0) / maxVal) * 100))}
+						{@const demandHeightPct = Math.min(100, Math.round(((item.requiredQuantity || 0) / maxVal) * 100))}
 
 						<div
-							class="rounded-2xl border p-4 sm:p-5 transition-all space-y-3.5 {item.isShortage
-								? 'border-red-500/30 bg-red-500/5 hover:border-red-500/50'
+							class="rounded-xl border p-4 transition-all flex flex-col justify-between gap-3.5 {item.isShortage
+								? 'border-red-500/30 bg-red-500/5 hover:border-red-500/40'
 								: 'border-border bg-card hover:border-primary/40 hover:shadow-2xs'}"
 						>
-							<!-- Encabezado del Ítem -->
-							<div class="flex flex-wrap items-start justify-between gap-3">
-								<div class="space-y-1">
-									<div class="flex items-center gap-2 flex-wrap">
-										<span class="rounded bg-muted px-2 py-0.5 font-mono text-xs font-semibold text-muted-foreground">
+							<!-- Cabecera de la Tarjeta -->
+							<div class="space-y-1.5">
+								<div class="flex items-center justify-between gap-2 flex-wrap">
+									<div class="flex items-center gap-1.5">
+										<span class="rounded bg-muted px-1.5 py-0.5 font-mono text-[11px] font-semibold text-muted-foreground">
 											{item.code}
 										</span>
-										<ItemTypeBadge type={item.itemType} />
+										<ItemTypeBadge type={item.itemType} short={true} />
 										{#if item.category === 'product'}
-											<span class="rounded-md border border-secondary/30 bg-secondary/10 px-2 py-0.5 text-[10px] font-semibold text-secondary">
-												Venta Directa
+											<span class="rounded border border-secondary/30 bg-secondary/10 px-1.5 py-0.2 text-[10px] font-semibold text-secondary">
+												Venta
 											</span>
 										{/if}
-										{#if item.isShortage}
-											<Badge variant="outline" class="border-red-500/30 bg-red-500/15 text-red-700 dark:text-red-400 font-bold text-[11px]">
-												Déficit / Faltante
-											</Badge>
-										{:else}
-											<Badge variant="outline" class="border-emerald-500/30 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 font-bold text-[11px]">
-												100% Cubierto
-											</Badge>
-										{/if}
 									</div>
-									<h4 class="text-base font-bold text-foreground">
-										{item.name}
-									</h4>
+
+									<!-- Píldora de Estado / Faltante -->
+									{#if item.isShortage}
+										<span class="inline-flex items-center gap-1 rounded-md bg-red-500/15 border border-red-500/30 px-2 py-0.5 font-mono text-[11px] font-bold text-red-600 dark:text-red-400">
+											<AlertTriangle class="size-3" />
+											Faltan {formatNum(item.deficitQuantity)} {formatUnit(item.baseUnit)}
+										</span>
+									{:else}
+										<span class="inline-flex items-center gap-1 rounded-md bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 font-mono text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+											<CheckCircle2 class="size-3" />
+											+{formatNum(item.projectedBalance)} {formatUnit(item.baseUnit)}
+										</span>
+									{/if}
 								</div>
 
-								<!-- Resumen Cuantitativo: Tengo vs Demanda -->
-								<div class="flex items-center gap-3 sm:gap-6 text-right">
-									<div>
-										<span class="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold block">
-											Stock Actual
-										</span>
-										<span class="font-mono text-sm sm:text-base font-bold text-foreground">
+								<h4 class="text-sm font-bold text-foreground truncate" title={item.name}>
+									{item.name}
+								</h4>
+							</div>
+
+							<!-- BARRAS VERTICALES COMPARATIVAS (BAR CHART) -->
+							<div class="rounded-lg border border-border/60 bg-muted/20 p-3">
+								<div class="flex items-end justify-center gap-6 sm:gap-8 h-28 pt-2">
+									<!-- Columna 1: Stock -->
+									<div class="flex flex-col items-center gap-1.5 h-full justify-end w-16 sm:w-20">
+										<span class="font-mono text-[11px] font-bold text-foreground">
 											{formatNum(item.currentStock)} {formatUnit(item.baseUnit)}
 										</span>
-									</div>
-									<div class="text-muted-foreground">→</div>
-									<div>
-										<span class="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold block">
-											Demanda Requerida
+										<div class="relative w-full rounded bg-muted/60 overflow-hidden flex flex-col justify-end h-20 border border-border/40">
+											<div
+												class="w-full rounded-sm {item.itemType === 'prepared'
+													? 'bg-secondary text-secondary-foreground'
+													: 'bg-tertiary text-yellow-950'} transition-all duration-300"
+												style="height: {Math.max(8, stockHeightPct)}%"
+											></div>
+										</div>
+										<span class="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">
+											Stock
 										</span>
-										<span class="font-mono text-sm sm:text-base font-bold text-primary">
+									</div>
+
+									<!-- Columna 2: Demanda -->
+									<div class="flex flex-col items-center gap-1.5 h-full justify-end w-16 sm:w-20">
+										<span class="font-mono text-[11px] font-bold {item.isShortage ? 'text-red-600 dark:text-red-400' : 'text-primary'}">
 											{formatNum(item.requiredQuantity)} {formatUnit(item.baseUnit)}
 										</span>
-									</div>
-								</div>
-							</div>
-
-							<!-- ============================================== -->
-							<!-- BARRA VISUAL DE COMPARACIÓN (DEMANDA VS STOCK) -->
-							<!-- ============================================== -->
-							<div class="space-y-1.5 pt-1">
-								<div class="flex items-center justify-between text-xs">
-									<!-- Estado de cobertura con indicador -->
-									<div class="flex items-center gap-1.5 font-medium">
-										{#if item.isShortage}
-											<span class="size-2.5 rounded-full bg-red-500 animate-pulse"></span>
-											<span class="text-red-700 dark:text-red-400 font-bold">
-												Cubre solo el {coveragePct}% de la demanda requerida
-											</span>
-										{:else}
-											<span class="size-2.5 rounded-full bg-emerald-500"></span>
-											<span class="text-emerald-700 dark:text-emerald-400 font-bold">
-												Cubre el 100% de la demanda ({demandOfStockPct}% del stock disponible)
-											</span>
-										{/if}
-									</div>
-
-									<!-- En cuánto vas a quedar o cuánto te falta -->
-									<div class="font-mono text-xs font-bold {item.isShortage ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}">
-										{#if item.isShortage}
-											⚠️ Te faltan: {formatNum(item.deficitQuantity)} {formatUnit(item.baseUnit)}
-										{:else}
-											✓ Te quedarán: +{formatNum(item.projectedBalance)} {formatUnit(item.baseUnit)}
-										{/if}
-									</div>
-								</div>
-
-								<!-- Track de la Barra -->
-								<div class="relative h-5 w-full overflow-hidden rounded-full bg-muted/70 border border-border flex shadow-inner">
-									{#if item.isShortage}
-										<!-- CASO DÉFICIT: La barra representa la Demanda total -->
-										<!-- Segmento 1: Cubierto con Stock Actual -->
-										{#if coveragePct > 0}
+										<div class="relative w-full rounded bg-muted/60 overflow-hidden flex flex-col justify-end h-20 border border-border/40">
 											<div
-												class="h-full {item.itemType === 'prepared'
-													? 'bg-secondary text-secondary-foreground'
-													: 'bg-tertiary text-yellow-950'} font-bold transition-all duration-300 relative flex items-center justify-center text-[10px] font-mono"
-												style="width: {coveragePct}%"
-												title="Stock cubierto: {formatNum(item.currentStock)} {formatUnit(item.baseUnit)} ({coveragePct}%)"
-											>
-												{#if coveragePct >= 18}
-													<span class="truncate px-1 font-bold">Stock {formatNum(item.currentStock)}</span>
-												{/if}
-											</div>
-										{/if}
-
-										<!-- Segmento 2: Faltante / Déficit (Lo que falta para cubrir) -->
-										<div
-											class="h-full bg-red-500 text-white font-bold transition-all duration-300 relative flex items-center justify-center text-[10px] font-mono flex-1"
-											title="Faltante a cubrir: {formatNum(item.deficitQuantity)} {formatUnit(item.baseUnit)} ({deficitPct}%)"
-										>
-											<span class="truncate px-1">Faltan {formatNum(item.deficitQuantity)} {formatUnit(item.baseUnit)} ({deficitPct}%)</span>
+												class="w-full rounded-sm {item.isShortage
+													? 'bg-red-500'
+													: 'bg-emerald-500'} transition-all duration-300"
+												style="height: {Math.max(8, demandHeightPct)}%"
+											></div>
 										</div>
-									{:else}
-										<!-- CASO CUBIERTO: La barra representa el Stock Actual disponible -->
-										<!-- Segmento 1: Demanda consumida por los pedidos -->
-										<div
-											class="h-full {item.itemType === 'prepared'
-												? 'bg-secondary text-secondary-foreground'
-												: 'bg-tertiary text-yellow-950'} font-bold transition-all duration-300 relative flex items-center justify-center text-[10px] font-mono"
-											style="width: {demandOfStockPct}%"
-											title="Demanda a consumir: {formatNum(item.requiredQuantity)} {formatUnit(item.baseUnit)} ({demandOfStockPct}%)"
-										>
-											{#if demandOfStockPct >= 18}
-												<span class="truncate px-1">Demanda: {formatNum(item.requiredQuantity)} {formatUnit(item.baseUnit)}</span>
-											{/if}
-										</div>
-
-										<!-- Segmento 2: Stock remanente en depósito -->
-										<div
-											class="h-full bg-emerald-500 text-emerald-950 font-bold transition-all duration-300 relative flex items-center justify-center text-[10px] font-mono flex-1"
-											title="Te quedará en depósito: +{formatNum(item.projectedBalance)} {formatUnit(item.baseUnit)}"
-										>
-											{#if remainingOfStockPct >= 15}
-												<span class="truncate px-1">Te quedarán +{formatNum(item.projectedBalance)} {formatUnit(item.baseUnit)}</span>
-											{/if}
-										</div>
-									{/if}
+										<span class="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">
+											Demanda
+										</span>
+									</div>
 								</div>
 							</div>
 
-							<!-- ============================================== -->
-							<!-- TIEMPO DE TRABAJO & ACCIÓN REQUERIDA           -->
-							<!-- ============================================== -->
-							<div class="flex flex-wrap items-center justify-between gap-3 pt-1 text-xs">
-								<!-- Información de Stock Proyectado -->
-								<div class="flex items-center gap-2 text-muted-foreground text-[11px]">
-									<span>Stock post-entregas:</span>
-									<span class="font-mono font-bold {item.isShortage ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}">
-										{item.projectedBalance >= 0 ? '+' : ''}{formatNum(item.projectedBalance)} {formatUnit(item.baseUnit)}
+							<!-- Pie: Tiempo de trabajo o estado -->
+							<div class="flex items-center justify-between text-[11px] pt-0.5 font-mono">
+								{#if isFabricable && item.isShortage && (item.laborMinutesForDeficit ?? 0) > 0}
+									<span class="text-muted-foreground">Fabricación:</span>
+									<div class="inline-flex items-center gap-2">
+										{#if (item.passiveTimeMinutes ?? 0) > 0}
+											<span class="inline-flex items-center gap-0.5 text-secondary font-semibold" title="Mano de obra activa">
+												<ChefHat class="size-3" />
+												{formatHoursAndMinutes(item.prepTimeMinutes ?? 0)}
+											</span>
+											<span class="inline-flex items-center gap-0.5 text-amber-600 dark:text-amber-400 font-semibold" title="Tiempo pasivo en paralelo">
+												<Flame class="size-3" />
+												{formatHoursAndMinutes(item.passiveTimeMinutes ?? 0)}
+											</span>
+										{:else}
+											<span class="inline-flex items-center gap-1 font-semibold text-secondary">
+												<Clock class="size-3" />
+												{formatHoursAndMinutes(item.laborMinutesForDeficit ?? 0)}
+											</span>
+										{/if}
+										{#if (item.batchesNeededForDeficit ?? 0) > 0}
+											<span class="text-muted-foreground font-normal">
+												({item.batchesNeededForDeficit} {item.batchesNeededForDeficit === 1 ? 'tda' : 'tdas'})
+											</span>
+										{/if}
+									</div>
+								{:else if isFabricable}
+									<span class="text-muted-foreground">Producción:</span>
+									<span class="text-emerald-600 dark:text-emerald-400 font-medium">0 min (listo)</span>
+								{:else}
+									<span class="text-muted-foreground">Insumo:</span>
+									<span class="{item.isShortage ? 'text-red-600 dark:text-red-400 font-bold' : 'text-emerald-600 dark:text-emerald-400 font-medium'}">
+										{item.isShortage ? 'Requiere compra' : 'Stock suficiente'}
 									</span>
-									{#if item.minStock > 0}
-										<span>(Mínimo de seguridad: {formatNum(item.minStock)} {formatUnit(item.baseUnit)})</span>
-									{/if}
-								</div>
-
-								<!-- TIEMPO DE TRABAJO (SI ES FABRICABLE) O ACCIÓN DE COMPRA -->
-								<div>
-									{#if isFabricable}
-										{#if item.isShortage}
-											{#if (item.laborMinutesForDeficit ?? 0) > 0}
-												<div class="inline-flex items-center gap-1.5 rounded-lg border border-secondary/40 bg-secondary/15 px-2.5 py-1 text-xs font-bold text-secondary dark:text-secondary-foreground">
-													<Clock class="size-3.5 shrink-0" />
-													<span>Tiempo de trabajo necesario: {formatHoursAndMinutes(item.laborMinutesForDeficit ?? 0)}</span>
-													{#if (item.batchesNeededForDeficit ?? 0) > 0}
-														<span class="opacity-80 font-normal">
-															({item.batchesNeededForDeficit} {item.batchesNeededForDeficit === 1 ? 'tanda' : 'tandas'} de {formatNum(item.yieldQuantity ?? 1)} {formatUnit(item.baseUnit)})
-														</span>
-													{/if}
-												</div>
-											{:else}
-												<span class="inline-flex items-center gap-1 text-[11px] text-muted-foreground italic bg-muted/40 px-2 py-0.5 rounded">
-													<Clock class="size-3" />
-													<span>Sin tiempo estimado configurado en receta (0 min)</span>
-												</span>
-											{/if}
-										{:else}
-											<div class="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg">
-												<CheckCircle2 class="size-3.5 shrink-0" />
-												<span>0 min de trabajo (Stock listo para cubrir demanda)</span>
-											</div>
-										{/if}
-									{:else}
-										<!-- Materia Prima / Insumo -->
-										{#if item.isShortage}
-											<div class="inline-flex items-center gap-1.5 rounded-lg border border-red-500/30 bg-red-500/15 px-2.5 py-1 text-xs font-bold text-red-700 dark:text-red-400">
-												<ShoppingCart class="size-3.5 shrink-0" />
-												<span>Comprar {formatNum(item.deficitQuantity)} {formatUnit(item.baseUnit)} para cubrir la demanda</span>
-											</div>
-										{:else}
-											<div class="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg">
-												<CheckCircle2 class="size-3.5 shrink-0" />
-												<span>Materia prima suficiente en almacén</span>
-											</div>
-										{/if}
-									{/if}
-								</div>
+								{/if}
 							</div>
 						</div>
 					{/each}
 				</div>
 			{:else}
-				<!-- VISTA DE TABLA DETALLADA -->
+				<!-- VISTA DE TABLA CON DOS BARRAS HORIZONTALES COMPACTAS -->
 				<div class="overflow-x-auto rounded-xl border border-border">
 					<table class="w-full text-left text-xs border-collapse">
 						<thead class="border-b border-border bg-muted/50 text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
 							<tr>
 								<th class="py-3 px-3">Código & Ítem</th>
 								<th class="py-3 px-3">Tipo</th>
-								<th class="py-3 px-3 text-right">Stock Actual</th>
-								<th class="py-3 px-3 text-right">Demanda Pedidos</th>
-								<th class="py-3 px-3 min-w-[180px]">Cobertura (Barra)</th>
-								<th class="py-3 px-3 text-right">En Cuánto Quedas / Déficit</th>
-								<th class="py-3 px-3 text-right">Tiempo de Trabajo / Acción</th>
+								<th class="py-3 px-3 text-right">Stock</th>
+								<th class="py-3 px-3 text-right">Demanda</th>
+								<th class="py-3 px-3 min-w-[170px]">Comparativa</th>
+								<th class="py-3 px-3 text-right">Balance</th>
+								<th class="py-3 px-3 text-right">Trabajo / Acción</th>
 							</tr>
 						</thead>
 						<tbody class="divide-y divide-border/60">
 							{#each filteredItems as item (item.id)}
 								{@const isFabricable = item.category === 'subassembly' || item.category === 'product'}
-								{@const stockPositive = Math.max(0, item.currentStock || 0)}
-								{@const demandVal = item.requiredQuantity > 0 ? item.requiredQuantity : 0.0001}
-								{@const coveragePct = Math.min(100, Math.round((stockPositive / demandVal) * 100))}
+								{@const maxVal = Math.max(item.currentStock || 0, item.requiredQuantity || 0, 0.0001)}
+								{@const stockWidthPct = Math.min(100, Math.round(((item.currentStock || 0) / maxVal) * 100))}
+								{@const demandWidthPct = Math.min(100, Math.round(((item.requiredQuantity || 0) / maxVal) * 100))}
 
 								<tr class="transition-colors hover:bg-muted/20 {item.isShortage ? 'bg-red-500/5' : ''}">
 									<!-- Código & Ítem -->
@@ -767,63 +718,71 @@
 									</td>
 
 									<!-- Demanda -->
-									<td class="py-3 px-3 align-middle text-right font-mono font-bold text-primary whitespace-nowrap">
+									<td class="py-3 px-3 align-middle text-right font-mono font-bold {item.isShortage ? 'text-red-600 dark:text-red-400' : 'text-primary'} whitespace-nowrap">
 										{formatNum(item.requiredQuantity)} {formatUnit(item.baseUnit)}
 									</td>
 
-									<!-- Barra de Cobertura -->
-									<td class="py-3 px-3 align-middle min-w-[180px]">
-										<div class="space-y-1">
-											<div class="relative h-2.5 w-full overflow-hidden rounded-full bg-muted border border-border/60 flex">
-												{#if item.isShortage}
-													<div class="h-full {item.itemType === 'prepared' ? 'bg-secondary' : 'bg-tertiary'}" style="width: {coveragePct}%"></div>
-													<div class="h-full bg-red-500 flex-1"></div>
-												{:else}
-													<div class="h-full bg-emerald-500 w-full"></div>
-												{/if}
+									<!-- Dos Barras Horizontales Comparativas (Stock vs Demanda) -->
+									<td class="py-3 px-3 align-middle min-w-[170px]">
+										<div class="space-y-1 font-mono text-[10px]">
+											<!-- Barra Stock -->
+											<div class="flex items-center gap-1.5">
+												<span class="w-8 shrink-0 text-muted-foreground text-right">Stk</span>
+												<div class="h-2 flex-1 rounded bg-muted/60 overflow-hidden">
+													<div
+														class="h-full rounded-xs {item.itemType === 'prepared' ? 'bg-secondary' : 'bg-tertiary'}"
+														style="width: {Math.max(6, stockWidthPct)}%"
+													></div>
+												</div>
 											</div>
-											<div class="flex items-center justify-between text-[10px] text-muted-foreground font-mono">
-												<span>{coveragePct}% cubierto</span>
-												<span>{item.isShortage ? 'Falta stock' : '100% OK'}</span>
+											<!-- Barra Demanda -->
+											<div class="flex items-center gap-1.5">
+												<span class="w-8 shrink-0 text-muted-foreground text-right">Dem</span>
+												<div class="h-2 flex-1 rounded bg-muted/60 overflow-hidden">
+													<div
+														class="h-full rounded-xs {item.isShortage ? 'bg-red-500' : 'bg-emerald-500'}"
+														style="width: {Math.max(6, demandWidthPct)}%"
+													></div>
+												</div>
 											</div>
 										</div>
 									</td>
 
-									<!-- En cuánto quedas / Déficit -->
+									<!-- Balance -->
 									<td class="py-3 px-3 align-middle text-right font-mono font-bold whitespace-nowrap">
 										{#if item.isShortage}
 											<span class="text-red-600 dark:text-red-400">
-												Faltan {formatNum(item.deficitQuantity)} {formatUnit(item.baseUnit)}
+												-{formatNum(item.deficitQuantity)} {formatUnit(item.baseUnit)}
 											</span>
 										{:else}
 											<span class="text-emerald-600 dark:text-emerald-400">
-												Quedan +{formatNum(item.projectedBalance)} {formatUnit(item.baseUnit)}
+												+{formatNum(item.projectedBalance)} {formatUnit(item.baseUnit)}
 											</span>
 										{/if}
 									</td>
 
 									<!-- Tiempo de Trabajo / Acción -->
-									<td class="py-3 px-3 align-middle text-right whitespace-nowrap">
+									<td class="py-3 px-3 align-middle text-right whitespace-nowrap font-mono">
 										{#if isFabricable}
 											{#if item.isShortage}
 												{#if (item.laborMinutesForDeficit ?? 0) > 0}
-													<span class="inline-flex items-center gap-1 rounded bg-amber-500/15 px-2 py-0.5 text-[11px] font-bold text-amber-800 dark:text-amber-300">
+													<span class="inline-flex items-center gap-1 rounded bg-secondary/15 px-2 py-0.5 text-[11px] font-bold text-secondary dark:text-secondary-foreground">
 														<Clock class="size-3" />
 														{formatHoursAndMinutes(item.laborMinutesForDeficit ?? 0)}
 													</span>
 												{:else}
-													<span class="text-[10px] text-muted-foreground italic">0 min (sin config)</span>
+													<span class="text-[10px] text-muted-foreground italic">0 min</span>
 												{/if}
 											{:else}
-												<span class="text-[11px] text-emerald-600 font-medium">0 min (listo)</span>
+												<span class="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">0 min</span>
 											{/if}
 										{:else}
 											{#if item.isShortage}
 												<span class="inline-flex items-center gap-1 rounded bg-red-500/15 px-2 py-0.5 text-[11px] font-bold text-red-700 dark:text-red-400">
-													Comprar {formatNum(item.deficitQuantity)} {formatUnit(item.baseUnit)}
+													Falta stock
 												</span>
 											{:else}
-												<span class="text-[11px] text-emerald-600 font-medium">Abastecido</span>
+												<span class="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">Cubierto</span>
 											{/if}
 										{/if}
 									</td>

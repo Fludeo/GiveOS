@@ -12,9 +12,6 @@ export async function updateRecipeYieldAction({ request, locals, url }: RequestE
 	const { itemService } = getServices();
 	const id = String(formData.get('id') ?? '');
 	const yieldQuantity = Number(formData.get('yieldQuantity') ?? 1);
-	const prepTimeMinutes = formData.has('prepTimeMinutes')
-		? Number(formData.get('prepTimeMinutes') ?? 0)
-		: undefined;
 
 	if (!Number.isFinite(yieldQuantity) || yieldQuantity <= 0) {
 		return fail(400, { error: 'El rendimiento del lote debe ser un número mayor a 0.' });
@@ -22,15 +19,11 @@ export async function updateRecipeYieldAction({ request, locals, url }: RequestE
 
 	try {
 		const updated = await itemService.updateItem(id, activeBusiness.id, {
-			yieldQuantity,
-			prepTimeMinutes:
-				prepTimeMinutes !== undefined && Number.isFinite(prepTimeMinutes) && prepTimeMinutes >= 0
-					? Math.round(prepTimeMinutes)
-					: undefined
+			yieldQuantity
 		});
 		return {
 			success: true,
-			message: `Parámetros de la receta para "${updated.name}" actualizados (Rinde ${yieldQuantity} ${updated.baseUnit}${updated.prepTimeMinutes > 0 ? ` · ${updated.prepTimeMinutes} min` : ''}).`
+			message: `Parámetros de la receta para "${updated.name}" actualizados (Rinde ${yieldQuantity} ${updated.baseUnit}).`
 		};
 	} catch (e) {
 		return fail(400, {

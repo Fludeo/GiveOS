@@ -14,6 +14,8 @@
 	import Wheat from '@lucide/svelte/icons/wheat';
 	import GraphHub from '@lucide/svelte/icons/graph-hub';
 	import Clock from '@lucide/svelte/icons/clock';
+	import ChefHat from '@lucide/svelte/icons/chef-hat';
+	import Flame from '@lucide/svelte/icons/flame';
 	import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
 	import Check from '@lucide/svelte/icons/check';
 
@@ -42,6 +44,7 @@
 	let newItemBaseUnit = $state<UnitOfMeasure>('g');
 	let newItemMinStock = $state<number | ''>('');
 	let newItemPrepTime = $state<number | ''>(0);
+	let newItemPassiveTime = $state<number | ''>(0);
 	let newItemNotes = $state('');
 
 	$effect(() => {
@@ -53,6 +56,7 @@
 			newItemBaseUnit = initialType === 'raw_material' ? 'g' : 'unit';
 			newItemMinStock = '';
 			newItemPrepTime = 0;
+			newItemPassiveTime = 0;
 			newItemNotes = '';
 		}
 	});
@@ -228,23 +232,7 @@
 								</select>
 							</div>
 
-							{#if newItemType === 'prepared'}
-								<div class="space-y-2">
-									<Label for="inv-step-preptime">Tiempo Estimado de Elaboración (minutos)</Label>
-									<div class="relative flex items-center">
-										<Clock class="pointer-events-none absolute left-3 size-4 text-muted-foreground" />
-										<Input
-											id="inv-step-preptime"
-											type="number"
-											min="0"
-											step="1"
-											bind:value={newItemPrepTime}
-											class="h-11 pl-9 font-mono"
-											placeholder="0 (ej. 60)"
-										/>
-									</div>
-								</div>
-							{/if}
+							
 						</div>
 					{:else}
 						<!-- PASO 3: Alerta y Notas -->

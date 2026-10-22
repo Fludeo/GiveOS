@@ -11,3 +11,4 @@ export { createSalesProductAction as createSalesProduct } from './create-sales-p
 export { updateSalesProductAction as updateSalesProduct } from './update-sales-product.action';
 export { deleteSalesProductAction as deleteSalesProduct } from './delete-sales-product.action';
 export { toggleSalesProductShortcutAction as toggleSalesProductShortcut } from './toggle-sales-product-shortcut.action';
+export { saveRecipeOperationalCostsAction as saveRecipeOperationalCosts } from './save-recipe-operational-costs.action';

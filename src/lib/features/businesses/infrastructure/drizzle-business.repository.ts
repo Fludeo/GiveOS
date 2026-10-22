@@ -67,7 +67,8 @@ export class DrizzleBusinessRepository implements IBusinessRepository {
 				name: input.name.trim(),
 				description: input.description.trim(),
 				whatsapp: input.whatsapp.trim(),
-				openingHours: input.openingHours.trim()
+				openingHours: input.openingHours.trim(),
+				settings: input.settings ?? null
 			})
 			.returning();
 
@@ -93,6 +94,7 @@ export class DrizzleBusinessRepository implements IBusinessRepository {
 		if (input.description !== undefined) updateData.description = input.description.trim();
 		if (input.whatsapp !== undefined) updateData.whatsapp = input.whatsapp.trim();
 		if (input.openingHours !== undefined) updateData.openingHours = input.openingHours.trim();
+		if (input.settings !== undefined) updateData.settings = input.settings;
 
 		const [updated] = await this.db
 			.update(schema.businesses)

@@ -8,6 +8,20 @@ export interface TimeBlock {
 	close: string;
 }
 
+export type OperationalCostType = 'active' | 'passive';
+
+export interface OperationalCostResource {
+	id: string;
+	name: string;
+	type: OperationalCostType;
+	ratePerHour: number;
+}
+
+export interface BusinessSettings {
+	operationalCosts?: OperationalCostResource[];
+	currencySymbol?: string;
+}
+
 export interface DaySchedule {
 	day: DayKey;
 	label: string;
@@ -23,6 +37,7 @@ export interface Business {
 	whatsapp: string;
 	/** JSON serializado de DaySchedule[] (o texto legible) */
 	openingHours: string;
+	settings?: BusinessSettings | null;
 	createdAt: Date;
 }
 
@@ -38,6 +53,7 @@ export interface CreateBusinessForUserInput {
 	description: string;
 	whatsapp: string;
 	openingHours: string;
+	settings?: BusinessSettings | null;
 }
 
 export interface UpdateBusinessInput {
@@ -45,6 +61,7 @@ export interface UpdateBusinessInput {
 	description?: string;
 	whatsapp?: string;
 	openingHours?: string;
+	settings?: BusinessSettings | null;
 }
 
 export function createDefaultWeeklySchedule(): DaySchedule[] {

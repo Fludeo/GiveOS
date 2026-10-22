@@ -119,8 +119,7 @@
 				</div>
 
 				<!-- Parámetros de Receta: Rendimiento y Tiempo -->
-				<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-					<div class="space-y-1.5">
+				<div class="space-y-1.5">
 						<Label for="edit-yieldQuantity" class="flex items-center gap-1.5 font-semibold text-foreground">
 							<CirclePile class="size-3.5 text-secondary" />
 							<span>Rendimiento Base ({item.baseUnit === 'unit' ? 'un' : item.baseUnit})</span>
@@ -140,61 +139,7 @@
 						</p>
 					</div>
 
-										<div class="space-y-1.5">
-						<Label for="edit-prepTimeMinutes" class="flex items-center gap-1.5 font-semibold text-foreground">
-							{#if editIsPrepTimeScalable}
-								<ClockFading class="size-3.5 text-secondary" />
-								<span>Tiempo por Unidad (min / un)</span>
-							{:else}
-								<Clock class="size-3.5 text-secondary" />
-								<span>Tiempo por Tanda (min / lote)</span>
-							{/if}
-						</Label>
-						<Input
-							id="edit-prepTimeMinutes"
-							name="prepTimeMinutes"
-							type="number"
-							step="1"
-							min="0"
-							bind:value={editPrepTimeMinutes}
-							class="h-10 font-mono text-sm"
-						/>
-						<p class="text-[11px] text-muted-foreground">
-							{#if editIsPrepTimeScalable}
-								Minutos de elaboración requeridos por cada 1 {item.baseUnit === 'unit' ? 'un' : item.baseUnit}.
-							{:else}
-								Duración fija de horneado o preparación para la tanda completa.
-							{/if}
-						</p>
-					</div>
-				</div>
-
-				<!-- Modo de Tiempo: Fijo por lote vs Fraccional por unidad -->
-				<div class="rounded-xl border {editIsPrepTimeScalable ? 'border-secondary/40 bg-secondary/5' : 'border-border/70 bg-muted/15'} p-3.5 space-y-2 transition-colors">
-					<div class="flex items-center justify-between gap-2">
-						<Label for="edit-isPrepTimeScalable" class="text-xs font-semibold text-foreground cursor-pointer flex items-center gap-1.5">
-							<ClockFading class="size-3.5 text-secondary" />
-							<span>Tiempo fraccionable por unidad</span>
-						</Label>
-						<input
-							id="edit-isPrepTimeScalable"
-							type="checkbox"
-							name="isPrepTimeScalable"
-							value="true"
-							bind:checked={editIsPrepTimeScalable}
-							class="size-4 rounded border-border text-primary focus:ring-primary cursor-pointer"
-						/>
-					</div>
-					<p class="text-[11px] leading-relaxed text-muted-foreground">
-						{#if editIsPrepTimeScalable}
-							<strong class="text-secondary">Modo por unidad activo:</strong> El tiempo ingresado arriba corresponde a 1 {item.baseUnit === 'unit' ? 'un' : item.baseUnit}. Al fabricar stock, el tiempo estimado total aumentará linealmente según la cantidad producida (ej. {editPrepTimeMinutes || 0} min × unidades fabricadas).
-						{:else}
-							<strong>Modo lote completo:</strong> El tiempo ingresado arriba es fijo para toda la tanda u horneada completa de {editYieldQuantity || 1} {item.baseUnit === 'unit' ? 'un' : item.baseUnit}.
-						{/if}
-					</p>
-				</div>
-
-				<!-- Notas -->
+										<!-- Notas -->
 				<div class="space-y-1.5">
 					<Label for="edit-notes" class="font-semibold text-foreground">Notas de la Elaboración (opcional)</Label>
 					<Input

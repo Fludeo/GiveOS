@@ -10,6 +10,8 @@
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import Clock from '@lucide/svelte/icons/clock';
 	import ClockFading from '@lucide/svelte/icons/clock-fading';
+	import ChefHat from '@lucide/svelte/icons/chef-hat';
+	import Flame from '@lucide/svelte/icons/flame';
 
 	let {
 		node,
@@ -84,16 +86,21 @@
 		</td>
 
 		<td class="px-4 py-4 text-center align-middle font-mono text-xs">
-			{#if current.component.type === 'prepared' && current.component.prepTimeMinutes > 0}
-				<span class="inline-flex items-center gap-1 rounded-full border border-secondary/30 bg-secondary/10 px-2 py-0.5 text-xs text-secondary font-semibold" title={current.component.isPrepTimeScalable ? "Tiempo: min / un" : "Tiempo: min / lote"}>
-					{#if current.component.isPrepTimeScalable}
-						<ClockFading class="size-3" />
-						{current.component.prepTimeMinutes} min / un
-					{:else}
-						<Clock class="size-3" />
-						{current.component.prepTimeMinutes} min
+			{#if current.component.type === 'prepared' && ((current.component.prepTimeMinutes ?? 0) > 0 || (current.component.passiveTimeMinutes ?? 0) > 0)}
+				<div class="inline-flex items-center gap-1.5 flex-wrap justify-center">
+					{#if (current.component.prepTimeMinutes ?? 0) > 0}
+						<span class="inline-flex items-center gap-1 rounded-full border border-secondary/30 bg-secondary/10 px-2 py-0.5 text-xs text-secondary font-semibold" title={current.component.isPrepTimeScalable ? "Tiempo activo: min / un" : "Tiempo activo: min / lote"}>
+							<ChefHat class="size-3" />
+							{current.component.prepTimeMinutes} min{current.component.isPrepTimeScalable ? ' / un' : ''}
+						</span>
 					{/if}
-				</span>
+					{#if (current.component.passiveTimeMinutes ?? 0) > 0}
+						<span class="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-xs text-amber-600 dark:text-amber-400 font-semibold" title="Cocción / Espera en paralelo">
+							<Flame class="size-3" />
+							{current.component.passiveTimeMinutes} min
+						</span>
+					{/if}
+				</div>
 			{:else}
 				<span class="text-muted-foreground/40">-</span>
 			{/if}

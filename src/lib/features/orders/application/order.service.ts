@@ -629,26 +629,80 @@ export class OrderService {
 		const subAssemblyRequiredMap = new Map<string, number>();
 		const directRawRequiredMap = new Map<string, number>();
 
-		const calcLabor = (
+		const calcLaborLegacy = (
 			qty: number,
 			prepTime: number | undefined,
+			passiveTime: number | undefined,
 			yieldQty: number | undefined,
 			scalable: boolean | undefined
 		) => {
-			if (!prepTime || prepTime <= 0 || qty <= 0) {
-				return { laborMinutes: 0, batchesNeeded: 0 };
+			const activeTime = prepTime && prepTime > 0 ? prepTime : 0;
+			const passive = passiveTime && passiveTime > 0 ? passiveTime : 0;
+			const totalTime = activeTime + passive;
+			if (totalTime <= 0 || qty <= 0) {
+				return { laborMinutes: 0, activeMinutes: 0, passiveMinutes: 0, batchesNeeded: 0 };
 			}
 			const y = yieldQty && yieldQty > 0 ? yieldQty : 1;
 			if (scalable) {
 				return {
-					laborMinutes: Math.round((qty / y) * prepTime),
+					laborMinutes: Math.round((qty / y) * totalTime),
+					activeMinutes: Math.round((qty / y) * activeTime),
+					passiveMinutes: Math.round((qty / y) * passive),
 					batchesNeeded: Number((qty / y).toFixed(2))
 				};
 			}
 			const batches = Math.ceil(qty / y);
 			return {
-				laborMinutes: batches * prepTime,
+				laborMinutes: batches * totalTime,
+				activeMinutes: batches * activeTime,
+				passiveMinutes: batches * passive,
 				batchesNeeded: batches
+			};
+		};
+
+		const calcLaborForItem = (item: Item, qty: number) => {
+			const opCosts = item.recipeConfig?.operationalCosts;
+			if (opCosts && opCosts.length > 0) {
+				const yieldQty = item.yieldQuantity > 0 ? item.yieldQuantity : 1;
+				const batches = Math.ceil(qty / yieldQty);
+				let activeMinutes = 0;
+				let passiveMinutes = 0;
+				let totalLaborCost = 0;
+
+				for (const cost of opCosts) {
+					const dur = Number(cost.durationMinutes) || 0;
+					const rate = Number(cost.ratePerHour) || 0;
+					const effectiveDur = cost.isScalable ? dur * (qty / yieldQty) : dur * batches;
+					if (cost.type === 'active') {
+						activeMinutes += effectiveDur;
+					} else {
+						passiveMinutes += effectiveDur;
+					}
+					totalLaborCost += (effectiveDur / 60) * rate;
+				}
+
+				const roundedActive = Math.round(activeMinutes);
+				const roundedPassive = Math.round(passiveMinutes);
+
+				return {
+					laborMinutes: roundedActive + roundedPassive,
+					activeMinutes: roundedActive,
+					passiveMinutes: roundedPassive,
+					batchesNeeded: batches,
+					laborCost: Math.round(totalLaborCost * 100) / 100
+				};
+			}
+
+			// Fallback a tiempos legados en caso de que aún no tenga operationalCosts desglosados
+			return {
+				...calcLaborLegacy(
+					qty,
+					item.prepTimeMinutes,
+					item.passiveTimeMinutes,
+					item.yieldQuantity,
+					item.isPrepTimeScalable
+				),
+				laborCost: 0
 			};
 		};
 
@@ -661,18 +715,18 @@ export class OrderService {
 			const deficitQuantity = projectedBalance < 0 ? Math.abs(projectedBalance) : 0;
 			const isShortage = deficitQuantity > 0;
 
-			const { laborMinutes: laborDeficit, batchesNeeded: batchesDeficit } = calcLabor(
-				deficitQuantity,
-				productItem.prepTimeMinutes,
-				productItem.yieldQuantity,
-				productItem.isPrepTimeScalable
-			);
-			const { laborMinutes: laborDemand } = calcLabor(
-				totalOrderedQty,
-				productItem.prepTimeMinutes,
-				productItem.yieldQuantity,
-				productItem.isPrepTimeScalable
-			);
+			const {
+				laborMinutes: laborDeficit,
+				activeMinutes: activeDeficit,
+				passiveMinutes: passiveDeficit,
+				batchesNeeded: batchesDeficit,
+				laborCost: costDeficit
+			} = calcLaborForItem(productItem, deficitQuantity);
+
+			const {
+				laborMinutes: laborDemand,
+				laborCost: costDemand
+			} = calcLaborForItem(productItem, totalOrderedQty);
 
 			productDemands.push({
 				itemId: productItem.id,
@@ -685,11 +739,14 @@ export class OrderService {
 				deficitQuantity: Number(deficitQuantity.toFixed(3)),
 				isShortage,
 				prepTimeMinutes: productItem.prepTimeMinutes,
+				passiveTimeMinutes: productItem.passiveTimeMinutes,
 				isPrepTimeScalable: productItem.isPrepTimeScalable,
 				yieldQuantity: productItem.yieldQuantity,
 				batchesNeededForDeficit: batchesDeficit,
 				laborMinutesForDeficit: laborDeficit,
-				laborMinutesTotalDemand: laborDemand
+				laborMinutesTotalDemand: laborDemand,
+				laborCostForDeficit: costDeficit,
+				laborCostTotalDemand: costDemand
 			});
 
 			const summary = recipeSummaries[productItem.id];
@@ -808,18 +865,18 @@ export class OrderService {
 				(projectedBalance < 0 ? Math.abs(projectedBalance) : 0);
 			const isShortage = deficitQuantity > 0;
 
-			const { laborMinutes: laborDeficit, batchesNeeded: batchesDeficit } = calcLabor(
-				deficitQuantity,
-				subItem.prepTimeMinutes,
-				subItem.yieldQuantity,
-				subItem.isPrepTimeScalable
-			);
-			const { laborMinutes: laborDemand } = calcLabor(
-				reqQty,
-				subItem.prepTimeMinutes,
-				subItem.yieldQuantity,
-				subItem.isPrepTimeScalable
-			);
+			const {
+				laborMinutes: laborDeficit,
+				activeMinutes: subActiveDeficit,
+				passiveMinutes: subPassiveDeficit,
+				batchesNeeded: batchesDeficit,
+				laborCost: subCostDeficit
+			} = calcLaborForItem(subItem, deficitQuantity);
+
+			const {
+				laborMinutes: laborDemand,
+				laborCost: subCostDemand
+			} = calcLaborForItem(subItem, reqQty);
 
 			subAssemblyForecast.push({
 				itemId: subItem.id,
@@ -834,11 +891,14 @@ export class OrderService {
 				deficitQuantity: Number(deficitQuantity.toFixed(3)),
 				isShortage,
 				prepTimeMinutes: subItem.prepTimeMinutes,
+				passiveTimeMinutes: subItem.passiveTimeMinutes,
 				isPrepTimeScalable: subItem.isPrepTimeScalable,
 				yieldQuantity: subItem.yieldQuantity,
 				batchesNeededForDeficit: batchesDeficit,
 				laborMinutesForDeficit: laborDeficit,
-				laborMinutesTotalDemand: laborDemand
+				laborMinutesTotalDemand: laborDemand,
+				laborCostForDeficit: subCostDeficit,
+				laborCostTotalDemand: subCostDemand
 			});
 		}
 
@@ -882,13 +942,66 @@ export class OrderService {
 			return a.projectedBalance - b.projectedBalance;
 		});
 
-		const totalLaborMinutesForDeficit =
-			subAssemblyForecast.reduce((acc, i) => acc + (i.laborMinutesForDeficit ?? 0), 0) +
-			productDemands.reduce((acc, p) => acc + (p.laborMinutesForDeficit ?? 0), 0);
+		// Cálculo de tiempo: Activo (humano/operario), Pasivo (máquina/espera) y Ruta Crítica (paralelo)
+		let totalActiveMinutesForDeficit = 0;
+		let totalPassiveMinutesForDeficit = 0;
+		let maxSubAssemblyLeadTime = 0;
+
+		for (const p of productDemands) {
+			const item = itemsById.get(p.itemId);
+			const { activeMinutes, passiveMinutes } = item
+				? calcLaborForItem(item, p.deficitQuantity)
+				: calcLaborLegacy(
+						p.deficitQuantity,
+						p.prepTimeMinutes,
+						p.passiveTimeMinutes,
+						p.yieldQuantity,
+						p.isPrepTimeScalable
+					);
+			totalActiveMinutesForDeficit += activeMinutes;
+			totalPassiveMinutesForDeficit += passiveMinutes;
+		}
+
+		for (const s of subAssemblyForecast) {
+			const item = itemsById.get(s.itemId);
+			const { activeMinutes, passiveMinutes, laborMinutes } = item
+				? calcLaborForItem(item, s.deficitQuantity)
+				: calcLaborLegacy(
+						s.deficitQuantity,
+						s.prepTimeMinutes,
+						s.passiveTimeMinutes,
+						s.yieldQuantity,
+						s.isPrepTimeScalable
+					);
+			totalActiveMinutesForDeficit += activeMinutes;
+			totalPassiveMinutesForDeficit += passiveMinutes;
+			if (laborMinutes > maxSubAssemblyLeadTime) {
+				maxSubAssemblyLeadTime = laborMinutes;
+			}
+		}
+
+		const totalLaborMinutesForDeficit = totalActiveMinutesForDeficit + totalPassiveMinutesForDeficit;
+
+		// Ruta Crítica (Lead Time en paralelo):
+		// Las manos del pastelero son secuenciales (totalActiveMinutesForDeficit), pero el tiempo pasivo
+		// de cocción/frío se solapa concurrentemente con la mano de obra.
+		// Tiempo mínimo de entrega = Mano de obra activa total + el tiempo pasivo que no pudo ser solapado.
+		const criticalPathMinutesForDeficit = Math.max(
+			totalActiveMinutesForDeficit,
+			Math.round(totalActiveMinutesForDeficit + (totalPassiveMinutesForDeficit > totalActiveMinutesForDeficit ? totalPassiveMinutesForDeficit - totalActiveMinutesForDeficit : 0))
+		);
 
 		const totalLaborMinutesTotalDemand =
 			subAssemblyForecast.reduce((acc, i) => acc + (i.laborMinutesTotalDemand ?? 0), 0) +
 			productDemands.reduce((acc, p) => acc + (p.laborMinutesTotalDemand ?? 0), 0);
+
+		const totalLaborCostForDeficit =
+			subAssemblyForecast.reduce((acc, i) => acc + (i.laborCostForDeficit ?? 0), 0) +
+			productDemands.reduce((acc, p) => acc + (p.laborCostForDeficit ?? 0), 0);
+
+		const totalLaborCostTotalDemand =
+			subAssemblyForecast.reduce((acc, i) => acc + (i.laborCostTotalDemand ?? 0), 0) +
+			productDemands.reduce((acc, p) => acc + (p.laborCostTotalDemand ?? 0), 0);
 
 		return {
 			pendingOrdersCount: pendingOrders.length,
@@ -897,7 +1010,12 @@ export class OrderService {
 			subAssemblyForecast,
 			rawMaterialForecast,
 			totalLaborMinutesForDeficit,
-			totalLaborMinutesTotalDemand
+			totalLaborMinutesTotalDemand,
+			totalActiveMinutesForDeficit,
+			totalPassiveMinutesForDeficit,
+			criticalPathMinutesForDeficit,
+			totalLaborCostForDeficit: Math.round(totalLaborCostForDeficit * 100) / 100,
+			totalLaborCostTotalDemand: Math.round(totalLaborCostTotalDemand * 100) / 100
 		};
 	}
 }

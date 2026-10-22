@@ -62,12 +62,10 @@ export class DrizzleItemRepository implements IItemRepository {
 				referenceCost: input.referenceCost,
 				purchaseQuantity: input.purchaseQuantity > 0 ? input.purchaseQuantity : 1,
 				yieldQuantity: input.yieldQuantity && input.yieldQuantity > 0 ? input.yieldQuantity : 1,
-				prepTimeMinutes:
-					input.prepTimeMinutes && input.prepTimeMinutes >= 0 ? input.prepTimeMinutes : 0,
-				isPrepTimeScalable: input.isPrepTimeScalable ?? false,
 				currentStock: input.currentStock ?? 0,
 				minStock: input.minStock ?? 0,
 				batches: input.batches ?? [],
+				recipeConfig: input.recipeConfig ?? null,
 				notes: input.notes?.trim() || null
 			})
 			.returning();
@@ -88,11 +86,8 @@ export class DrizzleItemRepository implements IItemRepository {
 		if (input.yieldQuantity !== undefined) {
 			updateData.yieldQuantity = input.yieldQuantity > 0 ? input.yieldQuantity : 1;
 		}
-		if (input.isPrepTimeScalable !== undefined) {
-			updateData.isPrepTimeScalable = Boolean(input.isPrepTimeScalable);
-		}
-		if (input.prepTimeMinutes !== undefined) {
-			updateData.prepTimeMinutes = input.prepTimeMinutes >= 0 ? input.prepTimeMinutes : 0;
+		if (input.recipeConfig !== undefined) {
+			updateData.recipeConfig = input.recipeConfig;
 		}
 		if (input.currentStock !== undefined) {
 			updateData.currentStock = input.currentStock >= 0 ? input.currentStock : 0;

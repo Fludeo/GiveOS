@@ -212,11 +212,14 @@ export interface PreorderForecastLine {
 	deficitQuantity: number;
 	isShortage: boolean;
 	prepTimeMinutes?: number;
+	passiveTimeMinutes?: number;
 	isPrepTimeScalable?: boolean;
 	yieldQuantity?: number;
 	batchesNeededForDeficit?: number;
 	laborMinutesForDeficit?: number;
 	laborMinutesTotalDemand?: number;
+	laborCostForDeficit?: number;
+	laborCostTotalDemand?: number;
 }
 
 export interface PreorderForecastSummary {
@@ -233,16 +236,24 @@ export interface PreorderForecastSummary {
 		deficitQuantity: number;
 		isShortage: boolean;
 		prepTimeMinutes?: number;
+		passiveTimeMinutes?: number;
 		isPrepTimeScalable?: boolean;
 		yieldQuantity?: number;
 		batchesNeededForDeficit?: number;
 		laborMinutesForDeficit?: number;
 		laborMinutesTotalDemand?: number;
+		laborCostForDeficit?: number;
+		laborCostTotalDemand?: number;
 	}>;
 	subAssemblyForecast: PreorderForecastLine[];
 	rawMaterialForecast: PreorderForecastLine[];
 	totalLaborMinutesForDeficit: number;
 	totalLaborMinutesTotalDemand: number;
+	totalActiveMinutesForDeficit: number;
+	totalPassiveMinutesForDeficit: number;
+	criticalPathMinutesForDeficit: number;
+	totalLaborCostForDeficit?: number;
+	totalLaborCostTotalDemand?: number;
 }
 
 export function generateNextSalesProductCode(existingCodes: string[]): string {

@@ -49,8 +49,13 @@ export interface RecipeTreeNode {
 export interface RecipeTree {
 	rootItem: Item;
 	nodes: RecipeTreeNode[];
-	/** Costo total estimado para el lote de rendimiento (yieldQuantity) del ítem raíz */
+	/** Costo total estimado para el lote de rendimiento (yieldQuantity) del ítem raíz (insumos + costos operativos) */
 	estimatedTotalCost: number;
 	/** Costo estimado por 1 unidad base del ítem raíz */
 	estimatedUnitCost: number;
+	/** Desglose de costos de insumos vs operativos */
+	ingredientTotalCost?: number;
+	operationalTotalCost?: number;
+	activeMinutes?: number;
+	passiveMinutes?: number;
 }

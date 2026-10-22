@@ -1,0 +1,1 @@
+ALTER TABLE "items" ADD COLUMN "passive_time_minutes" integer DEFAULT 0 NOT NULL;

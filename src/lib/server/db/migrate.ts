@@ -6,6 +6,7 @@ import { migrate as migratePglite } from 'drizzle-orm/pglite/migrator';
 import { PGlite } from '@electric-sql/pglite';
 import fs from 'node:fs';
 import { dev } from '$app/env';
+
 import { getDb, getPgliteClient } from './index';
 
 export async function runMigrations() {
@@ -15,11 +16,19 @@ export async function runMigrations() {
 	}
 
 	const isDev = dev || process.env.NODE_ENV === 'development';
-	const dbUrl = process.env.DATABASE_URL;
-	const usePglite = process.env.USE_PGLITE === 'true' || (isDev && !dbUrl);
+	let dbUrl = process.env.DATABASE_URL;
+	if (!dbUrl && fs.existsSync('./.env')) {
+		const match = fs.readFileSync('./.env', 'utf8').match(/^DATABASE_URL=(.+)$/m);
+		if (match) dbUrl = match[1].trim();
+	}
+	const usePglite = process.env.USE_PGLITE === 'true' || !dbUrl;
 
 	try {
 		if (usePglite) {
+			if (isDev) {
+				console.log('[db:migrate] Local PGlite environment detected. Skipping auto-migration on boot.');
+				return;
+			}
 			console.log('[db:migrate] Running local PGlite migrations...');
 			const db = getDb();
 			const client = getPgliteClient() || new PGlite(process.env.PGLITE_DATA_DIR || './.pglite_data');

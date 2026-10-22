@@ -13,6 +13,13 @@ export async function updateBusinessAction({ request, locals, url }: RequestEven
 	const description = String(formData.get('description') ?? '').trim();
 	const whatsapp = String(formData.get('whatsapp') ?? '').trim();
 	const openingHours = String(formData.get('openingHours') ?? '').trim();
+	const settingsRaw = String(formData.get('settings') ?? '').trim();
+	let settings = activeBusiness.settings ?? {};
+	if (settingsRaw) {
+		try {
+			settings = JSON.parse(settingsRaw);
+		} catch {}
+	}
 
 	const { businessService } = getServices();
 	try {
@@ -20,7 +27,8 @@ export async function updateBusinessAction({ request, locals, url }: RequestEven
 			name,
 			description,
 			whatsapp,
-			openingHours
+			openingHours,
+			settings
 		});
 		return {
 			success: true,

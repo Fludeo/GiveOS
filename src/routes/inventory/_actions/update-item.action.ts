@@ -41,6 +41,9 @@ export async function updateItemAction({ request, locals, url }: RequestEvent) {
 	const prepTimeMinutes = formData.has('prepTimeMinutes')
 		? Number(formData.get('prepTimeMinutes') ?? 0)
 		: existing.prepTimeMinutes;
+	const passiveTimeMinutes = formData.has('passiveTimeMinutes')
+		? Number(formData.get('passiveTimeMinutes') ?? 0)
+		: existing.passiveTimeMinutes;
 	const notes = formData.has('notes')
 		? String(formData.get('notes') ?? '').trim() || null
 		: existing.notes;
@@ -58,6 +61,10 @@ export async function updateItemAction({ request, locals, url }: RequestEvent) {
 			prepTimeMinutes:
 				prepTimeMinutes !== undefined && Number.isFinite(prepTimeMinutes) && prepTimeMinutes >= 0
 					? Math.round(prepTimeMinutes)
+					: undefined,
+			passiveTimeMinutes:
+				passiveTimeMinutes !== undefined && Number.isFinite(passiveTimeMinutes) && passiveTimeMinutes >= 0
+					? Math.round(passiveTimeMinutes)
 					: undefined,
 			isPrepTimeScalable: Boolean(isPrepTimeScalable),
 			notes

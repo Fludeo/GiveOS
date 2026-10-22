@@ -23,6 +23,7 @@
 	import NewItemModal from './_components/modals/new-item-modal.svelte';
 	import AddRecipeLineModal from './_components/modals/add-recipe-line-modal.svelte';
 	import EditRecipeItemModal from './_components/modals/edit-recipe-item-modal.svelte';
+	import EditRecipeCostsModal from './_components/modals/edit-recipe-costs-modal.svelte';
 	import ViewRecipeModal from './_components/modals/view-recipe-modal.svelte';
 	import NewSalesProductModal from './_components/modals/new-sales-product-modal.svelte';
 	import EditSalesProductModal from './_components/modals/edit-sales-product-modal.svelte';
@@ -102,6 +103,7 @@
 	// 6. Recetas: agregar línea y editar ficha
 	let showAddRecipeLineModal = $state(false);
 	let showEditRecipeItemModal = $state(false);
+	let showEditRecipeCostsModal = $state(false);
 	let selectedItemId = $state<string | null>(null);
 
 	const selectedRoot = $derived(
@@ -220,6 +222,7 @@
 			businessId={data.activeBusiness.id}
 			bind:selectedItemId
 			onEditItem={() => (showEditRecipeItemModal = true)}
+			onEditCosts={() => (showEditRecipeCostsModal = true)}
 			onAddLine={() => (showAddRecipeLineModal = true)}
 		/>
 	{:else if currentTab === 'products'}
@@ -313,6 +316,14 @@
 			deletingItemId = item.id;
 			showDeleteItemModal = true;
 		}}
+	/>
+
+	<EditRecipeCostsModal
+		bind:open={showEditRecipeCostsModal}
+		item={selectedRoot}
+		businessSettings={data.activeBusiness.settings}
+		businessId={data.activeBusiness.id}
+		onClose={() => {}}
 	/>
 
 	<!-- Modales de Productos de Venta -->

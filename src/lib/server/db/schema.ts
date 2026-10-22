@@ -1,3 +1,4 @@
+import type { BusinessSettings } from '#lib/features/businesses/domain/business.entity';
 // GiveOS PostgreSQL Schema - Drizzle ORM
 import { v7 as uuidv7 } from 'uuid';
 import {
@@ -96,6 +97,7 @@ export const businesses = pgTable('businesses', {
 	description: text('description').notNull().default(''),
 	whatsapp: text('whatsapp').notNull().default(''),
 	openingHours: text('opening_hours').notNull().default(''),
+	settings: jsonb('settings').$type<BusinessSettings>(),
 	createdAt: timestamp('created_at', { mode: 'date' })
 		.notNull()
 		.$defaultFn(() => new Date())
@@ -132,7 +134,7 @@ export type ItemType = (typeof ITEM_TYPES)[number];
 
 export const UNITS_OF_MEASURE = ['g', 'kg', 'ml', 'l', 'unit'] as const;
 export type UnitOfMeasure = (typeof UNITS_OF_MEASURE)[number];
-import type { ItemStockBatch } from '#lib/features/items/domain/item.entity';
+import type { ItemStockBatch, ItemRecipeConfig } from '#lib/features/items/domain/item.entity';
 
 export const items = pgTable(
 	'items',
@@ -153,16 +155,13 @@ export const items = pgTable(
 		purchaseQuantity: doublePrecision('purchase_quantity').notNull().default(1),
 		/** Rendimiento base cuando este ítem se produce mediante una Receta (ej. 1 torta o 1000 g de crema) */
 		yieldQuantity: doublePrecision('yield_quantity').notNull().default(1),
-		/** Tiempo estimado de elaboración en minutos */
-		prepTimeMinutes: integer('prep_time_minutes').notNull().default(0),
-		/** Si el tiempo de preparación es proporcional por unidad producida o fijo por lote completo */
-		isPrepTimeScalable: boolean('is_prep_time_scalable').notNull().default(false),
 		/** Stock actual en unidad base */
 		currentStock: doublePrecision('current_stock').notNull().default(0),
 		/** Stock mínimo de alerta en unidad base */
 		minStock: doublePrecision('min_stock').notNull().default(0),
 		notes: text('notes'),
 		batches: jsonb('batches').$type<ItemStockBatch[]>().notNull().default([]),
+		recipeConfig: jsonb('recipe_config').$type<ItemRecipeConfig>(),
 		createdAt: timestamp('created_at', { mode: 'date' })
 			.notNull()
 			.$defaultFn(() => new Date())

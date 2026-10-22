@@ -112,7 +112,7 @@
 					<div
 						class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-secondary text-secondary-foreground shadow-xs"
 					>
-						<ScanFace class="size-5" />
+						<ScanFace class="size-6" />
 					</div>
 					{#if !isCollapsed}
 						<div class="min-w-0">
@@ -302,9 +302,9 @@
 		>
 			<div class="flex items-center gap-2">
 				<div
-					class="flex size-8 items-center justify-center rounded-lg bg-secondary text-secondary-foreground"
+					class="flex size-9 items-center justify-center rounded-lg bg-secondary text-secondary-foreground"
 				>
-					<ScanFace class="size-4" />
+					<ScanFace class="size-5" />
 				</div>
 				<span class="font-bold text-sm text-foreground truncate max-w-[140px] sm:max-w-none">
 					{activeBusiness.name}

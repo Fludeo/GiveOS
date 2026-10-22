@@ -3,8 +3,9 @@ import {
 	applyStockConsumption,
 	applyStockRestoration,
 	areUnitsCompatible,
-	convertQuantity,
 	calculateRecipeConsumption,
+	calculateRecipeOperationalSummary,
+	convertQuantity,
 	getDirectUnitCost,
 	type Item,
 	type ItemStockBatch
@@ -171,19 +172,34 @@ export class RecipeService {
 		};
 
 		const nodes = buildNodes(rootItem.id, 0, new Set([rootItem.id]));
-		const estimatedTotalCost =
+		const ingredientTotalCost =
 			nodes.length > 0
 				? nodes.reduce((sum, n) => sum + n.estimatedLineCost, 0)
 				: rootItem.referenceCost;
+
+		const opSummary = calculateRecipeOperationalSummary(
+			rootItem.recipeConfig,
+			rootItem.prepTimeMinutes,
+			rootItem.passiveTimeMinutes,
+			Boolean(rootItem.isPrepTimeScalable)
+		);
+
+		const estimatedTotalCost = Math.round((ingredientTotalCost + opSummary.operationalTotalCost) * 100) / 100;
 		const yieldQty = rootItem.yieldQuantity > 0 ? rootItem.yieldQuantity : 1;
 		const estimatedUnitCost =
-			nodes.length > 0 ? estimatedTotalCost / yieldQty : getDirectUnitCost(rootItem);
+			nodes.length > 0
+				? Math.round((estimatedTotalCost / yieldQty) * 100) / 100
+				: Math.round((getDirectUnitCost(rootItem) + opSummary.operationalUnitCost) * 100) / 100;
 
 		return {
 			rootItem,
 			nodes,
 			estimatedTotalCost,
-			estimatedUnitCost
+			estimatedUnitCost,
+			ingredientTotalCost,
+			operationalTotalCost: opSummary.operationalTotalCost,
+			activeMinutes: opSummary.activeMinutes,
+			passiveMinutes: opSummary.passiveMinutes
 		};
 	}
 
@@ -199,6 +215,10 @@ export class RecipeService {
 				directComponentsCount: number;
 				estimatedTotalCost: number;
 				estimatedUnitCost: number;
+				ingredientTotalCost?: number;
+				operationalTotalCost?: number;
+				activeMinutes?: number;
+				passiveMinutes?: number;
 				nodes: RecipeTreeNode[];
 			}
 		>
@@ -214,6 +234,10 @@ export class RecipeService {
 				directComponentsCount: number;
 				estimatedTotalCost: number;
 				estimatedUnitCost: number;
+				ingredientTotalCost?: number;
+				operationalTotalCost?: number;
+				activeMinutes?: number;
+				passiveMinutes?: number;
 				nodes: RecipeTreeNode[];
 			}
 		> = {};
@@ -229,6 +253,10 @@ export class RecipeService {
 				directComponentsCount: directCounts.get(item.id) ?? 0,
 				estimatedTotalCost: tree?.estimatedTotalCost ?? item.referenceCost,
 				estimatedUnitCost: tree?.estimatedUnitCost ?? getDirectUnitCost(item),
+				ingredientTotalCost: tree?.ingredientTotalCost,
+				operationalTotalCost: tree?.operationalTotalCost,
+				activeMinutes: tree?.activeMinutes,
+				passiveMinutes: tree?.passiveMinutes,
 				nodes: tree?.nodes ?? []
 			};
 		}

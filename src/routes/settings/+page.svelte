@@ -4,8 +4,12 @@
 	import {
 		createDefaultWeeklySchedule,
 		parseWeeklySchedule,
-		type DaySchedule
+		type DaySchedule,
+		type OperationalCostResource,
+		type OperationalCostType
 	} from '#lib/features/businesses/domain/business.entity';
+	import { v7 as uuidv7 } from 'uuid';
+	import Clock from '@lucide/svelte/icons/clock';
 	import AppShell from '#lib/components/layout/app-shell.svelte';
 	import { Button } from '#lib/components/ui/button';
 	import { Input } from '#lib/components/ui/input';
@@ -35,6 +39,40 @@
 	});
 
 	const serializedOpeningHours = $derived(JSON.stringify(weeklySchedule));
+	let operationalCosts = $state<OperationalCostResource[]>([]);
+
+	$effect(() => {
+		const saved = data.activeBusiness.settings?.operationalCosts;
+		if (Array.isArray(saved) && saved.length > 0) {
+			operationalCosts = JSON.parse(JSON.stringify(saved));
+		} else {
+			operationalCosts = [
+				{ id: 'labor_default', name: 'Mano de Obra (Pastelería)', type: 'active', ratePerHour: 50 },
+				{ id: 'gas_default', name: 'Gas / Horno Principal', type: 'passive', ratePerHour: 15 }
+			];
+		}
+	});
+
+	function addOperationalCost() {
+		operationalCosts.push({
+			id: uuidv7(),
+			name: '',
+			type: 'active',
+			ratePerHour: 0
+		});
+	}
+
+	function removeOperationalCost(index: number) {
+		operationalCosts = operationalCosts.filter((_, i) => i !== index);
+	}
+
+	const serializedSettings = $derived(
+		JSON.stringify({
+			...data.activeBusiness.settings,
+			operationalCosts
+		})
+	);
+
 
 	function toggleDay(dayIndex: number) {
 		const target = weeklySchedule[dayIndex];
@@ -102,6 +140,7 @@
 				<form method="POST" action="?/updateBusiness" use:enhance class="space-y-8">
 					<input type="hidden" name="businessId" value={data.activeBusiness.id} />
 					<input type="hidden" name="openingHours" value={serializedOpeningHours} />
+					<input type="hidden" name="settings" value={serializedSettings} />
 
 					<div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
 						<div class="space-y-2.5">
@@ -136,6 +175,89 @@
 								class="flex w-full rounded-md border border-input bg-transparent px-3 py-2.5 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
 							>{data.activeBusiness.description}</textarea>
 						</div>
+					</div>
+
+					<!-- Recursos y Tarifas Operativas (Mano de Obra y Servicios) -->
+					<div class="space-y-4 rounded-xl border border-border bg-card/40 p-4 sm:p-5">
+						<div class="flex flex-wrap items-center justify-between gap-3">
+							<div class="space-y-0.5">
+								<h3 class="text-base font-semibold text-foreground flex items-center gap-2">
+									<Clock class="size-4 text-primary" />
+									<span>Costos y Tarifas Operativas</span>
+								</h3>
+								<p class="text-xs text-muted-foreground">
+									Define recursos como mano de obra, gas o electricidad para valorizar tiempos de recetas y pedidos automáticamente.
+								</p>
+							</div>
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								onclick={addOperationalCost}
+								class="gap-1.5"
+							>
+								<Plus class="size-3.5" />
+								<span>Agregar Recurso</span>
+							</Button>
+						</div>
+
+						{#if operationalCosts.length === 0}
+							<div class="rounded-lg border border-dashed border-border py-8 text-center text-sm text-muted-foreground">
+								No hay recursos ni tarifas configuradas. Agrega tarifas de mano de obra o gas para costear tiempos de producción.
+							</div>
+						{:else}
+							<div class="space-y-2.5">
+								{#each operationalCosts as cost, idx (cost.id || idx)}
+									<div class="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-center rounded-lg border border-border bg-background p-3">
+										<div class="sm:col-span-5 space-y-1">
+											<Label class="text-xs text-muted-foreground">Nombre del recurso</Label>
+											<Input
+												bind:value={cost.name}
+												placeholder="Ej: Mano de Obra, Gas Horno, Luz"
+												class="h-9 text-sm"
+												required
+											/>
+										</div>
+										<div class="sm:col-span-3 space-y-1">
+											<Label class="text-xs text-muted-foreground">Naturaleza del tiempo</Label>
+											<select
+												bind:value={cost.type}
+												class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-[color,box-shadow] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+											>
+												<option value="active">Activo (Mano de obra)</option>
+												<option value="passive">Pasivo (Horno / Máquina)</option>
+											</select>
+										</div>
+										<div class="sm:col-span-3 space-y-1">
+											<Label class="text-xs text-muted-foreground">Tarifa ($ por hora)</Label>
+											<div class="relative">
+												<span class="absolute left-3 top-2 text-xs text-muted-foreground">$</span>
+												<Input
+													type="number"
+													step="0.01"
+													min="0"
+													bind:value={cost.ratePerHour}
+													class="h-9 pl-7 text-sm"
+													required
+												/>
+											</div>
+										</div>
+										<div class="sm:col-span-1 flex justify-end pt-5 sm:pt-4">
+											<Button
+												type="button"
+												variant="ghost"
+												size="icon"
+												class="text-destructive hover:bg-destructive/10"
+												onclick={() => removeOperationalCost(idx)}
+												aria-label="Eliminar tarifa"
+											>
+												<Trash2 class="size-4" />
+											</Button>
+										</div>
+									</div>
+								{/each}
+							</div>
+						{/if}
 					</div>
 
 					<!-- Bloques Horarios por Día -->

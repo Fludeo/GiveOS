@@ -11,11 +11,15 @@
 	import Search from '@lucide/svelte/icons/search';
 	import Clock from '@lucide/svelte/icons/clock';
 	import ClockFading from '@lucide/svelte/icons/clock-fading';
+	import ChefHat from '@lucide/svelte/icons/chef-hat';
+	import Flame from '@lucide/svelte/icons/flame';
 	import CirclePile from '@lucide/svelte/icons/circle-pile';
 	import Layers from '@lucide/svelte/icons/layers';
 	import Calculator from '@lucide/svelte/icons/calculator';
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import Plus from '@lucide/svelte/icons/plus';
+	import Coins from '@lucide/svelte/icons/coins';
+	import Sparkles from '@lucide/svelte/icons/sparkles';
 	import { formatCurrency } from '../utils';
 
 	interface Props {
@@ -26,12 +30,17 @@
 				directComponentsCount: number;
 				estimatedTotalCost: number;
 				estimatedUnitCost: number;
+				ingredientTotalCost?: number;
+				operationalTotalCost?: number;
+				activeMinutes?: number;
+				passiveMinutes?: number;
 				nodes: RecipeTreeNode[];
 			}
 		>;
 		businessId: string;
 		selectedItemId?: string | null;
 		onEditItem: () => void;
+		onEditCosts?: () => void;
 		onAddLine: () => void;
 	}
 
@@ -41,6 +50,7 @@
 		businessId,
 		selectedItemId = $bindable(null),
 		onEditItem,
+		onEditCosts,
 		onAddLine
 	}: Props = $props();
 
@@ -87,7 +97,11 @@
 			rootItem: selectedRoot,
 			nodes: summary?.nodes ?? [],
 			estimatedTotalCost: summary?.estimatedTotalCost ?? selectedRoot.referenceCost,
-			estimatedUnitCost: summary?.estimatedUnitCost ?? 0
+			estimatedUnitCost: summary?.estimatedUnitCost ?? 0,
+			ingredientTotalCost: summary?.ingredientTotalCost,
+			operationalTotalCost: summary?.operationalTotalCost ?? 0,
+			activeMinutes: summary?.activeMinutes ?? selectedRoot.prepTimeMinutes ?? 0,
+			passiveMinutes: summary?.passiveMinutes ?? selectedRoot.passiveTimeMinutes ?? 0
 		};
 	});
 
@@ -161,15 +175,10 @@
 											<Layers class="size-3" />
 											{summary?.directComponentsCount ?? 0}
 										</span>
-										{#if item.prepTimeMinutes > 0}
-											<span class="inline-flex items-center gap-1 font-semibold text-[11px] text-secondary" title={item.isPrepTimeScalable ? "Tiempo: min / un" : "Tiempo: min / lote"}>
-												{#if item.isPrepTimeScalable}
-													<ClockFading class="size-3" />
-													{item.prepTimeMinutes} min / un
-												{:else}
-													<Clock class="size-3" />
-													{item.prepTimeMinutes} min
-												{/if}
+										{#if summary?.activeMinutes && summary.activeMinutes > 0}
+											<span class="inline-flex items-center gap-1 font-semibold text-[11px] text-secondary" title="Tiempo activo">
+												<Clock class="size-3" />
+												{summary.activeMinutes} min
 											</span>
 										{/if}
 									</div>
@@ -279,38 +288,70 @@
 							</p>
 						</div>
 
-						<!-- Tarjeta 2: Tiempo de Elaboración (Amber / Tertiary) -->
+						<!-- Tarjeta 2: Tiempo de Elaboración (Activo + Pasivo) -->
 						<div class="rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-xs space-y-2">
-							<span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
-								Tiempo Estimado
-							</span>
+							<div class="flex items-center justify-between">
+								<span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+									Tiempo Estimado
+								</span>
+								{#if onEditCosts}
+									<Button
+										variant="ghost"
+										size="icon"
+										class="size-6 rounded-lg text-muted-foreground hover:bg-amber-500/15 hover:text-amber-600 dark:hover:text-amber-400 cursor-pointer"
+										onclick={onEditCosts}
+										title="Configurar tiempos y costos operativos"
+									>
+										<Pencil class="size-3" />
+									</Button>
+								{/if}
+							</div>
 							<div class="flex items-center gap-3 pt-0.5">
 								<div class="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-amber-500/15 text-amber-600 dark:text-amber-400">
-									{#if selectedRoot.isPrepTimeScalable}
-										<ClockFading class="size-6" />
-									{:else}
-										<Clock class="size-6" />
-									{/if}
+									<Clock class="size-6" />
 								</div>
-								<div class="flex items-baseline gap-1.5 font-mono">
-									<span class="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-										{selectedRoot.prepTimeMinutes ? selectedRoot.prepTimeMinutes : 0}
-									</span>
-									<span class="text-sm font-semibold text-muted-foreground">
-										{selectedRoot.isPrepTimeScalable ? 'min / un' : 'min / lote'}
-									</span>
+								<div class="flex flex-col">
+									<div class="flex items-baseline gap-1.5 font-mono">
+										<span class="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+											{(tree.activeMinutes || 0) + (tree.passiveMinutes || 0)}
+										</span>
+										<span class="text-sm font-semibold text-muted-foreground">
+											min total
+										</span>
+									</div>
 								</div>
 							</div>
-							<p class="text-xs text-muted-foreground">
-								{selectedRoot.isPrepTimeScalable ? 'Tiempo proporcional / un' : 'Preparación y producción / lote'}
-							</p>
+							<div class="flex items-center gap-2 pt-0.5 text-[11px] font-mono text-muted-foreground">
+								<span class="inline-flex items-center gap-1 text-secondary font-medium">
+									<ChefHat class="size-3" />
+									{tree.activeMinutes || 0}m activo
+								</span>
+								<span>•</span>
+								<span class="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400 font-medium">
+									<Flame class="size-3" />
+									{tree.passiveMinutes || 0}m pasivo
+								</span>
+							</div>
 						</div>
 
 						<!-- Tarjeta 3: Costo Estimado (Primary) -->
 						<div class="rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-xs space-y-2">
-							<span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
-								Costo Estimado
-							</span>
+							<div class="flex items-center justify-between">
+								<span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+									Costo Estimado
+								</span>
+								{#if onEditCosts}
+									<Button
+										variant="ghost"
+										size="icon"
+										class="size-6 rounded-lg text-muted-foreground hover:bg-primary/15 hover:text-primary cursor-pointer"
+										onclick={onEditCosts}
+										title="Configurar tarifas operativas"
+									>
+										<Pencil class="size-3" />
+									</Button>
+								{/if}
+							</div>
 							<div class="flex items-center gap-3 pt-0.5">
 								<div class="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
 									<Calculator class="size-6" />
@@ -324,9 +365,18 @@
 									</span>
 								</div>
 							</div>
-							<p class="text-xs font-mono text-muted-foreground">
-								Costo por tanda: {formatCurrency(tree.estimatedTotalCost)} ({selectedRoot.yieldQuantity} {selectedRoot.baseUnit === 'unit' ? 'un' : selectedRoot.baseUnit})
-							</p>
+							<div class="text-[11px] font-mono text-muted-foreground space-y-0.5">
+								<div class="flex items-center justify-between">
+									<span>Tanda ({selectedRoot.yieldQuantity} {selectedRoot.baseUnit === 'unit' ? 'un' : selectedRoot.baseUnit}):</span>
+									<span class="font-bold text-foreground">{formatCurrency(tree.estimatedTotalCost)}</span>
+								</div>
+								{#if tree.operationalTotalCost && tree.operationalTotalCost > 0}
+									<div class="flex items-center justify-between text-[10px] text-muted-foreground/80">
+										<span>Insumos: {formatCurrency(tree.ingredientTotalCost ?? 0)}</span>
+										<span>Operativo: {formatCurrency(tree.operationalTotalCost)}</span>
+									</div>
+								{/if}
+							</div>
 						</div>
 					</div>
 				</CardHeader>
@@ -342,17 +392,32 @@
 							</p>
 						</div>
 
-						<Button
-							type="button"
-							size="sm"
-							variant="secondary"
-							class="gap-1.5 font-semibold shadow-xs"
-							disabled={availableComponentsForSelected.length === 0}
-							onclick={onAddLine}
-						>
-							<Plus class="size-4" />
-							<span>Agregar Ingrediente</span>
-						</Button>
+						<div class="flex items-center gap-2">
+							{#if onEditCosts}
+								<Button
+									type="button"
+									size="sm"
+									variant="outline"
+									class="gap-1.5 font-semibold shadow-xs border-dashed text-xs"
+									onclick={onEditCosts}
+								>
+									<Clock class="size-3.5 text-amber-500" />
+									<span>Costos Operativos / Horno</span>
+								</Button>
+							{/if}
+
+							<Button
+								type="button"
+								size="sm"
+								variant="secondary"
+								class="gap-1.5 font-semibold shadow-xs"
+								disabled={availableComponentsForSelected.length === 0}
+								onclick={onAddLine}
+							>
+								<Plus class="size-4" />
+								<span>Agregar Ingrediente</span>
+							</Button>
+						</div>
 					</div>
 
 					{#if tree.nodes.length > 0}
@@ -381,6 +446,26 @@
 										{/each}
 									</tbody>
 									<tfoot class="border-t-2 border-border bg-muted/30 font-medium">
+										{#if tree.operationalTotalCost && tree.operationalTotalCost > 0}
+											<tr class="text-xs text-muted-foreground border-b border-border/50">
+												<td colspan="4" class="py-2.5 pr-4 pl-5 text-right">
+													Subtotal Insumos Directos:
+												</td>
+												<td class="px-4 py-2.5 text-right font-mono font-semibold">
+													{formatCurrency(tree.ingredientTotalCost ?? 0)}
+												</td>
+												<td colspan="2"></td>
+											</tr>
+											<tr class="text-xs text-muted-foreground border-b border-border/50">
+												<td colspan="4" class="py-2.5 pr-4 pl-5 text-right">
+													Subtotal Costos Operativos (Mano de Obra y Horno):
+												</td>
+												<td class="px-4 py-2.5 text-right font-mono font-semibold text-primary">
+													+ {formatCurrency(tree.operationalTotalCost)}
+												</td>
+												<td colspan="2"></td>
+											</tr>
+										{/if}
 										<tr>
 											<td colspan="4" class="py-4 pr-4 pl-5 text-right text-sm">
 												Costo Total Estimado de la Receta (para {selectedRoot.yieldQuantity} {selectedRoot.baseUnit}):

@@ -26,6 +26,9 @@ export async function createItemAction({ request, locals, url }: RequestEvent) {
 	const prepTimeMinutes = formData.has('prepTimeMinutes')
 		? Number(formData.get('prepTimeMinutes') ?? 0)
 		: 0;
+	const passiveTimeMinutes = formData.has('passiveTimeMinutes')
+		? Number(formData.get('passiveTimeMinutes') ?? 0)
+		: 0;
 	const currentStock = Number(formData.get('currentStock') ?? 0);
 	const minStock = Number(formData.get('minStock') ?? 0);
 	const notes = String(formData.get('notes') ?? '').trim() || null;
@@ -49,6 +52,8 @@ export async function createItemAction({ request, locals, url }: RequestEvent) {
 			yieldQuantity: Number.isFinite(yieldQuantity) && yieldQuantity > 0 ? yieldQuantity : 1,
 			prepTimeMinutes:
 				Number.isFinite(prepTimeMinutes) && prepTimeMinutes >= 0 ? Math.round(prepTimeMinutes) : 0,
+			passiveTimeMinutes:
+				Number.isFinite(passiveTimeMinutes) && passiveTimeMinutes >= 0 ? Math.round(passiveTimeMinutes) : 0,
 			isPrepTimeScalable: Boolean(isPrepTimeScalable),
 			currentStock: Number.isFinite(currentStock) && currentStock >= 0 ? currentStock : 0,
 			minStock: Number.isFinite(minStock) && minStock >= 0 ? minStock : 0,
