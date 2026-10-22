@@ -40,6 +40,7 @@
 	import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
 	import Layers from '@lucide/svelte/icons/layers';
 	import GraphHub from '@lucide/svelte/icons/graph-hub';
+	import CirclePile from '@lucide/svelte/icons/circle-pile';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import Check from '@lucide/svelte/icons/check';
 	import Pencil from '@lucide/svelte/icons/pencil';
@@ -546,7 +547,7 @@
 				? 'bg-primary text-primary-foreground shadow-xs font-semibold'
 				: 'text-muted-foreground hover:text-foreground'}"
 		>
-			<CakeSlice class="size-4" />
+			<GraphHub class="size-4" />
 			<span>Recetas</span>
 		</button>
 
@@ -666,7 +667,7 @@
 							class="gap-1.5"
 							onclick={() => (filterType = 'prepared')}
 						>
-							<CakeSlice class="size-3.5 text-secondary" />
+							<GraphHub class="size-3.5 text-secondary" />
 							<span>Elaboraciones</span>
 						</Button>
 						<Button
@@ -1219,7 +1220,7 @@
 					<CardHeader class="p-3.5 sm:p-4 pb-2.5">
 						<div class="flex items-center justify-between gap-1.5">
 							<div class="flex items-center gap-1.5 min-w-0">
-								<ChefHat class="size-4 text-secondary shrink-0" />
+								<GraphHub class="size-4 text-secondary shrink-0" />
 								<CardTitle class="text-sm font-bold truncate">Elaboraciones</CardTitle>
 								<Badge variant="secondary" class="px-1.5 py-0.2 text-[10px] font-semibold shrink-0">
 									{filteredRecipeCatalog.length}
@@ -1281,8 +1282,9 @@
 										</h4>
 
 										<div class="mt-2 pt-1.5 border-t border-border/50 flex items-center justify-between text-[11px]">
-											<span class="text-muted-foreground truncate mr-1">
-												Rinde: <strong class="text-foreground">{item.yieldQuantity} {item.baseUnit}</strong>
+											<span class="text-muted-foreground truncate mr-1 inline-flex items-center gap-1">
+												<CirclePile class="size-3 text-secondary shrink-0" />
+												<span>Rinde: <strong class="text-foreground">{item.yieldQuantity} {item.baseUnit}</strong></span>
 											</span>
 											<div class="flex items-center gap-1.5 shrink-0">
 												<span class="font-mono font-bold text-foreground">
@@ -1311,7 +1313,7 @@
 							{/if}
 						{:else}
 							<div class="py-6 text-center rounded-xl border border-dashed border-border p-3">
-								<ChefHat class="mx-auto size-7 text-muted-foreground/50" />
+								<GraphHub class="mx-auto size-7 text-muted-foreground/50" />
 								<p class="mt-1.5 text-xs font-semibold text-foreground">
 									No hay elaboraciones
 								</p>
@@ -1351,7 +1353,7 @@
 											{selectedRoot.code}
 										</span>
 										<Badge variant="secondary" class="gap-1.5 px-2.5 py-0.5 text-xs font-semibold">
-											<ChefHat class="size-3.5" />
+											<GraphHub class="size-3.5" />
 											<span>Elaboración</span>
 										</Badge>
 									</div>
@@ -1370,7 +1372,7 @@
 										<div class="flex items-center justify-between">
 											<div class="flex items-center gap-2">
 												<div class="flex size-8 items-center justify-center rounded-lg bg-secondary/15 text-secondary">
-													<ChefHat class="size-4" />
+													<CirclePile class="size-4" />
 												</div>
 												<span class="text-xs font-bold uppercase tracking-wider text-muted-foreground">Rendimiento</span>
 											</div>
@@ -1500,7 +1502,7 @@
 									<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 										<div class="space-y-1.5">
 											<Label for="quick-recipe-yield" class="text-xs font-semibold flex items-center gap-1.5 text-foreground">
-												<ChefHat class="size-3.5 text-secondary" />
+												<CirclePile class="size-3.5 text-secondary" />
 												<span>Rendimiento del Lote ({selectedRoot.baseUnit})</span>
 											</Label>
 											<div class="relative flex items-center">
@@ -1651,7 +1653,7 @@
 				{:else}
 					<Card class="border-border shadow-xs">
 						<CardContent class="p-12 text-center">
-							<ChefHat class="mx-auto size-12 text-muted-foreground/40" />
+							<GraphHub class="mx-auto size-12 text-muted-foreground/40" />
 							<h3 class="mt-4 text-lg font-bold text-foreground">Selecciona una Elaboración</h3>
 							<p class="mt-1 text-sm text-muted-foreground max-w-md mx-auto">
 								Elige una elaboración de la columna izquierda para ver su receta, modificar sus rendimientos o agregar ingredientes.
@@ -2154,7 +2156,7 @@
 									<div
 										class="mb-3 flex size-14 items-center justify-center rounded-full bg-secondary/10 text-secondary"
 									>
-										<ChefHat class="size-7" />
+										<GraphHub class="size-7" />
 									</div>
 									<span class="text-base font-bold text-foreground">Elaboración</span>
 									<span class="mt-1 text-xs text-muted-foreground">Receta de la casa (bases, rellenos, tortas, productos)</span>
@@ -2376,8 +2378,9 @@
 						<h2 id="add-recipe-modal-title" class="text-lg font-bold text-foreground">
 							Añadir a {selectedRoot.name}
 						</h2>
-						<p class="text-xs text-muted-foreground">
-							Rinde {selectedRoot.yieldQuantity} {selectedRoot.baseUnit}
+						<p class="text-xs text-muted-foreground flex items-center gap-1">
+							<CirclePile class="size-3 text-secondary shrink-0" />
+							<span>Rinde {selectedRoot.yieldQuantity} {selectedRoot.baseUnit}</span>
 						</p>
 					</div>
 					<Button
@@ -2596,8 +2599,9 @@
 								<input type="hidden" name="yieldQuantity" value={selectedRoot.yieldQuantity} />
 							{:else}
 								<div class="space-y-2">
-									<Label for="edit-yieldQuantity">
-										Rendimiento ({selectedRoot.baseUnit})
+									<Label for="edit-yieldQuantity" class="flex items-center gap-1.5">
+										<CirclePile class="size-3.5 text-secondary" />
+										<span>Rendimiento ({selectedRoot.baseUnit})</span>
 									</Label>
 									<Input
 										id="edit-yieldQuantity"
@@ -3275,8 +3279,9 @@
 						<h2 class="text-xl font-bold text-foreground">
 							Receta de {viewingRecipeItem.name}
 						</h2>
-						<p class="text-xs text-muted-foreground">
-							Rendimiento base: <strong>{viewingRecipeItem.yieldQuantity} {viewingRecipeItem.baseUnit}</strong>
+						<p class="text-xs text-muted-foreground flex items-center gap-1.5">
+							<CirclePile class="size-3.5 text-secondary shrink-0" />
+							<span>Rendimiento base: <strong>{viewingRecipeItem.yieldQuantity} {viewingRecipeItem.baseUnit}</strong></span>
 						</p>
 					</div>
 					<Button

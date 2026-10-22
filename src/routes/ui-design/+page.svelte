@@ -25,6 +25,8 @@
 	import Tag from '@lucide/svelte/icons/tag';
 	import Layers from '@lucide/svelte/icons/layers';
 	import ChefHat from '@lucide/svelte/icons/chef-hat';
+	import GraphHub from '@lucide/svelte/icons/graph-hub';
+	import CirclePile from '@lucide/svelte/icons/circle-pile';
 	import ShoppingBag from '@lucide/svelte/icons/shopping-bag';
 	import ExternalLink from '@lucide/svelte/icons/external-link';
 	import X from '@lucide/svelte/icons/x';
@@ -349,7 +351,7 @@
 						<span>Crear Pedido</span>
 					</Button>
 					<Button variant="secondary" class="gap-2">
-						<ChefHat class="size-4" />
+						<GraphHub class="size-4" />
 						<span>Nueva Elaboración</span>
 					</Button>
 					<Button variant="accent" class="gap-2">
@@ -439,8 +441,9 @@
 						<Badge variant="outline" class="border-blue-500/30 bg-blue-500/10 text-blue-700 text-xs">
 							Materia Prima (Insumo)
 						</Badge>
-						<Badge variant="secondary" class="text-xs">
-							Sub-ensamble (Elaboración)
+						<Badge variant="secondary" class="gap-1.5 text-xs">
+							<GraphHub class="size-3.5" />
+							<span>Sub-ensamble (Elaboración)</span>
 						</Badge>
 						<Badge variant="outline" class="border-emerald-500/30 bg-emerald-500/10 text-emerald-700 text-xs">
 							Producto Final
@@ -508,7 +511,7 @@
 							</div>
 							<div class="flex items-center gap-3 pt-0.5">
 								<div class="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-secondary/15 text-secondary">
-									<ChefHat class="size-6" />
+									<GraphHub class="size-6" />
 								</div>
 								<Card.Title class="text-2xl sm:text-3xl font-bold font-mono tracking-tight text-secondary">
 									16
@@ -723,8 +726,14 @@
 					</Card.Header>
 					<Card.Content class="p-5 space-y-4">
 						<p class="text-xs text-muted-foreground leading-relaxed">
-							Torta Selva Negra elaborada con bizcochuelo de chocolate, chantilly y cerezas al marrasquino. Rinde 12 porciones individuales.
+							Torta Selva Negra elaborada con bizcochuelo de chocolate, chantilly y cerezas al marrasquino.
 						</p>
+						<div class="flex items-center gap-2">
+							<Badge variant="secondary" class="gap-1 font-mono text-xs font-semibold">
+								<CirclePile class="size-3.5" />
+								<span>Rendimiento: 12 porciones</span>
+							</Badge>
+						</div>
 						<div class="flex items-center justify-between pt-2 border-t border-border text-xs">
 							<span class="text-muted-foreground">Precio de Lista:</span>
 							<strong class="font-mono text-sm text-foreground">$ 18.500,00</strong>
@@ -901,7 +910,7 @@
 							? 'bg-primary text-primary-foreground shadow-xs font-semibold'
 							: 'text-muted-foreground hover:text-foreground'}"
 					>
-						<CakeSlice class="size-4" />
+						<GraphHub class="size-4" />
 						<span>Estructura de Recetas</span>
 					</button>
 

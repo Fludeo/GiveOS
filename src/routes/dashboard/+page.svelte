@@ -24,7 +24,7 @@
 	import BarChart3 from '@lucide/svelte/icons/bar-chart-3';
 	import Boxes from '@lucide/svelte/icons/boxes';
 	import CakeSlice from '@lucide/svelte/icons/cake-slice';
-	import ChefHat from '@lucide/svelte/icons/chef-hat';
+	import GraphHub from '@lucide/svelte/icons/graph-hub';
 	import Check from '@lucide/svelte/icons/check';
 	import Layers from '@lucide/svelte/icons/layers';
 	import Package from '@lucide/svelte/icons/package';
@@ -840,7 +840,7 @@
 						<Card.Content class="p-5">
 							{#if !selectedProductAnalysis.hasRecipe}
 								<div class="rounded-xl border border-dashed border-border p-8 text-center space-y-2">
-									<ChefHat class="mx-auto size-8 text-muted-foreground/60" />
+									<GraphHub class="mx-auto size-8 text-muted-foreground/60" />
 									<h4 class="text-sm font-semibold text-foreground">
 										Este producto no tiene receta de insumos configurada
 									</h4>

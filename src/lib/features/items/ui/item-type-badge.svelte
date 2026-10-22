@@ -5,7 +5,7 @@
 		type ItemType
 	} from '../domain/item.entity';
 	import Wheat from '@lucide/svelte/icons/wheat';
-	import ChefHat from '@lucide/svelte/icons/chef-hat';
+	import GraphHub from '@lucide/svelte/icons/graph-hub';
 
 	let {
 		type,
@@ -26,7 +26,7 @@
 	{#if type === 'raw_material'}
 		<Wheat class="size-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
 	{:else}
-		<ChefHat class="size-3.5 shrink-0 text-secondary" />
+		<GraphHub class="size-3.5 shrink-0 text-secondary" />
 	{/if}
 	<span>{short ? config.shortLabel : config.label}</span>
 </span>
