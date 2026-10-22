@@ -1,12 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import {
-		ITEM_TYPES,
-		ITEM_TYPE_LABELS,
-		UNITS_OF_MEASURE,
-		UNIT_LABELS,
-		type Item
-	} from '#lib/features/items/domain/item.entity';
+	import type { Item } from '#lib/features/items/domain/item.entity';
 	import ItemTypeBadge from '#lib/features/items/ui/item-type-badge.svelte';
 	import { Button } from '#lib/components/ui/button';
 	import { Input } from '#lib/components/ui/input';
@@ -14,7 +8,8 @@
 	import X from '@lucide/svelte/icons/x';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import CirclePile from '@lucide/svelte/icons/circle-pile';
-	import { getUnitPriceLabel } from '../utils';
+	import Clock from '@lucide/svelte/icons/clock';
+	import Check from '@lucide/svelte/icons/check';
 
 	interface Props {
 		open: boolean;
@@ -25,6 +20,22 @@
 	}
 
 	let { open = $bindable(), item, businessId, onClose, onRequestDelete }: Props = $props();
+
+	let editName = $state('');
+	let editYieldQuantity = $state<number | ''>(1);
+	let editPrepTimeMinutes = $state<number | ''>(0);
+	let editNotes = $state('');
+	let isSubmitting = $state(false);
+
+	$effect(() => {
+		if (open && item) {
+			editName = item.name;
+			editYieldQuantity = item.yieldQuantity > 0 ? item.yieldQuantity : 1;
+			editPrepTimeMinutes = item.prepTimeMinutes ?? 0;
+			editNotes = item.notes ?? '';
+			isSubmitting = false;
+		}
+	});
 
 	function handleClose() {
 		open = false;
@@ -39,18 +50,22 @@
 		aria-modal="true"
 		aria-labelledby="edit-item-modal-title"
 	>
-		<div class="w-full max-w-xl overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
-			<div class="flex items-start justify-between gap-4 border-b border-border p-6">
+		<div class="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
+			<!-- Header -->
+			<div class="flex items-start justify-between gap-4 border-b border-border p-6 pb-4">
 				<div class="space-y-1">
 					<div class="flex items-center gap-2">
-						<span class="rounded bg-muted px-2 py-0.5 font-mono text-xs font-semibold">
+						<span class="rounded px-1.5 py-0.5 font-mono text-[10px] font-semibold tracking-tight bg-muted text-muted-foreground">
 							{item.code}
 						</span>
 						<ItemTypeBadge type={item.type} short={true} />
 					</div>
-					<h2 id="edit-item-modal-title" class="text-lg font-bold text-foreground">
-						Editar "{item.name}"
+					<h2 id="edit-item-modal-title" class="text-xl font-bold text-foreground">
+						Editar Receta: {item.name}
 					</h2>
+					<p class="text-xs text-muted-foreground">
+						Ajusta los parámetros de producción (rendimiento y tiempo) de esta elaboración.
+					</p>
 				</div>
 				<Button
 					type="button"
@@ -64,138 +79,135 @@
 			</div>
 
 			<form
+				id="edit-recipe-item-form"
 				method="POST"
 				action="?/updateItem"
+				class="flex-1 space-y-4 overflow-y-auto p-6"
 				use:enhance={() => {
+					isSubmitting = true;
 					return async ({ result, update }) => {
 						await update();
+						isSubmitting = false;
 						if (result.type === 'success') {
 							handleClose();
 						}
 					};
 				}}
 			>
-				<div class="space-y-4 p-6">
-					<input type="hidden" name="businessId" value={businessId} />
-					<input type="hidden" name="id" value={item.id} />
+				<input type="hidden" name="businessId" value={businessId} />
+				<input type="hidden" name="id" value={item.id} />
+				<input type="hidden" name="type" value={item.type} />
+				<input type="hidden" name="baseUnit" value={item.baseUnit} />
+				<input type="hidden" name="referenceCost" value={item.referenceCost} />
+				<input type="hidden" name="purchaseQuantity" value={item.purchaseQuantity} />
+				<input type="hidden" name="minStock" value={item.minStock} />
 
-					<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-						<div class="space-y-2 sm:col-span-2">
-							<Label for="edit-name">Nombre</Label>
-							<Input id="edit-name" name="name" class="h-10" value={item.name} required />
-						</div>
+				<!-- Nombre -->
+				<div class="space-y-1.5">
+					<Label for="edit-name" class="font-semibold text-foreground">Nombre de la Elaboración</Label>
+					<Input
+						id="edit-name"
+						name="name"
+						bind:value={editName}
+						placeholder="Ej. Plancha de Bizcochuelo"
+						class="h-10 text-sm font-medium"
+						required
+					/>
+				</div>
 
-						<div class="space-y-2">
-							<Label for="edit-type">Tipo</Label>
-							<select
-								id="edit-type"
-								name="type"
-								value={item.type}
-								class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
-							>
-								{#each ITEM_TYPES as t}
-									<option value={t}>{ITEM_TYPE_LABELS[t]}</option>
-								{/each}
-							</select>
-						</div>
+				<!-- Parámetros de Receta: Rendimiento y Tiempo -->
+				<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+					<div class="space-y-1.5">
+						<Label for="edit-yieldQuantity" class="flex items-center gap-1.5 font-semibold text-foreground">
+							<CirclePile class="size-3.5 text-secondary" />
+							<span>Rendimiento Base ({item.baseUnit})</span>
+						</Label>
+						<Input
+							id="edit-yieldQuantity"
+							name="yieldQuantity"
+							type="number"
+							step="any"
+							min="0.001"
+							bind:value={editYieldQuantity}
+							class="h-10 font-mono text-sm"
+							required
+						/>
+						<p class="text-[11px] text-muted-foreground">
+							Cantidad producida por cada tanda completa.
+						</p>
+					</div>
 
-						<div class="space-y-2">
-							<Label for="edit-baseUnit">Unidad Base</Label>
-							<select
-								id="edit-baseUnit"
-								name="baseUnit"
-								value={item.baseUnit}
-								class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
-							>
-								{#each UNITS_OF_MEASURE as u}
-									<option value={u}>{UNIT_LABELS[u]}</option>
-								{/each}
-							</select>
-						</div>
-
-						{#if item.type === 'raw_material'}
-							<input type="hidden" name="purchaseQuantity" value="1" />
-							<div class="space-y-2 sm:col-span-2">
-								<Label for="edit-referenceCost">{getUnitPriceLabel(item.baseUnit)}</Label>
-								<div class="relative flex items-center">
-									<span class="pointer-events-none absolute left-3 font-semibold text-muted-foreground">$</span>
-									<Input
-										id="edit-referenceCost"
-										name="referenceCost"
-										type="number"
-										step="any"
-										min="0"
-										class="h-10 pl-8 font-mono"
-										value={item.referenceCost}
-										required
-									/>
-								</div>
-							</div>
-							<input type="hidden" name="yieldQuantity" value={item.yieldQuantity} />
-						{:else}
-							<div class="space-y-2">
-								<Label for="edit-yieldQuantity" class="flex items-center gap-1.5">
-									<CirclePile class="size-3.5 text-secondary" />
-									<span>Rendimiento ({item.baseUnit})</span>
-								</Label>
-								<Input
-									id="edit-yieldQuantity"
-									name="yieldQuantity"
-									type="number"
-									step="any"
-									min="0.001"
-									class="h-10 font-mono"
-									value={item.yieldQuantity}
-									required
-								/>
-							</div>
-							<div class="space-y-2">
-								<Label for="edit-prepTimeMinutes">
-									Tiempo Elaboración (min)
-								</Label>
-								<Input
-									id="edit-prepTimeMinutes"
-									name="prepTimeMinutes"
-									type="number"
-									step="1"
-									min="0"
-									class="h-10 font-mono"
-									value={item.prepTimeMinutes ?? 0}
-								/>
-							</div>
-							<input type="hidden" name="purchaseQuantity" value={item.purchaseQuantity} />
-							<input type="hidden" name="referenceCost" value={item.referenceCost} />
-						{/if}
-
-						<div class="space-y-2 sm:col-span-2">
-							<Label for="edit-notes">Notas</Label>
-							<Input id="edit-notes" name="notes" class="h-10" value={item.notes ?? ''} />
-						</div>
+					<div class="space-y-1.5">
+						<Label for="edit-prepTimeMinutes" class="flex items-center gap-1.5 font-semibold text-foreground">
+							<Clock class="size-3.5 text-secondary" />
+							<span>Tiempo de Elaboración (min)</span>
+						</Label>
+						<Input
+							id="edit-prepTimeMinutes"
+							name="prepTimeMinutes"
+							type="number"
+							step="1"
+							min="0"
+							bind:value={editPrepTimeMinutes}
+							class="h-10 font-mono text-sm"
+						/>
+						<p class="text-[11px] text-muted-foreground">
+							Duración de preparación u horneado.
+						</p>
 					</div>
 				</div>
 
-				<div class="flex items-center justify-between border-t border-border bg-muted/20 px-6 py-4">
-					<Button
-						type="button"
-						variant="destructive"
-						size="sm"
-						onclick={() => {
-							const currentItem = item;
-							handleClose();
-							if (currentItem) onRequestDelete(currentItem);
-						}}
-					>
-						<Trash2 class="size-4" />
-						<span>Eliminar Ítem</span>
-					</Button>
-					<div class="flex gap-2.5">
-						<Button type="button" variant="outline" size="sm" onclick={handleClose}>
-							Cancelar
-						</Button>
-						<Button type="submit" size="sm">Guardar Cambios</Button>
-					</div>
+				<!-- Notas -->
+				<div class="space-y-1.5">
+					<Label for="edit-notes" class="font-semibold text-foreground">Notas de la Elaboración (opcional)</Label>
+					<Input
+						id="edit-notes"
+						name="notes"
+						bind:value={editNotes}
+						placeholder="Ej. Hornear a 180°C durante 40 min, usar molde redondo 24cm"
+						class="h-10 text-sm"
+					/>
 				</div>
 			</form>
+
+			<!-- Footer con estilo consistente -->
+			<div class="flex items-center justify-between border-t border-border bg-muted/20 px-6 py-4">
+				<Button
+					type="button"
+					variant="ghost"
+					size="sm"
+					class="text-destructive hover:bg-destructive/10 text-xs gap-1.5 cursor-pointer"
+					onclick={() => {
+						const currentItem = item;
+						handleClose();
+						if (currentItem) onRequestDelete(currentItem);
+					}}
+				>
+					<Trash2 class="size-3.5" />
+					<span>Eliminar Elaboración</span>
+				</Button>
+
+				<div class="flex items-center gap-2">
+					<Button
+						type="button"
+						variant="outline"
+						size="sm"
+						onclick={handleClose}
+						disabled={isSubmitting}
+					>
+						Cancelar
+					</Button>
+					<Button
+						type="submit"
+						form="edit-recipe-item-form"
+						size="sm"
+						disabled={isSubmitting || !editName.trim() || Number(editYieldQuantity) <= 0}
+					>
+						<Check class="size-3.5 mr-1" />
+						<span>{isSubmitting ? 'Guardando...' : 'Guardar Cambios'}</span>
+					</Button>
+				</div>
+			</div>
 		</div>
 	</div>
 {/if}

@@ -49,18 +49,6 @@
 				<span class="font-medium {current.depth === 0 ? 'text-foreground' : 'text-foreground/85'}">
 					{current.component.name}
 				</span>
-				{#if current.children.length > 0 || current.component.type !== 'raw_material'}
-					<button
-						type="button"
-						onclick={() => (isExpanded = !isExpanded)}
-						class="ml-1 inline-flex items-center gap-1 rounded-md border border-secondary/30 bg-secondary/10 px-2 py-0.5 text-xs font-medium text-secondary hover:bg-secondary/20 cursor-pointer transition-colors"
-						title={isExpanded ? 'Ocultar ingredientes de esta sub-receta' : 'Desplegar ingredientes de esta sub-receta'}
-					>
-						<Layers class="size-3 text-secondary" />
-						<span>{current.children.length > 0 ? `${current.children.length} ingr.` : 'Sub-receta'}</span>
-						<ChevronDown class="size-3.5 transition-transform duration-200 {isExpanded ? 'rotate-180' : ''}" />
-					</button>
-				{/if}
 			</div>
 			{#if current.notes}
 				<div
@@ -111,12 +99,16 @@
 					<Button
 						type="button"
 						variant="ghost"
-						size="icon"
-						class="size-8 text-secondary hover:bg-secondary/10"
+						size="sm"
+						class="h-8 gap-1.5 px-2 text-secondary hover:bg-secondary/10 font-mono text-xs cursor-pointer"
 						onclick={() => (isExpanded = !isExpanded)}
-						title={isExpanded ? 'Ocultar ingredientes' : 'Desplegar sub-receta'}
+						title={isExpanded ? 'Ocultar componentes' : 'Desplegar sub-receta'}
 					>
-						<ChevronDown class="size-4 transition-transform duration-200 {isExpanded ? 'rotate-180' : ''}" />
+						<Layers class="size-3.5 text-secondary" />
+						{#if current.children.length > 0}
+							<span class="font-bold">{current.children.length}</span>
+						{/if}
+						<ChevronDown class="size-3.5 transition-transform duration-200 {isExpanded ? 'rotate-180' : ''}" />
 					</Button>
 				{/if}
 				{#if direct}

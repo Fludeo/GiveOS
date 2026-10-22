@@ -100,7 +100,7 @@ export class ItemService {
 				notes: intake.notes?.trim() || null
 			};
 			const currentBatches = existing.batches ?? [];
-			const updatedBatches = [...currentBatches.slice(-29), newBatch];
+			const updatedBatches = [...currentBatches, newBatch].slice(-15);
 			const newStock = existing.currentStock + intake.quantity;
 
 			const updated = await this.itemRepo.update(id, businessId, {

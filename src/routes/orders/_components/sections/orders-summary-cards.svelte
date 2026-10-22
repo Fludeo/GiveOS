@@ -29,87 +29,103 @@
 </script>
 
 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-	<Card class={pendingOrdersCount > 0 ? 'border-amber-500/40 bg-amber-500/5' : ''}>
-		<CardContent class="flex items-center justify-between p-5">
-			<div class="space-y-1">
-				<p class="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-					Órdenes Pendientes
-				</p>
-				<p
-					class="text-2xl font-bold {pendingOrdersCount > 0
-						? 'text-amber-600'
-						: 'text-foreground'}"
-				>
-					{pendingOrdersCount}
-				</p>
-				<p class="text-xs text-muted-foreground">Con encargos pendientes de entregar</p>
+	<!-- KPI 1: Órdenes Pendientes -->
+	<div
+		class="rounded-2xl border {pendingOrdersCount > 0
+			? 'border-amber-500/30 bg-amber-500/5'
+			: 'border-border bg-card'} p-4 sm:p-5 shadow-xs space-y-2"
+	>
+		<span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+			Órdenes Pendientes
+		</span>
+		<div class="flex items-center gap-3 pt-0.5">
+			<div
+				class="flex size-11 shrink-0 items-center justify-center rounded-2xl {pendingOrdersCount > 0
+					? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
+					: 'bg-muted text-muted-foreground'}"
+			>
+				<Clock class="size-6" />
 			</div>
 			<div
-				class="flex size-11 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600"
+				class="font-mono text-2xl sm:text-3xl font-bold tracking-tight {pendingOrdersCount > 0
+					? 'text-amber-600 dark:text-amber-400'
+					: 'text-foreground'}"
 			>
-				<Clock class="size-5" />
+				{pendingOrdersCount}
 			</div>
-		</CardContent>
-	</Card>
+		</div>
+		<p class="text-xs text-muted-foreground">
+			{pendingOrdersCount > 0 ? 'Con encargos pendientes de entregar' : 'Sin entregas pendientes'}
+		</p>
+	</div>
 
-	<Card>
-		<CardContent class="flex items-center justify-between p-5">
-			<div class="space-y-1">
-				<p class="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-					Órdenes Completadas
-				</p>
-				<p class="text-2xl font-bold text-emerald-600">
-					{completedOrdersCount}
-				</p>
-				<p class="text-xs text-muted-foreground">Totalmente entregadas</p>
+	<!-- KPI 2: Órdenes Completadas -->
+	<div class="rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-xs space-y-2">
+		<span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+			Órdenes Completadas
+		</span>
+		<div class="flex items-center gap-3 pt-0.5">
+			<div
+				class="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+			>
+				<Check class="size-6" />
 			</div>
 			<div
-				class="flex size-11 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600"
+				class="font-mono text-2xl sm:text-3xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400"
 			>
-				<Check class="size-5" />
+				{completedOrdersCount}
 			</div>
-		</CardContent>
-	</Card>
+		</div>
+		<p class="text-xs text-muted-foreground">Totalmente entregadas</p>
+	</div>
 
-	<Card>
-		<CardContent class="flex items-center justify-between p-5">
-			<div class="space-y-1">
-				<p class="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-					Total Cobrado
-				</p>
-				<p class="font-mono text-2xl font-bold text-foreground">
-					{formatCurrency(totalCollected)}
-				</p>
-				<p class="text-xs text-muted-foreground">De {formatCurrency(totalBilled)} facturados</p>
-			</div>
+	<!-- KPI 3: Total Cobrado -->
+	<div class="rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-xs space-y-2">
+		<span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+			Total Cobrado
+		</span>
+		<div class="flex items-center gap-3 pt-0.5">
 			<div
-				class="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary"
+				class="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary"
 			>
-				<CircleDollarSign class="size-5" />
+				<CircleDollarSign class="size-6" />
 			</div>
-		</CardContent>
-	</Card>
+			<div class="font-mono text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+				{formatCurrency(totalCollected)}
+			</div>
+		</div>
+		<p class="text-xs font-mono text-muted-foreground">
+			De {formatCurrency(totalBilled)} facturados
+		</p>
+	</div>
 
-	<Card>
-		<CardContent class="flex items-center justify-between p-5">
-			<div class="space-y-1">
-				<p class="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-					Saldo por Cobrar
-				</p>
-				<p
-					class="font-mono text-2xl font-bold {totalPendingCollection > 0
-						? 'text-amber-600'
-						: 'text-foreground'}"
-				>
-					{formatCurrency(totalPendingCollection)}
-				</p>
-				<p class="text-xs text-muted-foreground">Señas y pagos pendientes</p>
+	<!-- KPI 4: Saldo por Cobrar -->
+	<div
+		class="rounded-2xl border {totalPendingCollection > 0
+			? 'border-amber-500/30 bg-amber-500/5'
+			: 'border-border bg-card'} p-4 sm:p-5 shadow-xs space-y-2"
+	>
+		<span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+			Saldo por Cobrar
+		</span>
+		<div class="flex items-center gap-3 pt-0.5">
+			<div
+				class="flex size-11 shrink-0 items-center justify-center rounded-2xl {totalPendingCollection > 0
+					? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
+					: 'bg-muted text-muted-foreground'}"
+			>
+				<ShoppingBag class="size-6" />
 			</div>
 			<div
-				class="flex size-11 items-center justify-center rounded-xl bg-muted text-muted-foreground"
+				class="font-mono text-2xl sm:text-3xl font-bold tracking-tight {totalPendingCollection > 0
+					? 'text-amber-600 dark:text-amber-400'
+					: 'text-foreground'}"
 			>
-				<ShoppingBag class="size-5" />
+				{formatCurrency(totalPendingCollection)}
 			</div>
-		</CardContent>
-	</Card>
+		</div>
+		<p class="text-xs text-muted-foreground">
+			{totalPendingCollection > 0 ? 'Señas y pagos pendientes' : 'Cuentas al día'}
+		</p>
+	</div>
 </div>

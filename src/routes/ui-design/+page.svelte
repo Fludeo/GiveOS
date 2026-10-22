@@ -478,12 +478,9 @@
 					<!-- KPI 1: Primary (Blue) -->
 					<Card.Root class="border-border bg-card shadow-xs">
 						<Card.Header class="p-4 sm:p-5 pb-2 space-y-1.5">
-							<div class="flex items-center justify-between">
-								<Card.Description class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-									Productos en Venta
-								</Card.Description>
-								<Badge variant="default" class="text-[10px] px-1.5 py-0">Primary</Badge>
-							</div>
+							<Card.Description class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+								Productos en Venta
+							</Card.Description>
 							<div class="flex items-center gap-3 pt-0.5">
 								<div class="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
 									<CakeSlice class="size-6" />
@@ -503,12 +500,9 @@
 					<!-- KPI 2: Secondary (Indigo) -->
 					<Card.Root class="border-secondary/30 bg-secondary/5 shadow-xs">
 						<Card.Header class="p-4 sm:p-5 pb-2 space-y-1.5">
-							<div class="flex items-center justify-between">
-								<Card.Description class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-									Elaboraciones y Sub-recetas
-								</Card.Description>
-								<Badge variant="secondary" class="text-[10px] px-1.5 py-0">Secondary</Badge>
-							</div>
+							<Card.Description class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+								Elaboraciones y Sub-recetas
+							</Card.Description>
 							<div class="flex items-center gap-3 pt-0.5">
 								<div class="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-secondary/15 text-secondary">
 									<GraphHub class="size-6" />
@@ -528,12 +522,9 @@
 					<!-- KPI 3: Accent (Lima) -->
 					<Card.Root class="border-lime-500/30 bg-lime-500/5 shadow-xs">
 						<Card.Header class="p-4 sm:p-5 pb-2 space-y-1.5">
-							<div class="flex items-center justify-between">
-								<Card.Description class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-									Atajos y Destacados
-								</Card.Description>
-								<Badge variant="accent" class="text-[10px] px-1.5 py-0">Accent (Lima)</Badge>
-							</div>
+							<Card.Description class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+								Atajos y Destacados
+							</Card.Description>
 							<div class="flex items-center gap-3 pt-0.5">
 								<div class="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-lime-400/20 text-lime-800 dark:text-lime-300">
 									<Sparkles class="size-6" />
@@ -553,12 +544,9 @@
 					<!-- KPI 4: Muted (Zinc) -->
 					<Card.Root class="border-border bg-muted/40 shadow-xs">
 						<Card.Header class="p-4 sm:p-5 pb-2 space-y-1.5">
-							<div class="flex items-center justify-between">
-								<Card.Description class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-									Capacidad de Producción
-								</Card.Description>
-								<Badge variant="muted" class="text-[10px] px-1.5 py-0">Muted</Badge>
-							</div>
+							<Card.Description class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+								Capacidad de Producción
+							</Card.Description>
 							<div class="flex items-center gap-3 pt-0.5">
 								<div class="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
 									<Layers class="size-6" />
@@ -578,12 +566,9 @@
 					<!-- KPI 5: Success (Emerald) -->
 					<Card.Root class="border-emerald-500/30 bg-emerald-500/5 shadow-xs">
 						<Card.Header class="p-4 sm:p-5 pb-2 space-y-1.5">
-							<div class="flex items-center justify-between">
-								<Card.Description class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-									Stock en Mostrador
-								</Card.Description>
-								<Badge variant="outline" class="border-emerald-500/40 bg-emerald-500/10 text-emerald-700 text-[10px] px-1.5 py-0">Success</Badge>
-							</div>
+							<Card.Description class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+								Stock en Mostrador
+							</Card.Description>
 							<div class="flex items-center gap-3 pt-0.5">
 								<div class="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/15 text-emerald-600">
 									<Package class="size-6" />
@@ -603,12 +588,9 @@
 					<!-- KPI 6: Destructive (Red) -->
 					<Card.Root class="border-destructive/30 bg-destructive/5 shadow-xs">
 						<Card.Header class="p-4 sm:p-5 pb-2 space-y-1.5">
-							<div class="flex items-center justify-between">
-								<Card.Description class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-									Insumos Bajo Mínimo
-								</Card.Description>
-								<Badge variant="destructive" class="text-[10px] px-1.5 py-0">Destructive</Badge>
-							</div>
+							<Card.Description class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+								Insumos Bajo Mínimo
+							</Card.Description>
 							<div class="flex items-center gap-3 pt-0.5">
 								<div class="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-destructive/15 text-destructive">
 									<AlertTriangle class="size-6" />

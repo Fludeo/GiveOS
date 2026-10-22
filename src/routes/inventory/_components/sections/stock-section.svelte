@@ -9,6 +9,7 @@
 	import { Badge } from '#lib/components/ui/badge';
 	import Package from '@lucide/svelte/icons/package';
 	import Layers from '@lucide/svelte/icons/layers';
+	import Boxes from '@lucide/svelte/icons/boxes';
 	import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
 	import Search from '@lucide/svelte/icons/search';
 	import Wheat from '@lucide/svelte/icons/wheat';
@@ -20,7 +21,9 @@
 	import PackagePlus from '@lucide/svelte/icons/package-plus';
 	import BookOpen from '@lucide/svelte/icons/book-open';
 	import Pencil from '@lucide/svelte/icons/pencil';
-	import { formatCurrency } from '../utils';
+	import History from '@lucide/svelte/icons/history';
+	import CirclePile from '@lucide/svelte/icons/circle-pile';
+	import { formatCurrency, formatQuantity, getDaysAgo } from '../utils';
 
 	interface Props {
 		items: Item[];
@@ -124,65 +127,64 @@
 </script>
 
 <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
-	<Card>
-		<CardContent class="flex items-center justify-between p-4 sm:p-5">
-			<div class="space-y-1">
-				<p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-					Catálogo
-				</p>
-				<p class="text-2xl font-bold text-foreground">{items.length} ítems</p>
-				<p class="text-xs text-muted-foreground">
-					{items.filter((i) => i.type === 'raw_material').length} insumos ·
-					{items.filter((i) => i.type === 'prepared').length} elaboraciones
-				</p>
+	<!-- KPI 1: Catálogo (Primary / Blue) -->
+	<div class="rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-xs space-y-2">
+		<span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+			Catálogo
+		</span>
+		<div class="flex items-center gap-3 pt-0.5">
+			<div class="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+				<Package class="size-6" />
 			</div>
-			<div class="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
-				<Package class="size-5" />
+			<div class="font-mono text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+				{items.length} <span class="text-sm font-semibold text-muted-foreground font-sans">ítems</span>
 			</div>
-		</CardContent>
-	</Card>
+		</div>
+		<p class="text-xs text-muted-foreground">
+			{items.filter((i) => i.type === 'raw_material').length} insumos ·
+			{items.filter((i) => i.type === 'prepared').length} elaboraciones
+		</p>
+	</div>
 
-	<Card>
-		<CardContent class="flex items-center justify-between p-4 sm:p-5">
-			<div class="space-y-1">
-				<p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-					Stock Bajo
-				</p>
-				<p class="text-2xl font-bold {lowStockCount > 0 ? 'text-destructive' : 'text-foreground'}">
-					{lowStockCount}
-				</p>
-				<p class="text-xs text-muted-foreground">
-					{lowStockCount > 0 ? 'Bajo el punto de alerta' : 'Existencias al día'}
-				</p>
-			</div>
+	<!-- KPI 2: Stock Bajo (Destructive / Warning) -->
+	<div class="rounded-2xl border {lowStockCount > 0 ? 'border-destructive/30 bg-destructive/5' : 'border-border bg-card'} p-4 sm:p-5 shadow-xs space-y-2">
+		<span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+			Stock Bajo
+		</span>
+		<div class="flex items-center gap-3 pt-0.5">
 			<div
-				class="flex size-11 items-center justify-center rounded-xl {lowStockCount > 0
-					? 'bg-destructive/10 text-destructive'
+				class="flex size-11 shrink-0 items-center justify-center rounded-2xl {lowStockCount > 0
+					? 'bg-destructive/15 text-destructive'
 					: 'bg-muted text-muted-foreground'}"
 			>
-				<AlertTriangle class="size-5" />
+				<AlertTriangle class="size-6" />
 			</div>
-		</CardContent>
-	</Card>
+			<div class="font-mono text-2xl sm:text-3xl font-bold tracking-tight {lowStockCount > 0 ? 'text-destructive' : 'text-foreground'}">
+				{lowStockCount}
+			</div>
+		</div>
+		<p class="text-xs text-muted-foreground">
+			{lowStockCount > 0 ? 'Bajo el punto de alerta de reposición' : 'Todas las existencias sobre el mínimo'}
+		</p>
+	</div>
 
-	<Card>
-		<CardContent class="flex items-center justify-between p-4 sm:p-5">
-			<div class="space-y-1">
-				<p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-					Valor en Stock
-				</p>
-				<p class="font-mono text-2xl font-bold text-foreground">
-					{formatCurrency(totalInventoryValue)}
-				</p>
-				<p class="text-xs text-muted-foreground">
-					Costo valorizado total
-				</p>
+	<!-- KPI 3: Valor en Stock (Secondary / Indigo) -->
+	<div class="rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-xs space-y-2">
+		<span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+			Valor en Stock
+		</span>
+		<div class="flex items-center gap-3 pt-0.5">
+			<div class="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-secondary/15 text-secondary">
+				<Boxes class="size-6" />
 			</div>
-			<div class="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
-				<Layers class="size-5" />
+			<div class="font-mono text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+				{formatCurrency(totalInventoryValue)}
 			</div>
-		</CardContent>
-	</Card>
+		</div>
+		<p class="text-xs text-muted-foreground">
+			Costo valorizado total de existencias
+		</p>
+	</div>
 </div>
 
 <Card>
@@ -280,6 +282,8 @@
 						{#each paginatedItems as item (item.id)}
 							{@const isLow = item.minStock > 0 && item.currentStock <= item.minStock}
 							{@const recipeSummary = recipeSummaries[item.id]}
+							{@const latestBatch = item.batches && item.batches.length > 0 ? item.batches[item.batches.length - 1] : null}
+							{@const activeBatches = item.batches ? item.batches.filter((b) => b.remainingQuantity > 0) : []}
 							<div
 								class="flex flex-col justify-between rounded-2xl border p-4 transition-all shadow-2xs {isLow
 									? 'border-destructive/40 bg-card hover:border-destructive/60'
@@ -287,18 +291,12 @@
 							>
 								<div>
 									<div class="flex items-center justify-between gap-2">
-										<span class="rounded px-1.5 py-0.5 font-mono text-[10px] font-semibold tracking-tight {item.type === 'raw_material' ? 'bg-tertiary/20 text-yellow-900 dark:text-yellow-300 border border-tertiary/40' : 'bg-muted text-muted-foreground'}">
+										<span class="rounded px-1.5 py-0.5 font-mono text-[10px] font-semibold tracking-tight bg-muted text-muted-foreground">
 											{item.code}
 										</span>
 										<div class="flex items-center gap-1.5">
 											{#if isLow}
-												<Badge variant="destructive" class="text-[10px] px-1.5 py-0">Bajo Stock</Badge>
-											{/if}
-											{#if item.type === 'prepared' && item.prepTimeMinutes > 0}
-												<span class="inline-flex items-center gap-1 rounded-md border border-secondary/30 bg-secondary/10 px-1.5 py-0.5 text-[11px] font-semibold text-secondary">
-													<Clock class="size-2.5" />
-													{item.prepTimeMinutes}m
-												</span>
+												<Badge variant="destructive" class="text-[10px] px-1.5 py-0">Reponer</Badge>
 											{/if}
 											<ItemTypeBadge type={item.type} short={true} />
 										</div>
@@ -335,21 +333,15 @@
 												<p class="font-mono text-base font-bold text-foreground">
 													{formatCurrency(getDirectUnitCost(item))}
 												</p>
-												<div class="flex items-center gap-1 text-[10px] text-muted-foreground">
-													<span>por {item.baseUnit}</span>
-													{#if item.batches && item.batches.length > 0}
-														{@const activeBatches = item.batches.filter((b) => b.remainingQuantity > 0)}
-														{#if activeBatches.length > 0}
-															<span class="text-primary font-semibold">· {activeBatches.length} {activeBatches.length === 1 ? 'lote' : 'lotes'}</span>
-														{/if}
-													{/if}
-												</div>
+												<p class="text-[10px] text-muted-foreground">
+													por {item.baseUnit}
+												</p>
 											{:else if recipeSummary && recipeSummary.directComponentsCount > 0}
 												<p class="font-mono text-base font-bold text-foreground">
 													{formatCurrency(recipeSummary.estimatedUnitCost)}
 												</p>
 												<p class="text-[10px] text-muted-foreground">
-													{recipeSummary.directComponentsCount} ingr. · rinde {item.yieldQuantity} {item.baseUnit}
+													por {item.baseUnit}
 												</p>
 											{:else}
 												<button
@@ -361,6 +353,16 @@
 												</button>
 											{/if}
 										</div>
+									</div>
+
+									<!-- Última carga de stock -->
+									<div class="mt-2 flex items-center gap-1 text-[10px] text-muted-foreground px-0.5">
+										<History class="size-3 shrink-0 text-muted-foreground/70" />
+										{#if latestBatch}
+											<span>Últ. carga: <strong class="text-foreground/80 font-medium">{getDaysAgo(latestBatch.createdAt)}</strong> <span class="text-primary font-bold">(+{formatQuantity(latestBatch.initialQuantity)} {item.baseUnit})</span></span>
+										{:else}
+											<span class="text-muted-foreground/60">Sin cargas de stock registradas</span>
+										{/if}
 									</div>
 								</div>
 
@@ -392,9 +394,9 @@
 											variant="outline"
 											size="sm"
 											class="h-8 text-xs gap-1"
-											onclick={() => onSelectCatalogItem(item.id)}
+											onclick={() => onViewRecipe(item.id)}
 										>
-											<Layers class="size-3.5 text-secondary" />
+											<BookOpen class="size-3.5 text-secondary" />
 											<span>Receta</span>
 										</Button>
 									{/if}
@@ -421,6 +423,7 @@
 									<th class="py-3.5 pr-4 pl-5 font-semibold whitespace-nowrap">Ítem</th>
 									<th class="px-4 py-3.5 font-semibold whitespace-nowrap">Tipo</th>
 									<th class="px-4 py-3.5 font-semibold whitespace-nowrap">Stock / Alerta</th>
+									<th class="px-4 py-3.5 font-semibold whitespace-nowrap">Últ. Carga</th>
 									<th class="px-4 py-3.5 font-semibold whitespace-nowrap">Costo Unit.</th>
 									<th class="py-3.5 pr-5 pl-4 text-right font-semibold whitespace-nowrap">Acciones</th>
 								</tr>
@@ -429,10 +432,12 @@
 								{#each paginatedItems as item (item.id)}
 									{@const isLow = item.minStock > 0 && item.currentStock <= item.minStock}
 									{@const recipeSummary = recipeSummaries[item.id]}
+									{@const latestBatch = item.batches && item.batches.length > 0 ? item.batches[item.batches.length - 1] : null}
+									{@const activeBatches = item.batches ? item.batches.filter((b) => b.remainingQuantity > 0) : []}
 									<tr class="transition-colors hover:bg-muted/20">
 										<td class="py-4 pr-4 pl-5 align-middle">
 											<div class="flex items-center gap-2.5">
-												<span class="shrink-0 whitespace-nowrap rounded px-1.5 py-0.5 font-mono text-[10px] font-semibold tracking-tight {item.type === 'raw_material' ? 'bg-tertiary/20 text-yellow-900 dark:text-yellow-300 border border-tertiary/40' : 'bg-muted text-muted-foreground'}">
+												<span class="shrink-0 whitespace-nowrap rounded px-1.5 py-0.5 font-mono text-[10px] font-semibold tracking-tight bg-muted text-muted-foreground">
 													{item.code}
 												</span>
 												<button
@@ -468,6 +473,25 @@
 										</td>
 
 										<td class="px-4 py-4 align-middle whitespace-nowrap">
+											<div class="space-y-0.5 text-xs">
+												{#if latestBatch}
+													<div class="flex items-center gap-1.5 text-foreground font-medium">
+														<History class="size-3 text-muted-foreground shrink-0" />
+														<span>{getDaysAgo(latestBatch.createdAt)}</span>
+													</div>
+													<p class="font-mono text-[11px] {item.type === 'prepared' ? 'text-secondary' : 'text-primary'} font-bold">
+														+{formatQuantity(latestBatch.initialQuantity)} {item.baseUnit}
+													</p>
+												{:else}
+													<div class="flex items-center gap-1.5 text-muted-foreground">
+														<History class="size-3 shrink-0" />
+														<span>Sin cargas</span>
+													</div>
+												{/if}
+											</div>
+										</td>
+
+										<td class="px-4 py-4 align-middle whitespace-nowrap">
 											{#if item.type === 'raw_material'}
 												<div class="space-y-0.5">
 													<p class="font-mono text-xs font-semibold text-foreground">
@@ -476,22 +500,11 @@
 															/ {item.baseUnit}
 														</span>
 													</p>
-													{#if item.batches && item.batches.length > 0}
-														{@const activeBatches = item.batches.filter((b) => b.remainingQuantity > 0)}
-														{#if activeBatches.length > 0}
-															<p class="font-mono text-[10px] text-primary font-medium">
-																{activeBatches.length} {activeBatches.length === 1 ? 'lote activo' : 'lotes activos'}
-															</p>
-														{/if}
-													{/if}
 												</div>
 											{:else if recipeSummary && recipeSummary.directComponentsCount > 0}
 												<div class="space-y-0.5">
 													<p class="font-mono text-xs font-semibold text-foreground">
 														{formatCurrency(recipeSummary.estimatedUnitCost)} / {item.baseUnit}
-													</p>
-													<p class="text-[11px] text-muted-foreground">
-														Calculado por Receta ({recipeSummary.directComponentsCount} ingr. · rinde {item.yieldQuantity} {item.baseUnit})
 													</p>
 												</div>
 											{:else}

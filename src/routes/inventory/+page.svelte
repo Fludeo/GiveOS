@@ -252,12 +252,15 @@
 		bind:open={showAddStockModal}
 		item={selectedStockItem}
 		businessId={data.activeBusiness.id}
+		allItems={data.items}
+		recipeSummary={selectedStockItem ? data.recipeSummaries[selectedStockItem.id] : undefined}
 		estimatedUnitCost={selectedStockItem
 			? (data.recipeSummaries[selectedStockItem.id]?.estimatedUnitCost ?? 0)
 			: 0}
 		onClose={() => {
 			selectedStockItemId = null;
 		}}
+		onOpenRecipeStructure={selectCatalogItem}
 	/>
 
 	<AdjustItemModal

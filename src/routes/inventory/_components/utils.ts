@@ -48,6 +48,14 @@ export function getUnitPriceLabel(unit: string): string {
 	}
 }
 
+export function formatQuantity(val: number): string {
+	if (!Number.isFinite(val)) return '0';
+	return new Intl.NumberFormat('es-AR', {
+		minimumFractionDigits: 0,
+		maximumFractionDigits: 2
+	}).format(val);
+}
+
 export function calculateComponentsRecipeCost(
 	comps: { itemId: string; quantity: number }[],
 	items: Item[],

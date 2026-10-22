@@ -1,31 +1,65 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import type { Item } from '#lib/features/items/domain/item.entity';
-	import { getDirectUnitCost } from '#lib/features/items/domain/item.entity';
+	import type { Item, ItemStockBatch } from '#lib/features/items/domain/item.entity';
+	import {
+		getDirectUnitCost,
+		convertQuantity,
+		ITEM_TYPE_CONFIG
+	} from '#lib/features/items/domain/item.entity';
+	import type { RecipeTreeNode } from '#lib/features/recipes/domain/recipe.entity';
 	import { Button } from '#lib/components/ui/button';
 	import { Input } from '#lib/components/ui/input';
 	import { Label } from '#lib/components/ui/label';
+	import NumberStepper from '#lib/components/ui/number-stepper.svelte';
 	import X from '@lucide/svelte/icons/x';
+	import Package from '@lucide/svelte/icons/package';
 	import PackagePlus from '@lucide/svelte/icons/package-plus';
 	import History from '@lucide/svelte/icons/history';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
-	import { formatCurrency, formatDate, getDaysAgo } from '../utils';
+	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
+	import CircleCheck from '@lucide/svelte/icons/circle-check';
+	import ArrowRight from '@lucide/svelte/icons/arrow-right';
+	import Sparkles from '@lucide/svelte/icons/sparkles';
+	import Info from '@lucide/svelte/icons/info';
+	import Layers from '@lucide/svelte/icons/layers';
+	import ArrowUpRight from '@lucide/svelte/icons/arrow-up-right';
+	import Clock from '@lucide/svelte/icons/clock';
+	import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
+	import { formatCurrency, formatDate, getDaysAgo, formatQuantity } from '../utils';
 
 	interface Props {
 		open: boolean;
 		item: Item | null;
 		businessId: string;
+		allItems?: Item[];
+		recipeSummary?: {
+			nodes: RecipeTreeNode[];
+			estimatedTotalCost?: number;
+			estimatedUnitCost?: number;
+		};
 		estimatedUnitCost?: number;
 		onClose: () => void;
+		onOpenRecipeStructure?: (itemId: string) => void;
 	}
 
-	let { open = $bindable(), item, businessId, estimatedUnitCost = 0, onClose }: Props = $props();
+	let {
+		open = $bindable(),
+		item,
+		businessId,
+		allItems = [],
+		recipeSummary,
+		estimatedUnitCost = 0,
+		onClose,
+		onOpenRecipeStructure
+	}: Props = $props();
 
 	let stockIntakeQty = $state<number | ''>('');
 	let stockIntakeTotalCost = $state<number | ''>('');
 	let stockIntakeSupplier = $state('');
 	let stockIntakeNotes = $state('');
 	let isSubmittingStock = $state(false);
+	let batchToDelete = $state<ItemStockBatch | null>(null);
+	let isDeletingBatch = $state(false);
 
 	$effect(() => {
 		if (open) {
@@ -34,6 +68,8 @@
 			stockIntakeSupplier = '';
 			stockIntakeNotes = '';
 			isSubmittingStock = false;
+			batchToDelete = null;
+			isDeletingBatch = false;
 		}
 	});
 
@@ -50,6 +86,121 @@
 		}
 		return 0;
 	});
+
+	// Paso inteligente para el stepper según la unidad de medida
+	const stepperStep = $derived.by(() => {
+		if (!item) return 1;
+		if (item.baseUnit === 'g' || item.baseUnit === 'ml') return 50;
+		if (item.baseUnit === 'kg' || item.baseUnit === 'l') return 1;
+		return 1;
+	});
+
+	// Líneas directas de receta si es elaboración
+	const recipeNodes = $derived(item?.type === 'prepared' ? (recipeSummary?.nodes ?? []) : []);
+	const hasRecipe = $derived(recipeNodes.length > 0);
+	const yieldQuantity = $derived(
+		item?.yieldQuantity && item.yieldQuantity > 0 ? item.yieldQuantity : 1
+	);
+
+	interface ComponentImpact {
+		node: RecipeTreeNode;
+		component: Item;
+		requiredPerParentUnit: number;
+		consumedForInput: number;
+		currentStock: number;
+		remainingStock: number;
+		isDeficit: boolean;
+		deficitQty: number;
+		isLowStock: boolean;
+		maxProducibleUnits: number;
+	}
+
+	// Cálculo reactivo del consumo en tiempo real y capacidad por cada componente
+	const impacts = $derived.by<ComponentImpact[]>(() => {
+		if (!item || item.type !== 'prepared' || recipeNodes.length === 0) return [];
+		const inputQty =
+			typeof stockIntakeQty === 'number' && !isNaN(stockIntakeQty)
+				? Math.max(0, stockIntakeQty)
+				: 0;
+		const batchFactor = inputQty / yieldQuantity;
+
+		return recipeNodes.map((node) => {
+			const comp = allItems.find((i) => i.id === node.component.id) ?? node.component;
+			// Cantidad necesaria en la unidad base del componente para 1 tanda de rendimiento
+			const requiredInCompBaseForBatch = convertQuantity(node.quantity, node.unit, comp.baseUnit);
+			const requiredPerParentUnit = requiredInCompBaseForBatch / yieldQuantity;
+
+			// Cantidad consumida para la cantidad actualmente ingresada
+			const consumedForInput = convertQuantity(
+				node.quantity * batchFactor,
+				node.unit,
+				comp.baseUnit
+			);
+			const currentStock = comp.currentStock;
+			const remainingStock = currentStock - consumedForInput;
+			const isDeficit = inputQty > 0 && remainingStock < -0.0001;
+			const deficitQty = isDeficit ? Math.abs(remainingStock) : 0;
+			const isLowStock = inputQty > 0 && !isDeficit && remainingStock <= comp.minStock;
+
+			// Unidades máximas del ítem padre que se pueden elaborar con el stock de este componente
+			const maxProducibleUnits =
+				requiredPerParentUnit > 0
+					? Math.max(0, comp.currentStock / requiredPerParentUnit)
+					: Infinity;
+
+			return {
+				node,
+				component: comp,
+				requiredPerParentUnit,
+				consumedForInput,
+				currentStock,
+				remainingStock,
+				isDeficit,
+				deficitQty,
+				isLowStock,
+				maxProducibleUnits
+			};
+		});
+	});
+
+	// Stock máximo potencial que se podría elaborar con todas las existencias actuales
+	const maxProducible = $derived.by(() => {
+		if (impacts.length === 0) return null;
+		const minVal = Math.min(...impacts.map((i) => i.maxProducibleUnits));
+		if (!Number.isFinite(minVal) || minVal < 0) return 0;
+		return Math.round(minVal * 100) / 100;
+	});
+
+	// Insumo o elaborado limitante (cuello de botella)
+	const bottleneckComponents = $derived.by(() => {
+		if (maxProducible === null || impacts.length === 0) return [];
+		return impacts.filter((i) => Math.abs(i.maxProducibleUnits - maxProducible) < 0.01);
+	});
+
+	const hasAnyDeficit = $derived(impacts.some((i) => i.isDeficit));
+	const deficitCount = $derived(impacts.filter((i) => i.isDeficit).length);
+
+	// Cálculo del tiempo estimado de preparación/horneado
+	// Para recetas parciales o hasta 1 tanda base no lleva menos tiempo (tiempo fijo de horneado)
+	const estimatedTimeMinutes = $derived.by(() => {
+		if (!item || item.type !== 'prepared' || !item.prepTimeMinutes || item.prepTimeMinutes <= 0) {
+			return 0;
+		}
+		const inputQty =
+			typeof stockIntakeQty === 'number' && !isNaN(stockIntakeQty) ? stockIntakeQty : 0;
+		if (inputQty <= 0) {
+			return item.prepTimeMinutes;
+		}
+		const tandas = Math.ceil(inputQty / yieldQuantity);
+		return tandas * item.prepTimeMinutes;
+	});
+
+	function formatDuration(mins: number): string {
+		if (mins < 60) return `${mins} min`;
+		const h = Math.floor(mins / 60);
+		const m = mins % 60;
+		return m > 0 ? `${h}h ${m}m` : `${h}h`;
+	}
 </script>
 
 {#if open && item}
@@ -61,12 +212,16 @@
 		role="dialog"
 		aria-modal="true"
 	>
-		<div class="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
+		<div
+			class="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl lg:max-w-3xl"
+		>
 			<!-- Encabezado del Modal -->
 			<div class="flex items-start justify-between gap-4 border-b border-border p-6 pb-4">
 				<div class="space-y-1">
 					<div class="flex items-center gap-2">
-						<span class="rounded px-1.5 py-0.5 font-mono text-[10px] font-bold tracking-tight {item.type === 'raw_material' ? 'border border-tertiary/40 bg-tertiary/20 text-yellow-900 dark:text-yellow-300' : 'bg-muted text-muted-foreground'}">
+						<span
+							class="rounded px-1.5 py-0.5 font-mono text-[10px] font-semibold tracking-tight bg-muted text-muted-foreground"
+						>
 							{item.code}
 						</span>
 						<span class="rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold text-muted-foreground">
@@ -98,56 +253,103 @@
 			<!-- Contenido con scroll -->
 			<div class="flex-1 space-y-5 overflow-y-auto p-6">
 				<!-- Métricas Rápidas del Ítem -->
-				<div class="grid grid-cols-2 gap-3 rounded-xl border border-border bg-muted/20 p-3.5 sm:grid-cols-4">
-					<div>
-						<span class="text-[11px] font-medium text-muted-foreground">Stock Actual</span>
-						<p class="font-mono text-base font-bold text-foreground">
-							{item.currentStock} <span class="text-xs font-normal text-muted-foreground">{item.baseUnit}</span>
-						</p>
+				<div
+					class="grid grid-cols-2 gap-3 rounded-xl border border-border bg-muted/20 p-3.5 sm:grid-cols-4"
+				>
+					<div class="flex flex-col justify-between">
+						<div class="flex h-5 items-center gap-1 text-[11px] font-medium text-muted-foreground">
+							<Package class="size-3 shrink-0" />
+							<span>Stock Actual</span>
+						</div>
+						<div>
+							<p class="font-mono text-base font-bold text-foreground">
+								{formatQuantity(item.currentStock)} <span class="text-xs font-normal text-muted-foreground">{item.baseUnit}</span>
+							</p>
+							<p class="text-[10px] text-transparent select-none">&nbsp;</p>
+						</div>
 					</div>
-					<div>
-						<span class="text-[11px] font-medium text-muted-foreground">Costo Unit.</span>
-						<p class="font-mono text-base font-bold text-foreground">
+					<div class="flex flex-col justify-between">
+						<div class="flex h-5 items-center text-[11px] font-medium text-muted-foreground">
+							<span>Costo Unit.</span>
+						</div>
+						<div>
+							<p class="font-mono text-base font-bold text-foreground">
+								{#if item.type === 'raw_material'}
+									{formatCurrency(getDirectUnitCost(item))}
+								{:else}
+									{formatCurrency(estimatedUnitCost)}
+								{/if}
+							</p>
+							<p class="text-[10px] text-muted-foreground">
+								{item.type === 'raw_material' ? `por ${item.baseUnit}` : 'por receta'}
+							</p>
+						</div>
+					</div>
+					<div class="flex flex-col justify-between">
+						<div class="flex h-5 items-center text-[11px] font-medium text-muted-foreground">
+							<span>{item.type === 'raw_material' ? 'Lotes Activos' : 'Lotes Registrados'}</span>
+						</div>
+						<div>
+							<p class="font-mono text-base font-bold text-foreground">
+								{activeBatches.length} <span class="text-xs font-normal text-muted-foreground">({batches.length} hist.)</span>
+							</p>
+							<p class="text-[10px] text-transparent select-none">&nbsp;</p>
+						</div>
+					</div>
+					<div class="flex flex-col justify-between">
+						<div class="flex h-5 items-center gap-1 text-[11px] font-medium text-muted-foreground">
+							<Package class="size-3 shrink-0" />
+							<span>{item.type === 'raw_material' ? 'Lote más Antiguo' : 'Máx. Fabricable'}</span>
+						</div>
+						<div>
 							{#if item.type === 'raw_material'}
-								{formatCurrency(getDirectUnitCost(item))}
+								{#if oldestActive}
+									<p class="text-xs font-semibold text-foreground">
+										{getDaysAgo(oldestActive.createdAt)}
+									</p>
+									<p class="text-[10px] text-muted-foreground">1º en rotación</p>
+								{:else}
+									<p class="text-xs text-muted-foreground">Sin stock previo</p>
+									<p class="text-[10px] text-transparent select-none">&nbsp;</p>
+								{/if}
 							{:else}
-								{formatCurrency(estimatedUnitCost)}
+								{#if maxProducible !== null}
+									<p class="font-mono text-base font-bold {maxProducible > 0 ? 'text-primary' : 'text-destructive'}">
+										{formatQuantity(maxProducible)} <span class="text-xs font-normal text-muted-foreground">{item.baseUnit}</span>
+									</p>
+									<p class="text-[10px] text-muted-foreground">según receta</p>
+								{:else}
+									<p class="text-xs text-muted-foreground">Sin receta</p>
+									<p class="text-[10px] text-transparent select-none">&nbsp;</p>
+								{/if}
 							{/if}
-						</p>
-						<p class="text-[10px] text-muted-foreground">
-							{item.type === 'raw_material' ? `por ${item.baseUnit}` : 'por receta'}
-						</p>
-					</div>
-					<div>
-						<span class="text-[11px] font-medium text-muted-foreground">{item.type === 'raw_material' ? 'Lotes Activos' : 'Lotes Registrados'}</span>
-						<p class="font-mono text-base font-bold text-foreground">
-							{activeBatches.length} <span class="text-xs font-normal text-muted-foreground">({batches.length} hist.)</span>
-						</p>
-					</div>
-					<div>
-						<span class="text-[11px] font-medium text-muted-foreground">{item.type === 'raw_material' ? 'Lote más Antiguo' : 'Última Carga'}</span>
-						{#if item.type === 'raw_material'}
-							{#if oldestActive}
-								<p class="text-xs font-semibold text-foreground">
-									{getDaysAgo(oldestActive.createdAt)}
-								</p>
-								<p class="text-[10px] text-muted-foreground">1º en rotación</p>
-							{:else}
-								<p class="text-xs text-muted-foreground">Sin stock previo</p>
-							{/if}
-						{:else}
-							{#if batches.length > 0}
-								{@const latestBatch = batches[batches.length - 1]}
-								<p class="text-xs font-semibold text-foreground">
-									{formatDate(latestBatch.createdAt)}
-								</p>
-								<p class="text-[10px] text-muted-foreground">{getDaysAgo(latestBatch.createdAt)}</p>
-							{:else}
-								<p class="text-xs text-muted-foreground">Sin elaboraciones previas</p>
-							{/if}
-						{/if}
+						</div>
 					</div>
 				</div>
+
+				<!-- Aviso sólo si la elaboración no tiene receta -->
+				{#if item.type === 'prepared' && !hasRecipe}
+					<div class="flex items-center justify-between rounded-xl border border-dashed border-border bg-muted/20 px-3.5 py-2.5 text-xs text-muted-foreground">
+						<div class="flex items-center gap-2">
+							<Info class="size-4 text-muted-foreground" />
+							<span>Esta elaboración aún no tiene ingredientes en su receta.</span>
+						</div>
+						{#if onOpenRecipeStructure}
+							<button
+								type="button"
+								class="inline-flex items-center gap-1 font-semibold text-primary hover:underline cursor-pointer"
+								onclick={() => {
+									const targetId = item.id;
+									handleClose();
+									onOpenRecipeStructure?.(targetId);
+								}}
+							>
+								<span>Configurar</span>
+								<ArrowUpRight class="size-3" />
+							</button>
+						{/if}
+					</div>
+				{/if}
 
 				<!-- Formulario de Entrada de Stock -->
 				<form
@@ -170,35 +372,82 @@
 					<input type="hidden" name="id" value={item.id} />
 
 					<div class="grid grid-cols-1 gap-4 {item.type === 'raw_material' ? 'sm:grid-cols-2' : ''}">
-						<!-- Cantidad Comprada / Producida -->
+						<!-- Cantidad Comprada / Producida con NumberStepper al estilo /ui-design -->
 						<div class="space-y-1.5">
-							<Label for="stock-intake-qty" class="font-semibold text-foreground">
-								{item.type === 'raw_material' ? 'Cantidad Comprada' : 'Cantidad Producida'} ({item.baseUnit}) *
-							</Label>
-							<Input
-								id="stock-intake-qty"
-								name="quantity"
-								type="number"
-								step="any"
-								min="0.001"
-								bind:value={stockIntakeQty}
-								placeholder="Ej. 5"
-								class="h-10 font-mono text-base"
-								required
-							/>
-							<p class="text-[11px] text-muted-foreground">
-								En la unidad base ({item.baseUnit}).
-							</p>
+							<div class="flex items-center gap-2">
+								<Label for="stock-intake-qty" class="text-xs font-semibold text-foreground">
+									{item.type === 'raw_material' ? 'Cantidad Comprada' : 'Cantidad Producida'}
+								</Label>
+								<span class="font-mono text-xs font-bold text-primary">
+									{stockIntakeQty ? `${formatQuantity(Number(stockIntakeQty))} ${item.baseUnit}` : `0 ${item.baseUnit}`}
+								</span>
+							</div>
+
+							<div class="flex flex-wrap items-center gap-2">
+								<NumberStepper
+									id="stock-intake-qty"
+									name="quantity"
+									bind:value={stockIntakeQty}
+									step={stepperStep}
+									min={0}
+									placeholder="0"
+									required
+									inputClass="w-20"
+								/>
+
+								<!-- A la derecha del input la info de máximo disponible con símbolo de caja (Package) -->
+								{#if item.type === 'prepared' && maxProducible !== null}
+									{#if maxProducible > 0}
+										<button
+											type="button"
+											onclick={() => {
+												stockIntakeQty = maxProducible;
+											}}
+											class="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 font-mono text-xs font-bold text-foreground shadow-2xs hover:border-primary hover:bg-primary/5 hover:text-primary active:scale-95 transition-all cursor-pointer"
+											title={bottleneckComponents.length > 0 ? `Limitado por: ${bottleneckComponents.map(b => `${b.component.name} (${formatQuantity(b.currentStock)} ${b.component.baseUnit})`).join(', ')}` : 'Cargar capacidad máxima'}
+										>
+											<Package class="size-3.5 text-primary" />
+											<span>Máx: {formatQuantity(maxProducible)} {item.baseUnit}</span>
+										</button>
+									{:else}
+										<div
+											class="inline-flex h-9 items-center gap-1.5 rounded-lg border border-destructive/30 bg-destructive/10 px-2.5 font-mono text-xs font-bold text-destructive"
+											title={bottleneckComponents.length > 0 ? `Sin stock en: ${bottleneckComponents.map(b => b.component.name).join(', ')}` : 'Sin stock disponible'}
+										>
+											<Package class="size-3.5 text-destructive" />
+											<span>Máx: 0 {item.baseUnit}</span>
+										</div>
+									{/if}
+								{/if}
+
+								<!-- Tiempo estimado de preparación / horneado -->
+								{#if item.type === 'prepared' && estimatedTimeMinutes > 0}
+									<div
+										class="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-muted/30 px-2.5 font-mono text-xs font-semibold text-foreground/90 select-none"
+										title="Tiempo estimado (tanda completa u horneado fijo)"
+									>
+										<Clock class="size-3.5 text-secondary shrink-0" />
+										<span>{formatDuration(estimatedTimeMinutes)}</span>
+									</div>
+								{/if}
+							</div>
 						</div>
 
 						{#if item.type === 'raw_material'}
 							<!-- Costo Total Pagado (sólo insumos) -->
 							<div class="space-y-1.5">
-								<Label for="stock-intake-cost" class="font-semibold text-foreground">
-									Costo Total Abonado ($) *
-								</Label>
+								<div class="flex items-center justify-between">
+									<Label for="stock-intake-cost" class="text-xs font-semibold text-foreground">
+										Costo Total Abonado ($) *
+									</Label>
+									{#if calculatedIntakeUnitCost > 0}
+										<span class="font-mono text-xs font-bold text-muted-foreground">
+											{formatCurrency(calculatedIntakeUnitCost)} / {item.baseUnit}
+										</span>
+									{/if}
+								</div>
 								<div class="relative flex items-center">
-									<span class="pointer-events-none absolute left-3 font-bold text-muted-foreground">$</span>
+									<span class="pointer-events-none absolute left-3 font-bold text-sm text-muted-foreground">$</span>
 									<Input
 										id="stock-intake-cost"
 										name="totalCost"
@@ -207,7 +456,7 @@
 										min="0"
 										bind:value={stockIntakeTotalCost}
 										placeholder="0.00"
-										class="h-10 pl-7 font-mono text-base"
+										class="h-9 pl-7 font-mono text-sm"
 										required
 									/>
 								</div>
@@ -245,6 +494,150 @@
 						</div>
 					{/if}
 
+					<!-- Panel en Vivo: Consumo de Receta y Stock Resultante para Elaborados -->
+					{#if item.type === 'prepared' && hasRecipe}
+						{@const inputQty = typeof stockIntakeQty === 'number' && stockIntakeQty > 0 ? stockIntakeQty : 0}
+						<div class="space-y-2.5 rounded-xl border border-border bg-card p-3.5 shadow-2xs">
+							<div class="flex h-7 items-center justify-between gap-2 border-b border-border/60 pb-2">
+								<div class="flex items-center gap-2">
+									<Layers class="size-4 text-secondary" />
+									<h3 class="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+										Consumo de Receta
+									</h3>
+								</div>
+								<div class="flex h-5 items-center">
+									{#if inputQty > 0 && hasAnyDeficit}
+										<span
+											class="inline-flex items-center gap-1 font-mono text-xs font-bold text-destructive"
+										>
+											<TriangleAlert class="size-3.5" />
+											<span>{deficitCount} {deficitCount === 1 ? 'insuficiente' : 'insuficientes'}</span>
+										</span>
+									{/if}
+								</div>
+							</div>
+
+							<!-- Lista de ingredientes / elaborados componentes -->
+							<div class="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+								{#each impacts as imp (imp.node.lineId)}
+									{@const isPrepared = imp.component.type === 'prepared'}
+									<div
+										class="rounded-lg border px-3 py-2 transition-colors {imp.isDeficit
+											? 'border-destructive/40 bg-destructive/5'
+											: imp.isLowStock
+												? 'border-amber-500/30 bg-amber-500/5'
+												: 'border-border/50 bg-muted/10'}"
+									>
+										<div class="flex flex-wrap items-center justify-between gap-2 text-xs">
+											<!-- Nombre, Código y Badge de Tipo -->
+											<div class="flex items-center gap-2 min-w-0">
+												<span
+													class="size-2 shrink-0 rounded-full {imp.isDeficit
+														? 'bg-destructive animate-pulse'
+														: imp.isLowStock
+															? 'bg-amber-500'
+															: 'bg-emerald-500'}"
+													title={imp.isDeficit
+														? 'Stock insuficiente'
+														: imp.isLowStock
+															? 'Quedará en stock bajo'
+															: 'Stock suficiente'}
+												></span>
+												<span class="font-mono text-[10px] font-bold text-muted-foreground">
+													{imp.component.code}
+												</span>
+												<span class="font-semibold text-foreground truncate max-w-[140px] sm:max-w-[200px]" title={imp.component.name}>
+													{imp.component.name}
+												</span>
+												<span
+													class="rounded px-1.5 py-0.2 font-mono text-[9px] font-semibold {isPrepared
+														? 'border border-secondary/30 bg-secondary/15 text-secondary'
+														: 'border border-tertiary/40 bg-tertiary/20 text-yellow-900 dark:text-yellow-300'}"
+												>
+													{isPrepared ? 'ELB' : 'INS'}
+												</span>
+											</div>
+
+											<!-- Consumo y Stock Resultante con símbolo de caja (Package) -->
+											<div class="flex items-center gap-3 font-mono text-xs shrink-0">
+												<!-- Consumo -->
+												<span
+													class="font-bold {inputQty > 0
+														? 'text-destructive dark:text-red-400'
+														: 'text-muted-foreground'}"
+												>
+													{inputQty > 0
+														? `-${formatQuantity(imp.consumedForInput)}`
+														: `${formatQuantity(imp.requiredPerParentUnit)}/u`} {imp.component.baseUnit}
+												</span>
+
+												<span class="text-muted-foreground/30">|</span>
+
+												<!-- Stock con símbolo de caja 📦 -->
+												<div class="flex items-center gap-1.5">
+													<Package class="size-3.5 text-muted-foreground shrink-0" />
+													{#if inputQty > 0}
+														{#if imp.isDeficit}
+															<span class="font-bold text-destructive">
+																Faltan {formatQuantity(imp.deficitQty)} {imp.component.baseUnit}
+															</span>
+														{:else}
+															<span class="text-foreground">
+																{formatQuantity(imp.currentStock)} → <strong class="font-bold">{formatQuantity(imp.remainingStock)}</strong> {imp.component.baseUnit}
+															</span>
+														{/if}
+													{:else}
+														<span class="text-muted-foreground">
+															{formatQuantity(imp.currentStock)} {imp.component.baseUnit}
+														</span>
+													{/if}
+												</div>
+											</div>
+										</div>
+
+										<!-- Barra visual de consumo siempre presente para evitar layout shift -->
+										<div class="mt-1.5 flex items-center gap-2">
+											<div class="h-1.5 w-full overflow-hidden rounded-full bg-muted/50">
+												<div
+													class="h-full rounded-full transition-all duration-300 {imp.isDeficit
+														? 'bg-destructive'
+														: imp.isLowStock
+															? 'bg-amber-500'
+															: 'bg-emerald-500'}"
+													style="width: {inputQty > 0
+														? Math.min(
+																100,
+																imp.currentStock > 0
+																	? (imp.consumedForInput / imp.currentStock) * 100
+																	: 100
+															)
+														: 0}%"
+												></div>
+											</div>
+											<span class="w-7 text-right font-mono text-[9px] text-muted-foreground shrink-0">
+												{inputQty > 0
+													? imp.currentStock > 0
+														? `${Math.round((imp.consumedForInput / imp.currentStock) * 100)}%`
+														: '100%'
+													: '0%'}
+											</span>
+										</div>
+									</div>
+								{/each}
+							</div>
+
+							<!-- Advertencia si la cantidad supera el stock existente -->
+							{#if hasAnyDeficit}
+								<div class="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-2.5 text-xs text-destructive">
+									<TriangleAlert class="size-4 shrink-0 mt-0.5" />
+									<span>
+										<strong>Stock insuficiente:</strong> La cantidad a elaborar excede los ingredientes disponibles en {deficitCount} componente{deficitCount === 1 ? '' : 's'}. Si continúas, esos componentes se consumirán hasta agotarse a 0.
+									</span>
+								</div>
+							{/if}
+						</div>
+					{/if}
+
 					<div class="grid grid-cols-1 gap-4 {item.type === 'raw_material' ? 'sm:grid-cols-2' : ''}">
 						{#if item.type === 'raw_material'}
 							<div class="space-y-1.5">
@@ -264,14 +657,18 @@
 
 						<div class="space-y-1.5">
 							<Label for="stock-intake-notes" class="font-medium text-foreground">
-								{item.type === 'raw_material' ? 'Comprobante / Lote / Notas (opcional)' : 'Lote / Notas de producción (opcional)'}
+								{item.type === 'raw_material'
+									? 'Comprobante / Lote / Notas (opcional)'
+									: 'Lote / Notas de producción (opcional)'}
 							</Label>
 							<Input
 								id="stock-intake-notes"
 								name="notes"
 								type="text"
 								bind:value={stockIntakeNotes}
-								placeholder={item.type === 'raw_material' ? 'Ej. Factura A-1234 o Vto 10/2026' : 'Ej. Tanda mañana, lote #4'}
+								placeholder={item.type === 'raw_material'
+									? 'Ej. Factura A-1234 o Vto 10/2026'
+									: 'Ej. Tanda mañana, lote #4'}
 								class="h-9 text-xs"
 							/>
 						</div>
@@ -313,15 +710,21 @@
 												({getDaysAgo(batch.createdAt)})
 											</span>
 											{#if isOldestActive}
-												<span class="rounded-full border border-primary/30 bg-primary/15 px-2 py-0.5 text-[10px] font-bold text-primary">
+												<span
+													class="rounded-full border border-primary/30 bg-primary/15 px-2 py-0.5 text-[10px] font-bold text-primary"
+												>
 													1º en rotación
 												</span>
 											{:else if isExhausted}
-												<span class="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+												<span
+													class="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
+												>
 													Agotado
 												</span>
 											{:else}
-												<span class="rounded-full border border-secondary/30 bg-secondary/15 px-2 py-0.5 text-[10px] font-medium text-secondary">
+												<span
+													class="rounded-full border border-secondary/30 bg-secondary/15 px-2 py-0.5 text-[10px] font-medium text-secondary"
+												>
 													En cola
 												</span>
 											{/if}
@@ -329,51 +732,47 @@
 
 										<div class="flex items-center gap-3">
 											<div class="text-right">
-												<p class="font-mono text-xs font-bold text-foreground">
-													{batch.remainingQuantity} / {batch.initialQuantity} {item.baseUnit}
-												</p>
-												<p class="font-mono text-[11px] text-muted-foreground">
-													{formatCurrency(batch.unitCost)} / {item.baseUnit}
-												</p>
+												{#if item.type === 'raw_material'}
+													{@const totalCostVal = batch.totalCost != null && batch.totalCost > 0
+														? batch.totalCost
+														: (batch.initialQuantity * batch.unitCost)}
+													<p class="font-mono text-xs font-bold text-foreground">
+														{formatQuantity(batch.remainingQuantity)} / {formatQuantity(batch.initialQuantity)} {item.baseUnit}
+													</p>
+													<p class="font-mono text-[11px] text-muted-foreground">
+														Total: {formatCurrency(totalCostVal)} · <span class="text-muted-foreground/80">{formatCurrency(batch.unitCost)}/{item.baseUnit}</span>
+													</p>
+												{:else}
+													<!-- Para elaboraciones: mostramos cuánto se cargó / restante -->
+													<p class="font-mono text-xs font-bold text-foreground">
+														+{formatQuantity(batch.initialQuantity)} {item.baseUnit} <span class="text-[11px] font-normal text-muted-foreground">cargados</span>
+													</p>
+													<p class="font-mono text-[11px] text-muted-foreground">
+														{formatQuantity(batch.remainingQuantity)} {item.baseUnit} disponible{batch.remainingQuantity === 1 ? '' : 's'}
+													</p>
+												{/if}
 											</div>
 
-											<!-- Botón para eliminar carga si hubo equivocación -->
-											<form
-												method="POST"
-												action="?/deleteStockBatch"
-												use:enhance={() => {
-													return async ({ update }) => {
-														await update();
-													};
+											<!-- Botón para disparar modal de confirmación -->
+											<Button
+												type="button"
+												size="icon"
+												variant="ghost"
+												class="size-7 text-muted-foreground hover:bg-destructive/10 hover:text-destructive cursor-pointer"
+												title="Eliminar esta carga de stock"
+												onclick={() => {
+													batchToDelete = batch;
 												}}
 											>
-												<input type="hidden" name="businessId" value={businessId} />
-												<input type="hidden" name="id" value={item.id} />
-												<input type="hidden" name="batchId" value={batch.id} />
-												<Button
-													type="submit"
-													size="icon"
-													variant="ghost"
-													class="size-7 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-													title="Eliminar esta carga de stock"
-													onclick={(e) => {
-														if (
-															!confirm(
-																`¿Eliminar esta carga de ${batch.remainingQuantity} ${item.baseUnit}? Se descontará del stock actual y se recalculará el costo.`
-															)
-														) {
-															e.preventDefault();
-														}
-													}}
-												>
-													<Trash2 class="size-3.5" />
-												</Button>
-											</form>
+												<Trash2 class="size-3.5" />
+											</Button>
 										</div>
 									</div>
 
 									{#if batch.supplier || batch.notes}
-										<div class="mt-2 flex flex-wrap items-center gap-2 border-t border-border/40 pt-1.5 text-[11px] text-muted-foreground">
+										<div
+											class="mt-2 flex flex-wrap items-center gap-2 border-t border-border/40 pt-1.5 text-[11px] text-muted-foreground"
+										>
 											{#if batch.supplier}
 												<span class="font-medium text-foreground/80">Prov: {batch.supplier}</span>
 											{/if}
@@ -410,12 +809,141 @@
 				<Button
 					type="submit"
 					form="add-stock-form"
-					disabled={isSubmittingStock || !stockIntakeQty || Number(stockIntakeQty) <= 0 || (item.type === 'raw_material' && (!stockIntakeTotalCost || Number(stockIntakeTotalCost) < 0))}
+					disabled={isSubmittingStock ||
+						!stockIntakeQty ||
+						Number(stockIntakeQty) <= 0 ||
+						(item.type === 'raw_material' &&
+							(!stockIntakeTotalCost || Number(stockIntakeTotalCost) < 0))}
 				>
 					<PackagePlus class="mr-1.5 size-4" />
-					<span>{isSubmittingStock ? 'Registrando...' : (item.type === 'raw_material' ? 'Registrar Carga de Stock' : 'Registrar Elaboración')}</span>
+					<span>{isSubmittingStock
+						? 'Registrando...'
+						: item.type === 'raw_material'
+							? 'Registrar Carga de Stock'
+							: 'Registrar Elaboración'}</span>
 				</Button>
 			</div>
 		</div>
 	</div>
+
+	<!-- Modal de confirmación para eliminar carga de stock -->
+	{#if batchToDelete}
+		<div
+			class="fixed inset-0 z-60 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs"
+			role="dialog"
+			aria-modal="true"
+		>
+			<div
+				class="w-full max-w-md overflow-hidden rounded-2xl border border-border bg-card shadow-2xl animate-in fade-in zoom-in-95 duration-150"
+			>
+				<div class="border-b border-border px-5 py-4">
+					<div class="flex items-center gap-2.5">
+						<div
+							class="flex size-9 items-center justify-center rounded-xl {item.type === 'prepared'
+								? 'bg-amber-500/15 text-amber-500'
+								: 'bg-destructive/15 text-destructive'}"
+						>
+							{#if item.type === 'prepared'}
+								<RotateCcw class="size-5" />
+							{:else}
+								<TriangleAlert class="size-5" />
+							{/if}
+						</div>
+						<div>
+							<h3 class="text-sm font-bold text-foreground">
+								{item.type === 'prepared'
+									? '¿Revertir esta elaboración?'
+									: '¿Eliminar esta carga de stock?'}
+							</h3>
+							<p class="text-xs text-muted-foreground">
+								Lote del {formatDate(batchToDelete.createdAt)}
+							</p>
+						</div>
+					</div>
+				</div>
+
+				<div class="space-y-3.5 p-5 text-xs text-muted-foreground">
+					<div class="rounded-xl border border-border/60 bg-muted/20 p-3">
+						<p class="font-semibold text-foreground">
+							{item.name}
+						</p>
+						<p class="mt-0.5 font-mono text-[11px]">
+							Carga inicial: <span class="font-bold text-foreground">{formatQuantity(batchToDelete.initialQuantity)} {item.baseUnit}</span>
+							{#if batchToDelete.remainingQuantity !== batchToDelete.initialQuantity}
+								· Restante: <span class="font-bold text-foreground">{formatQuantity(batchToDelete.remainingQuantity)} {item.baseUnit}</span>
+							{/if}
+						</p>
+					</div>
+
+					{#if item.type === 'prepared'}
+						<div class="flex items-start gap-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-amber-700 dark:text-amber-300">
+							<RotateCcw class="size-4 shrink-0 mt-0.5" />
+							<div class="space-y-1">
+								<p class="font-bold">Se devolverán los insumos consumidos</p>
+								<p class="leading-relaxed">
+									Se descontarán los <strong class="font-mono">{formatQuantity(batchToDelete.remainingQuantity)} {item.baseUnit}</strong> del stock de esta elaboración y se <strong>restaurarán automáticamente todos los insumos e ingredientes</strong> consumidos en esta tanda a sus inventarios correspondientes.
+								</p>
+							</div>
+						</div>
+					{:else}
+						<div class="flex items-start gap-2.5 rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-destructive">
+							<TriangleAlert class="size-4 shrink-0 mt-0.5" />
+							<div class="space-y-1">
+								<p class="font-bold">Ajuste de inventario y costo</p>
+								<p class="leading-relaxed">
+									Se descontarán <strong class="font-mono">{formatQuantity(batchToDelete.remainingQuantity)} {item.baseUnit}</strong> del stock disponible de este insumo y se recalculará automáticamente el costo promedio ponderado.
+								</p>
+							</div>
+						</div>
+					{/if}
+				</div>
+
+				<div class="flex items-center justify-end gap-2 border-t border-border bg-muted/20 px-5 py-3">
+					<Button
+						type="button"
+						variant="outline"
+						size="sm"
+						disabled={isDeletingBatch}
+						onclick={() => {
+							batchToDelete = null;
+						}}
+					>
+						Cancelar
+					</Button>
+
+					<form
+						method="POST"
+						action="?/deleteStockBatch"
+						use:enhance={() => {
+							isDeletingBatch = true;
+							return async ({ update }) => {
+								await update();
+								isDeletingBatch = false;
+								batchToDelete = null;
+							};
+						}}
+					>
+						<input type="hidden" name="businessId" value={businessId} />
+						<input type="hidden" name="id" value={item.id} />
+						<input type="hidden" name="batchId" value={batchToDelete.id} />
+						<Button
+							type="submit"
+							variant="destructive"
+							size="sm"
+							disabled={isDeletingBatch}
+							class="gap-1.5"
+						>
+							{#if item.type === 'prepared'}
+								<RotateCcw class="size-3.5" />
+								<span>{isDeletingBatch ? 'Revirtiendo...' : 'Revertir y Devolver Insumos'}</span>
+							{:else}
+								<Trash2 class="size-3.5" />
+								<span>{isDeletingBatch ? 'Eliminando...' : 'Eliminar Carga'}</span>
+							{/if}
+						</Button>
+					</form>
+				</div>
+			</div>
+		</div>
+	{/if}
 {/if}

@@ -56,7 +56,7 @@
 			<div class="flex items-start justify-between gap-4 border-b border-border p-6 pb-4">
 				<div class="space-y-1">
 					<div class="flex items-center gap-2">
-						<span class="rounded-md border border-tertiary/40 bg-tertiary/20 px-2 py-0.5 font-mono text-xs font-bold text-yellow-900 dark:text-yellow-300">
+						<span class="rounded px-1.5 py-0.5 font-mono text-[10px] font-semibold tracking-tight bg-muted text-muted-foreground">
 							{item.code}
 						</span>
 						<ItemTypeBadge type={item.type} short={true} />
@@ -98,8 +98,11 @@
 			>
 				<input type="hidden" name="businessId" value={businessId} />
 				<input type="hidden" name="id" value={item.id} />
+				<input type="hidden" name="type" value={item.type} />
 				<input type="hidden" name="referenceCost" value={item.referenceCost} />
 				<input type="hidden" name="purchaseQuantity" value={item.purchaseQuantity} />
+				<input type="hidden" name="yieldQuantity" value={item.yieldQuantity} />
+				<input type="hidden" name="prepTimeMinutes" value={item.prepTimeMinutes} />
 
 				<!-- Nombre -->
 				<div class="space-y-1.5">

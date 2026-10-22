@@ -1,6 +1,7 @@
 import { v7 as uuidv7 } from 'uuid';
 import {
 	applyStockConsumption,
+	applyStockRestoration,
 	areUnitsCompatible,
 	convertQuantity,
 	getDirectUnitCost,
@@ -305,7 +306,7 @@ export class RecipeService {
 			notes: notes?.trim() || null
 		};
 		const currentBatches = parent.batches ?? [];
-		const updatedBatches = [...currentBatches.slice(-29), newBatch];
+		const updatedBatches = [...currentBatches, newBatch].slice(-15);
 
 		const updatedParent = await this.itemRepo.update(parent.id, businessId, {
 			currentStock: nextParentStock,
@@ -315,6 +316,89 @@ export class RecipeService {
 		return {
 			parent: updatedParent ?? parent,
 			consumedComponents
+		};
+	}
+
+	/**
+	 * Revierte una carga de producción de elaboración:
+	 * 1. Descuenta initialQuantity del ítem padre y remueve el batch.
+	 * 2. Devuelve / repone proporcionalmente el stock consumido a cada ingrediente/componente directo de la receta.
+	 */
+	async revertProducedBatch(
+		businessId: string,
+		parentItemId: string,
+		batchId: string
+	): Promise<{ parent: Item; restoredComponents: Array<{ item: Item; restoredQty: number }>; removedBatch: ItemStockBatch }> {
+		const [allItems, allLines] = await Promise.all([
+			this.itemRepo.findAllByBusiness(businessId),
+			this.recipeRepo.findAllLinesByBusiness(businessId)
+		]);
+
+		const itemsById = new Map<string, Item>(allItems.map((i) => [i.id, i]));
+		const parent = itemsById.get(parentItemId);
+		if (!parent) {
+			throw new Error('El ítem elaborado no existe en este negocio.');
+		}
+
+		const currentBatches = parent.batches ?? [];
+		const batchToDelete = currentBatches.find((b) => b.id === batchId);
+		if (!batchToDelete) {
+			throw new Error('El lote de elaboración seleccionado no existe.');
+		}
+
+		const producedQty = batchToDelete.initialQuantity;
+		const yieldQty = parent.yieldQuantity > 0 ? parent.yieldQuantity : 1;
+		const batchFactor = producedQty / yieldQty;
+		const directLines = allLines.filter((l) => l.parentItemId === parentItemId);
+
+		const restoredComponents: Array<{ item: Item; restoredQty: number }> = [];
+
+		// Reponer stock de los insumos y elaboraciones consumidas
+		for (const line of directLines) {
+			const comp = itemsById.get(line.componentItemId);
+			if (!comp) continue;
+
+			const qtyToRestore = convertQuantity(
+				line.quantity * batchFactor,
+				line.unit,
+				comp.baseUnit
+			);
+
+			const nextStock = Number((comp.currentStock + qtyToRestore).toFixed(4));
+			let newBatches = comp.batches;
+			let newRefCost = comp.referenceCost;
+
+			if (newBatches && newBatches.length > 0) {
+				const res = applyStockRestoration(newBatches, qtyToRestore, comp.referenceCost);
+				newBatches = res.batches;
+				newRefCost = res.newReferenceCost;
+			}
+
+			const updatedComp = await this.itemRepo.update(comp.id, businessId, {
+				currentStock: nextStock,
+				referenceCost: newRefCost,
+				batches: newBatches
+			});
+
+			if (updatedComp) {
+				itemsById.set(comp.id, updatedComp);
+				restoredComponents.push({ item: updatedComp, restoredQty: qtyToRestore });
+			}
+		}
+
+		// Descontar del padre y eliminar el lote
+		const nextParentStock = Math.max(0, Number((parent.currentStock - batchToDelete.remainingQuantity).toFixed(4)));
+		const updatedBatches = currentBatches.filter((b) => b.id !== batchId);
+
+		const updatedParent = await this.itemRepo.update(parent.id, businessId, {
+			currentStock: nextParentStock,
+			batches: updatedBatches
+		});
+
+		return {
+			parent: updatedParent ?? parent,
+			restoredComponents,
+			removedBatch: batchToDelete
 		};
 	}
 

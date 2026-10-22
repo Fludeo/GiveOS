@@ -12,16 +12,35 @@ export async function updateItemAction({ request, locals, url }: RequestEvent) {
 
 	const { itemService } = getServices();
 	const id = String(formData.get('id') ?? '');
-	const name = String(formData.get('name') ?? '').trim();
-	const type = String(formData.get('type') ?? 'raw_material') as ItemType;
-	const baseUnit = String(formData.get('baseUnit') ?? 'g') as UnitOfMeasure;
-	const referenceCost = Number(formData.get('referenceCost') ?? 0);
-	const purchaseQuantity = Number(formData.get('purchaseQuantity') ?? 1);
-	const yieldQuantity = Number(formData.get('yieldQuantity') ?? 1);
+
+	const existing = await itemService.getItemById(id, activeBusiness.id);
+	if (!existing) {
+		return fail(404, { error: 'Ítem no encontrado.' });
+	}
+
+	const name = formData.has('name') ? String(formData.get('name') ?? '').trim() : existing.name;
+	const type = formData.has('type') ? (String(formData.get('type')) as ItemType) : existing.type;
+	const baseUnit = formData.has('baseUnit')
+		? (String(formData.get('baseUnit')) as UnitOfMeasure)
+		: existing.baseUnit;
+	const referenceCost = formData.has('referenceCost')
+		? Number(formData.get('referenceCost'))
+		: existing.referenceCost;
+	const purchaseQuantity = formData.has('purchaseQuantity')
+		? Number(formData.get('purchaseQuantity'))
+		: existing.purchaseQuantity;
+	const yieldQuantity = formData.has('yieldQuantity')
+		? Number(formData.get('yieldQuantity'))
+		: existing.yieldQuantity;
+	const minStock = formData.has('minStock')
+		? Number(formData.get('minStock'))
+		: existing.minStock;
 	const prepTimeMinutes = formData.has('prepTimeMinutes')
 		? Number(formData.get('prepTimeMinutes') ?? 0)
-		: undefined;
-	const notes = String(formData.get('notes') ?? '').trim() || null;
+		: existing.prepTimeMinutes;
+	const notes = formData.has('notes')
+		? String(formData.get('notes') ?? '').trim() || null
+		: existing.notes;
 
 	try {
 		const updated = await itemService.updateItem(id, activeBusiness.id, {
@@ -32,6 +51,7 @@ export async function updateItemAction({ request, locals, url }: RequestEvent) {
 			purchaseQuantity:
 				Number.isFinite(purchaseQuantity) && purchaseQuantity > 0 ? purchaseQuantity : 1,
 			yieldQuantity: Number.isFinite(yieldQuantity) && yieldQuantity > 0 ? yieldQuantity : 1,
+			minStock: Number.isFinite(minStock) && minStock >= 0 ? minStock : 0,
 			prepTimeMinutes:
 				prepTimeMinutes !== undefined && Number.isFinite(prepTimeMinutes) && prepTimeMinutes >= 0
 					? Math.round(prepTimeMinutes)

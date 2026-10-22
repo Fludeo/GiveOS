@@ -7,6 +7,7 @@
 	import X from '@lucide/svelte/icons/x';
 	import Layers from '@lucide/svelte/icons/layers';
 	import CirclePile from '@lucide/svelte/icons/circle-pile';
+	import Clock from '@lucide/svelte/icons/clock';
 	import { formatCurrency } from '../utils';
 
 	interface Props {
@@ -43,7 +44,7 @@
 			<div class="flex items-start justify-between gap-4 border-b border-border p-6">
 				<div class="space-y-1">
 					<div class="flex items-center gap-2">
-						<span class="rounded-md bg-muted px-2 py-0.5 font-mono text-xs font-semibold">
+						<span class="rounded px-1.5 py-0.5 font-mono text-[10px] font-semibold tracking-tight bg-muted text-muted-foreground">
 							{item.code}
 						</span>
 						<ItemTypeBadge type={item.type} short={true} />
@@ -51,10 +52,24 @@
 					<h2 class="text-xl font-bold text-foreground">
 						Receta de {item.name}
 					</h2>
-					<p class="text-xs text-muted-foreground flex items-center gap-1.5">
-						<CirclePile class="size-3.5 text-secondary shrink-0" />
-						<span>Rendimiento base: <strong>{item.yieldQuantity} {item.baseUnit}</strong></span>
-					</p>
+					<div class="flex flex-wrap items-center gap-3 text-xs text-muted-foreground pt-0.5">
+						<span class="inline-flex items-center gap-1 font-medium text-foreground">
+							<CirclePile class="size-3.5 text-secondary shrink-0" />
+							<span>Rendimiento: <strong>{item.yieldQuantity} {item.baseUnit}</strong></span>
+						</span>
+						<span class="text-muted-foreground/40">•</span>
+						<span class="inline-flex items-center gap-1 font-medium text-foreground">
+							<Layers class="size-3.5 text-secondary shrink-0" />
+							<span>Componentes: <strong>{allRecipeNodes.length}</strong></span>
+						</span>
+						{#if item.prepTimeMinutes && item.prepTimeMinutes > 0}
+							<span class="text-muted-foreground/40">•</span>
+							<span class="inline-flex items-center gap-1 font-medium text-foreground">
+								<Clock class="size-3.5 text-secondary shrink-0" />
+								<span>Tiempo: <strong>{item.prepTimeMinutes} min</strong></span>
+							</span>
+						{/if}
+					</div>
 				</div>
 				<Button
 					type="button"

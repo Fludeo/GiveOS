@@ -9,20 +9,41 @@ export async function deleteStockBatchAction({ request, locals, url }: RequestEv
 		String(formData.get('businessId') ?? '') || url.searchParams.get('business');
 	const { activeBusiness } = await resolveBusinessOrRedirect(locals.user.id, businessIdParam);
 
-	const { itemService } = getServices();
+	const { itemService, recipeService } = getServices();
 	const id = String(formData.get('id') ?? '');
 	const batchId = String(formData.get('batchId') ?? '');
 
 	try {
-		const { item, removedBatch } = await itemService.deleteStockBatch(
-			id,
-			activeBusiness.id,
-			batchId
-		);
-		return {
-			success: true,
-			message: `Carga de stock eliminada (-${removedBatch.remainingQuantity} ${item.baseUnit} de "${item.name}").`
-		};
+		const existing = await itemService.getItemById(id, activeBusiness.id);
+		if (!existing) {
+			return fail(404, { error: 'Ítem no encontrado.' });
+		}
+
+		if (existing.type === 'prepared') {
+			const { parent, restoredComponents, removedBatch } = await recipeService.revertProducedBatch(
+				activeBusiness.id,
+				id,
+				batchId
+			);
+			const restoredMsg =
+				restoredComponents.length > 0
+					? ` Se devolvieron los insumos consumidos al inventario.`
+					: '';
+			return {
+				success: true,
+				message: `Carga de elaboración eliminada (-${removedBatch.remainingQuantity} ${parent.baseUnit} de "${parent.name}").${restoredMsg}`
+			};
+		} else {
+			const { item, removedBatch } = await itemService.deleteStockBatch(
+				id,
+				activeBusiness.id,
+				batchId
+			);
+			return {
+				success: true,
+				message: `Carga de stock eliminada (-${removedBatch.remainingQuantity} ${item.baseUnit} de "${item.name}").`
+			};
+		}
 	} catch (e) {
 		return fail(400, {
 			error: e instanceof Error ? e.message : 'Error al eliminar la carga de stock.'

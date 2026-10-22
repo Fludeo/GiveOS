@@ -152,15 +152,21 @@
 									: 'border-border bg-card hover:border-secondary/40 hover:bg-muted/30'}"
 							>
 								<div class="flex items-center justify-between gap-1">
-									<span class="rounded-md bg-muted px-1.5 py-0.5 font-mono text-[11px] font-bold text-foreground">
+									<span class="rounded-md bg-muted px-1.5 py-0.5 font-mono text-[11px] font-bold text-muted-foreground">
 										{item.code}
 									</span>
-									{#if item.prepTimeMinutes > 0}
+									<div class="flex items-center gap-2">
 										<span class="inline-flex items-center gap-1 font-semibold text-[11px] text-secondary">
-											<Clock class="size-3" />
-											{item.prepTimeMinutes} min
+											<Layers class="size-3" />
+											{summary?.directComponentsCount ?? 0}
 										</span>
-									{/if}
+										{#if item.prepTimeMinutes > 0}
+											<span class="inline-flex items-center gap-1 font-semibold text-[11px] text-secondary">
+												<Clock class="size-3" />
+												{item.prepTimeMinutes} min
+											</span>
+										{/if}
+									</div>
 								</div>
 
 								<h4 class="mt-1.5 text-xs sm:text-sm font-bold text-foreground line-clamp-1">
@@ -168,17 +174,13 @@
 								</h4>
 
 								<div class="mt-2 pt-1.5 border-t border-border/50 flex items-center justify-between text-[11px]">
-									<span class="text-muted-foreground truncate mr-1 inline-flex items-center gap-1">
+									<span class="text-muted-foreground truncate mr-1 inline-flex items-center gap-1" title="Rendimiento del lote">
 										<CirclePile class="size-3 text-secondary shrink-0" />
-										<span>Rinde: <strong class="text-foreground">{item.yieldQuantity} {item.baseUnit}</strong></span>
+										<strong class="font-mono text-foreground font-semibold">{item.yieldQuantity} {item.baseUnit}</strong>
 									</span>
 									<div class="flex items-center gap-1.5 shrink-0">
 										<span class="font-mono font-bold text-foreground">
 											{formatCurrency(summary?.estimatedTotalCost ?? 0)}
-										</span>
-										<span class="inline-flex items-center gap-0.5 font-medium text-primary text-[10px]">
-											<Layers class="size-2.5" />
-											{summary?.directComponentsCount ?? 0}
 										</span>
 									</div>
 								</div>
@@ -226,13 +228,9 @@
 					<div class="flex flex-wrap items-center justify-between gap-4">
 						<div class="space-y-1">
 							<div class="flex items-center gap-2">
-								<span class="rounded-md bg-muted px-2 py-0.5 font-mono text-xs font-bold text-foreground">
+								<span class="rounded-md bg-muted px-2 py-0.5 font-mono text-xs font-bold text-muted-foreground">
 									{selectedRoot.code}
 								</span>
-								<Badge variant="secondary" class="gap-1.5 px-2.5 py-0.5 text-xs font-semibold">
-									<GraphHub class="size-3.5" />
-									<span>Elaboración</span>
-								</Badge>
 								<Button
 									variant="ghost"
 									size="icon"
@@ -250,76 +248,75 @@
 						</div>
 					</div>
 
-					<!-- TARJETAS RENDIMIENTO, TIEMPO Y COSTO -->
+					<!-- TARJETAS RENDIMIENTO, TIEMPO Y COSTO SEGÚN /ui-design -->
 					<div class="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-						<!-- Tarjeta 1: Rendimiento -->
-						<div class="relative overflow-hidden rounded-2xl border border-secondary/20 bg-gradient-to-br from-secondary/5 to-secondary/10 p-4 transition-all">
-							<div class="flex items-center justify-between">
-								<div class="flex items-center gap-2">
-									<div class="flex size-8 items-center justify-center rounded-lg bg-secondary/15 text-secondary">
-										<CirclePile class="size-4" />
-									</div>
-									<span class="text-xs font-bold uppercase tracking-wider text-muted-foreground">Rendimiento</span>
+						<!-- Tarjeta 1: Rendimiento (Secondary) -->
+						<div class="rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-xs space-y-2">
+							<span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+								Rendimiento
+							</span>
+							<div class="flex items-center gap-3 pt-0.5">
+								<div class="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-secondary/15 text-secondary">
+									<CirclePile class="size-6" />
 								</div>
-							</div>
-							<div class="mt-2.5">
 								<div class="flex items-baseline gap-1.5 font-mono">
-									<span class="text-2xl font-black text-foreground">
+									<span class="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
 										{selectedRoot.yieldQuantity}
 									</span>
 									<span class="text-sm font-semibold text-muted-foreground uppercase">
 										{selectedRoot.baseUnit}
 									</span>
 								</div>
-								<p class="mt-0.5 text-[11px] text-muted-foreground">
-									Tamaño del lote producido
-								</p>
 							</div>
+							<p class="text-xs text-muted-foreground">
+								Tamaño del lote producido por tanda
+							</p>
 						</div>
 
-						<!-- Tarjeta 2: Tiempo de Elaboración -->
-						<div class="relative overflow-hidden rounded-2xl border border-amber-500/20 bg-gradient-to-br from-amber-500/5 to-amber-500/10 p-4 transition-all">
-							<div class="flex items-center justify-between">
-								<div class="flex items-center gap-2">
-									<div class="flex size-8 items-center justify-center rounded-lg bg-amber-500/15 text-amber-700 dark:text-amber-400">
-										<Clock class="size-4" />
-									</div>
-									<span class="text-xs font-bold uppercase tracking-wider text-muted-foreground">Tiempo Estimado</span>
+						<!-- Tarjeta 2: Tiempo de Elaboración (Amber / Tertiary) -->
+						<div class="rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-xs space-y-2">
+							<span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+								Tiempo Estimado
+							</span>
+							<div class="flex items-center gap-3 pt-0.5">
+								<div class="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-amber-500/15 text-amber-600 dark:text-amber-400">
+									<Clock class="size-6" />
 								</div>
-							</div>
-							<div class="mt-2.5">
 								<div class="flex items-baseline gap-1.5 font-mono">
-									<span class="text-2xl font-black text-foreground">
+									<span class="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
 										{selectedRoot.prepTimeMinutes ? selectedRoot.prepTimeMinutes : 0}
 									</span>
 									<span class="text-sm font-semibold text-muted-foreground">
 										minutos
 									</span>
 								</div>
-								<p class="mt-0.5 text-[11px] text-muted-foreground">
-									Preparación y cocción
-								</p>
 							</div>
+							<p class="text-xs text-muted-foreground">
+								Preparación y producción
+							</p>
 						</div>
 
-						<!-- Tarjeta 3: Costo Estimado -->
-						<div class="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-muted/30 to-muted/10 p-4">
-							<div class="flex items-center justify-between">
-								<div class="flex items-center gap-2">
-									<div class="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-										<Calculator class="size-4" />
-									</div>
-									<span class="text-xs font-bold uppercase tracking-wider text-muted-foreground">Costo Estimado</span>
+						<!-- Tarjeta 3: Costo Estimado (Primary) -->
+						<div class="rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-xs space-y-2">
+							<span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+								Costo Estimado
+							</span>
+							<div class="flex items-center gap-3 pt-0.5">
+								<div class="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+									<Calculator class="size-6" />
+								</div>
+								<div class="flex items-baseline gap-1.5 font-mono">
+									<span class="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+										{formatCurrency(tree.estimatedUnitCost)}
+									</span>
+									<span class="text-xs font-semibold text-muted-foreground">
+										/ {selectedRoot.baseUnit}
+									</span>
 								</div>
 							</div>
-							<div class="mt-2.5">
-								<div class="font-mono text-2xl font-black text-foreground">
-									{formatCurrency(tree.estimatedTotalCost)}
-								</div>
-								<p class="mt-0.5 font-mono text-[11px] text-muted-foreground">
-									Unitario: {formatCurrency(tree.estimatedUnitCost)} / {selectedRoot.baseUnit}
-								</p>
-							</div>
+							<p class="text-xs font-mono text-muted-foreground">
+								Costo por tanda: {formatCurrency(tree.estimatedTotalCost)} ({selectedRoot.yieldQuantity} {selectedRoot.baseUnit})
+							</p>
 						</div>
 					</div>
 				</CardHeader>

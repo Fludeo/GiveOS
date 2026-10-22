@@ -209,8 +209,9 @@ export function applyStockIntake(
 		notes: intake.notes?.trim() || null
 	};
 
-	const activeOrRecent = [...batches.filter((b) => b.remainingQuantity > 0), newBatch];
-	const updatedBatches = activeOrRecent.slice(-30);
+	// Conservar el historial de las últimas 15 cargas (incluso si alguna llegó a 0)
+	// para permitir revertir elaboraciones y restaurar a los lotes originales exactos
+	const updatedBatches = [...batches, newBatch].slice(-15);
 	const newReferenceCost = calculateWeightedUnitCost(updatedBatches, unitCost);
 
 	return {
@@ -249,6 +250,52 @@ export function applyStockConsumption(
 	return {
 		batches: updated,
 		consumedCost,
+		newReferenceCost
+	};
+}
+
+/**
+ * Revierte un consumo de stock sobre los lotes en orden LIFO inverso (reponiendo a los lotes que tenían capacidad consumida).
+ */
+export function applyStockRestoration(
+	batches: ItemStockBatch[] = [],
+	quantityToRestore: number,
+	currentReferenceCost: number = 0
+): { batches: ItemStockBatch[]; newReferenceCost: number } {
+	let remainingToRestore = Math.max(0, quantityToRestore);
+	if (remainingToRestore <= 0 || batches.length === 0) {
+		return { batches, newReferenceCost: currentReferenceCost };
+	}
+
+	// Recorremos de más nuevo a más viejo (orden inverso de consumo)
+	const updated = [...batches];
+	for (let i = updated.length - 1; i >= 0 && remainingToRestore > 0; i--) {
+		const batch = updated[i];
+		const capacity = Math.max(0, batch.initialQuantity - batch.remainingQuantity);
+		if (capacity > 0) {
+			const restoreToThis = Math.min(capacity, remainingToRestore);
+			updated[i] = {
+				...batch,
+				remainingQuantity: Number((batch.remainingQuantity + restoreToThis).toFixed(4))
+			};
+			remainingToRestore = Number((remainingToRestore - restoreToThis).toFixed(4));
+		}
+	}
+
+	// Si aún sobra cantidad por reponer (por ejemplo, si el stock original no alcanzaba en los lotes existentes)
+	// se suma al lote más reciente
+	if (remainingToRestore > 0 && updated.length > 0) {
+		const lastIdx = updated.length - 1;
+		updated[lastIdx] = {
+			...updated[lastIdx],
+			remainingQuantity: Number((updated[lastIdx].remainingQuantity + remainingToRestore).toFixed(4))
+		};
+	}
+
+	const newReferenceCost = calculateWeightedUnitCost(updated, currentReferenceCost);
+
+	return {
+		batches: updated,
 		newReferenceCost
 	};
 }
