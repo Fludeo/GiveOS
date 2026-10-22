@@ -521,6 +521,9 @@
 							<div class="space-y-1.5 max-h-56 overflow-y-auto pr-1">
 								{#each impacts as imp (imp.node.lineId)}
 									{@const isPrepared = imp.component.type === 'prepared'}
+									{@const remainingPct = imp.currentStock > 0
+										? Math.max(0, Math.min(100, Math.round((imp.remainingStock / imp.currentStock) * 100)))
+										: 0}
 									<div
 										class="rounded-lg border px-3 py-2 transition-colors {imp.isDeficit
 											? 'border-destructive/40 bg-destructive/5'
@@ -596,9 +599,6 @@
 										</div>
 
 										<!-- Barra visual de stock remanente: comienza en 100% y desciende al descontar -->
-										{@const remainingPct = imp.currentStock > 0
-											? Math.max(0, Math.min(100, Math.round((imp.remainingStock / imp.currentStock) * 100)))
-											: 0}
 										<div class="mt-1.5 flex items-center gap-2">
 											<div class="h-1.5 w-full overflow-hidden rounded-full bg-muted/50">
 												<div
