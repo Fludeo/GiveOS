@@ -672,7 +672,7 @@
 											Fabricar {formatNum(item.deficitQuantity)} {formatUnit(item.baseUnit)}
 										</span>
 									{:else if preserveDisplayStock && isFabricable}
-										<span class="inline-flex items-center gap-1 rounded-md bg-secondary/15 border border-secondary/30 px-2 py-0.5 font-mono text-[11px] font-bold text-secondary dark:text-secondary-foreground">
+										<span class="inline-flex items-center gap-1 rounded-md bg-red-500/15 border border-red-500/30 px-2 py-0.5 font-mono text-[11px] font-bold text-red-600 dark:text-red-400">
 											<Store class="size-3" />
 											Fabricar {formatNum(item.deficitQuantity)} {formatUnit(item.baseUnit)}
 										</span>
@@ -682,8 +682,7 @@
 											Faltan {formatNum(item.deficitQuantity)} {formatUnit(item.baseUnit)}
 										</span>
 									{:else}
-										<span class="inline-flex items-center gap-1 rounded-md bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 font-mono text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
-											<CheckCircle2 class="size-3" />
+										<span class="inline-flex items-center gap-1 rounded-md bg-muted/60 border border-border px-2 py-0.5 font-mono text-[11px] font-medium text-muted-foreground">
 											+{formatNum(item.projectedBalance)} {formatUnit(item.baseUnit)}
 										</span>
 									{/if}
@@ -911,7 +910,7 @@
 												A demanda ({formatNum(item.deficitQuantity)} {formatUnit(item.baseUnit)})
 											</span>
 										{:else if preserveDisplayStock && isFabricable}
-											<span class="text-secondary dark:text-secondary-foreground font-semibold text-xs">
+											<span class="text-red-600 dark:text-red-400">
 												Fabricar {formatNum(item.deficitQuantity)} {formatUnit(item.baseUnit)}
 											</span>
 										{:else if item.isShortage}
@@ -919,7 +918,7 @@
 												-{formatNum(item.deficitQuantity)} {formatUnit(item.baseUnit)}
 											</span>
 										{:else}
-											<span class="text-emerald-600 dark:text-emerald-400">
+											<span class="text-muted-foreground font-normal">
 												+{formatNum(item.projectedBalance)} {formatUnit(item.baseUnit)}
 											</span>
 										{/if}
