@@ -595,7 +595,10 @@
 											</div>
 										</div>
 
-										<!-- Barra visual de consumo siempre presente para evitar layout shift -->
+										<!-- Barra visual de stock remanente: comienza en 100% y desciende al descontar -->
+										{@const remainingPct = imp.currentStock > 0
+											? Math.max(0, Math.min(100, Math.round((imp.remainingStock / imp.currentStock) * 100)))
+											: 0}
 										<div class="mt-1.5 flex items-center gap-2">
 											<div class="h-1.5 w-full overflow-hidden rounded-full bg-muted/50">
 												<div
@@ -604,22 +607,11 @@
 														: imp.isLowStock
 															? 'bg-amber-500'
 															: 'bg-emerald-500'}"
-													style="width: {inputQty > 0
-														? Math.min(
-																100,
-																imp.currentStock > 0
-																	? (imp.consumedForInput / imp.currentStock) * 100
-																	: 100
-															)
-														: 0}%"
+													style="width: {inputQty > 0 ? remainingPct : 100}%"
 												></div>
 											</div>
 											<span class="w-7 text-right font-mono text-[9px] text-muted-foreground shrink-0">
-												{inputQty > 0
-													? imp.currentStock > 0
-														? `${Math.round((imp.consumedForInput / imp.currentStock) * 100)}%`
-														: '100%'
-													: '0%'}
+												{inputQty > 0 ? `${remainingPct}%` : '100%'}
 											</span>
 										</div>
 									</div>
