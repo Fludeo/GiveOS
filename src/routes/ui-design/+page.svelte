@@ -116,63 +116,97 @@
 		<section id="colors" class="space-y-4 scroll-mt-24">
 			<div class="border-b border-border pb-2">
 				<h2 class="text-lg font-bold text-foreground">1. Paleta de Colores y Tokens de Marca</h2>
-				<p class="text-xs text-muted-foreground">Variables CSS configuradas en <code class="rounded bg-muted px-1.5 py-0.5">layout.css</code> bajo Tailwind CSS v4.</p>
+				<p class="text-xs text-muted-foreground">Sistema basado en Tailwind CSS v4 + shadcn/ui con base neutra de <strong>Zinc</strong>, Azul como <strong>Primary</strong>, Índigo como <strong>Secondary</strong> y Ámbar cálido como <strong>Accent</strong>.</p>
 			</div>
 
-			<div class="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
-				<div class="rounded-xl border border-border bg-card p-3 shadow-2xs space-y-2">
-					<div class="h-14 w-full rounded-lg bg-primary shadow-inner"></div>
-					<div>
-						<p class="text-xs font-bold text-foreground">Primary</p>
-						<p class="font-mono text-[11px] text-muted-foreground">#2b7fff</p>
+			<!-- Tokens Semánticos Principales -->
+			<div class="space-y-2">
+				<h3 class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tokens Semánticos de Marca y Estado</h3>
+				<div class="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
+					<div class="rounded-xl border border-border bg-card p-3 shadow-2xs space-y-2">
+						<div class="h-14 w-full rounded-lg bg-primary shadow-inner flex items-center justify-center text-primary-foreground font-bold text-xs">Primary</div>
+						<div>
+							<p class="text-xs font-bold text-foreground">Primary (Blue)</p>
+							<p class="font-mono text-[11px] text-muted-foreground">#2563eb / blue-600</p>
+						</div>
+					</div>
+
+					<div class="rounded-xl border border-border bg-card p-3 shadow-2xs space-y-2">
+						<div class="h-14 w-full rounded-lg bg-secondary shadow-inner flex items-center justify-center text-secondary-foreground font-bold text-xs">Secondary</div>
+						<div>
+							<p class="text-xs font-bold text-foreground">Secondary (Indigo)</p>
+							<p class="font-mono text-[11px] text-muted-foreground">#4f46e5 / indigo-600</p>
+						</div>
+					</div>
+
+					<div class="rounded-xl border border-border bg-card p-3 shadow-2xs space-y-2">
+						<div class="h-14 w-full rounded-lg bg-accent border border-amber-300 dark:border-amber-800 shadow-inner flex items-center justify-center text-accent-foreground font-bold text-xs">Accent</div>
+						<div>
+							<p class="text-xs font-bold text-foreground">Accent (Amber)</p>
+							<p class="font-mono text-[11px] text-muted-foreground">#fef3c7 / #451a03</p>
+						</div>
+					</div>
+
+					<div class="rounded-xl border border-border bg-card p-3 shadow-2xs space-y-2">
+						<div class="h-14 w-full rounded-lg bg-muted border border-border shadow-inner flex items-center justify-center text-muted-foreground font-bold text-xs">Muted</div>
+						<div>
+							<p class="text-xs font-bold text-foreground">Muted (Zinc)</p>
+							<p class="font-mono text-[11px] text-muted-foreground">#f4f4f5 / #27272a</p>
+						</div>
+					</div>
+
+					<div class="rounded-xl border border-border bg-card p-3 shadow-2xs space-y-2">
+						<div class="h-14 w-full rounded-lg bg-destructive shadow-inner flex items-center justify-center text-destructive-foreground font-bold text-xs">Destructive</div>
+						<div>
+							<p class="text-xs font-bold text-foreground">Destructive</p>
+							<p class="font-mono text-[11px] text-muted-foreground">#ef4444 / red-500</p>
+						</div>
+					</div>
+
+					<div class="rounded-xl border border-border bg-card p-3 shadow-2xs space-y-2">
+						<div class="h-14 w-full rounded-lg bg-emerald-500 shadow-inner flex items-center justify-center text-white font-bold text-xs">Success</div>
+						<div>
+							<p class="text-xs font-bold text-foreground">Success</p>
+							<p class="font-mono text-[11px] text-muted-foreground">#10b981 / emerald</p>
+						</div>
+					</div>
+
+					<div class="rounded-xl border border-border bg-card p-3 shadow-2xs space-y-2">
+						<div class="h-14 w-full rounded-lg bg-amber-500 shadow-inner flex items-center justify-center text-white font-bold text-xs">Warning</div>
+						<div>
+							<p class="text-xs font-bold text-foreground">Warning</p>
+							<p class="font-mono text-[11px] text-muted-foreground">#f59e0b / amber</p>
+						</div>
 					</div>
 				</div>
+			</div>
 
-				<div class="rounded-xl border border-border bg-card p-3 shadow-2xs space-y-2">
-					<div class="h-14 w-full rounded-lg bg-secondary shadow-inner flex items-center justify-center text-secondary-foreground font-semibold text-xs"></div>
-					<div>
-						<p class="text-xs font-bold text-foreground">Secondary (Índigo)</p>
-						<p class="font-mono text-[11px] text-muted-foreground">#4f46e5</p>
+			<!-- Superficies Neutras (Zinc Foundation) -->
+			<div class="space-y-2 pt-1">
+				<h3 class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Superficies y Fondos Neutros (Zinc Foundation)</h3>
+				<div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+					<div class="rounded-xl border border-border bg-card p-3 shadow-2xs space-y-1.5">
+						<div class="h-9 w-full rounded-md bg-background border border-border flex items-center justify-center text-[11px] font-mono text-foreground">bg-background</div>
+						<p class="text-[11px] font-bold text-foreground">Background (Lienzo)</p>
+						<p class="font-mono text-[10px] text-muted-foreground">#ffffff / dark: #09090b (zinc-950)</p>
 					</div>
-				</div>
 
-				<div class="rounded-xl border border-border bg-card p-3 shadow-2xs space-y-2">
-					<div class="h-14 w-full rounded-lg bg-muted border border-border shadow-inner"></div>
-					<div>
-						<p class="text-xs font-bold text-foreground">Muted</p>
-						<p class="font-mono text-[11px] text-muted-foreground">#f4f4f5</p>
+					<div class="rounded-xl border border-border bg-card p-3 shadow-2xs space-y-1.5">
+						<div class="h-9 w-full rounded-md bg-card border border-border flex items-center justify-center text-[11px] font-mono text-card-foreground">bg-card</div>
+						<p class="text-[11px] font-bold text-foreground">Card / Superficie</p>
+						<p class="font-mono text-[10px] text-muted-foreground">#ffffff / dark: #18181b (zinc-900)</p>
 					</div>
-				</div>
 
-				<div class="rounded-xl border border-border bg-card p-3 shadow-2xs space-y-2">
-					<div class="h-14 w-full rounded-lg bg-accent border border-border shadow-inner"></div>
-					<div>
-						<p class="text-xs font-bold text-foreground">Accent</p>
-						<p class="font-mono text-[11px] text-muted-foreground">#eff6ff</p>
+					<div class="rounded-xl border border-border bg-card p-3 shadow-2xs space-y-1.5">
+						<div class="h-9 w-full rounded-md bg-muted border border-border flex items-center justify-center text-[11px] font-mono text-muted-foreground">bg-muted</div>
+						<p class="text-[11px] font-bold text-foreground">Muted / Fondos Secundarios</p>
+						<p class="font-mono text-[10px] text-muted-foreground">#f4f4f5 (zinc-100) / dark: #27272a (zinc-800)</p>
 					</div>
-				</div>
 
-				<div class="rounded-xl border border-border bg-card p-3 shadow-2xs space-y-2">
-					<div class="h-14 w-full rounded-lg bg-destructive shadow-inner"></div>
-					<div>
-						<p class="text-xs font-bold text-foreground">Destructive</p>
-						<p class="font-mono text-[11px] text-muted-foreground">#ef4444</p>
-					</div>
-				</div>
-
-				<div class="rounded-xl border border-border bg-card p-3 shadow-2xs space-y-2">
-					<div class="h-14 w-full rounded-lg bg-emerald-500 shadow-inner"></div>
-					<div>
-						<p class="text-xs font-bold text-foreground">Success / Entregado</p>
-						<p class="font-mono text-[11px] text-muted-foreground">#10b981</p>
-					</div>
-				</div>
-
-				<div class="rounded-xl border border-border bg-card p-3 shadow-2xs space-y-2">
-					<div class="h-14 w-full rounded-lg bg-amber-500 shadow-inner"></div>
-					<div>
-						<p class="text-xs font-bold text-foreground">Warning / Pendiente</p>
-						<p class="font-mono text-[11px] text-muted-foreground">#f59e0b</p>
+					<div class="rounded-xl border border-border bg-card p-3 shadow-2xs space-y-1.5">
+						<div class="h-9 w-full rounded-md border-2 border-border flex items-center justify-center text-[11px] font-mono text-muted-foreground">border-border</div>
+						<p class="text-[11px] font-bold text-foreground">Bordes y Divisores</p>
+						<p class="font-mono text-[10px] text-muted-foreground">#e4e4e7 (zinc-200) / dark: #27272a (zinc-800)</p>
 					</div>
 				</div>
 			</div>
@@ -191,11 +225,13 @@
 			<div class="space-y-2">
 				<h3 class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Variantes Visuales</h3>
 				<div class="flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-card p-5">
-					<Button variant="default">Primary / Default</Button>
-					<Button variant="secondary">Secondary</Button>
+					<Button variant="default">Primary (Blue)</Button>
+					<Button variant="secondary">Secondary (Indigo)</Button>
+					<Button variant="accent">Accent (Amber)</Button>
+					<Button variant="muted">Muted (Zinc)</Button>
+					<Button variant="destructive">Destructive (Red)</Button>
 					<Button variant="outline">Outline</Button>
 					<Button variant="ghost">Ghost</Button>
-					<Button variant="destructive">Destructive</Button>
 					<Button variant="link">Link Button</Button>
 				</div>
 			</div>
@@ -255,12 +291,14 @@
 			<div class="grid grid-cols-1 gap-6 md:grid-cols-3">
 				<!-- Badges Primitivas -->
 				<div class="rounded-2xl border border-border bg-card p-5 space-y-3">
-					<h3 class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Variantes Estándar</h3>
+					<h3 class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Variantes Estándar (Todos los Tokens)</h3>
 					<div class="flex flex-wrap gap-2">
-						<Badge variant="default">Default</Badge>
+						<Badge variant="default">Primary</Badge>
 						<Badge variant="secondary">Secondary</Badge>
-						<Badge variant="outline">Outline</Badge>
+						<Badge variant="accent">Accent</Badge>
+						<Badge variant="muted">Muted</Badge>
 						<Badge variant="destructive">Destructive</Badge>
+						<Badge variant="outline">Outline</Badge>
 					</div>
 				</div>
 
@@ -330,13 +368,16 @@
 					</h3>
 					<Badge variant="outline" class="text-[10px] text-primary border-primary/30">Recomendado</Badge>
 				</div>
-				<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-					<!-- KPI Normal -->
+				<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+					<!-- KPI 1: Primary (Blue) -->
 					<Card.Root class="border-border bg-card shadow-xs">
 						<Card.Header class="p-4 sm:p-5 pb-2 space-y-1.5">
-							<Card.Description class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-								Productos Comerciales
-							</Card.Description>
+							<div class="flex items-center justify-between">
+								<Card.Description class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+									Productos en Venta
+								</Card.Description>
+								<Badge variant="default" class="text-[10px] px-1.5 py-0">Primary</Badge>
+							</div>
 							<div class="flex items-center gap-3 pt-0.5">
 								<div class="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
 									<CakeSlice class="size-6" />
@@ -353,12 +394,40 @@
 						</Card.Content>
 					</Card.Root>
 
-					<!-- KPI Alerta / Warning -->
+					<!-- KPI 2: Secondary (Indigo) -->
+					<Card.Root class="border-secondary/30 bg-secondary/5 shadow-xs">
+						<Card.Header class="p-4 sm:p-5 pb-2 space-y-1.5">
+							<div class="flex items-center justify-between">
+								<Card.Description class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+									Elaboraciones y Sub-recetas
+								</Card.Description>
+								<Badge variant="secondary" class="text-[10px] px-1.5 py-0">Secondary</Badge>
+							</div>
+							<div class="flex items-center gap-3 pt-0.5">
+								<div class="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-secondary/15 text-secondary">
+									<ChefHat class="size-6" />
+								</div>
+								<Card.Title class="text-2xl sm:text-3xl font-bold font-mono tracking-tight text-secondary">
+									16
+								</Card.Title>
+							</div>
+						</Card.Header>
+						<Card.Content class="p-4 sm:p-5 pt-0">
+							<p class="text-xs text-muted-foreground">
+								Bases, rellenos y coberturas estándar
+							</p>
+						</Card.Content>
+					</Card.Root>
+
+					<!-- KPI 3: Accent (Amber) -->
 					<Card.Root class="border-amber-500/30 bg-amber-500/5 shadow-xs">
 						<Card.Header class="p-4 sm:p-5 pb-2 space-y-1.5">
-							<Card.Description class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-								Pedidos Pendientes
-							</Card.Description>
+							<div class="flex items-center justify-between">
+								<Card.Description class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+									Pedidos Pendientes
+								</Card.Description>
+								<Badge variant="accent" class="text-[10px] px-1.5 py-0">Accent</Badge>
+							</div>
 							<div class="flex items-center gap-3 pt-0.5">
 								<div class="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-amber-500/15 text-amber-600">
 									<Clock class="size-6" />
@@ -375,14 +444,42 @@
 						</Card.Content>
 					</Card.Root>
 
-					<!-- KPI Éxito -->
-					<Card.Root class="border-border bg-card shadow-xs">
+					<!-- KPI 4: Muted (Zinc) -->
+					<Card.Root class="border-border bg-muted/40 shadow-xs">
 						<Card.Header class="p-4 sm:p-5 pb-2 space-y-1.5">
-							<Card.Description class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-								Stock en Mostrador
-							</Card.Description>
+							<div class="flex items-center justify-between">
+								<Card.Description class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+									Capacidad de Producción
+								</Card.Description>
+								<Badge variant="muted" class="text-[10px] px-1.5 py-0">Muted</Badge>
+							</div>
 							<div class="flex items-center gap-3 pt-0.5">
-								<div class="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600">
+								<div class="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
+									<Layers class="size-6" />
+								</div>
+								<Card.Title class="text-2xl sm:text-3xl font-bold font-mono tracking-tight text-foreground">
+									82%
+								</Card.Title>
+							</div>
+						</Card.Header>
+						<Card.Content class="p-4 sm:p-5 pt-0">
+							<p class="text-xs text-muted-foreground font-mono">
+								Turno mañana y tarde al 90%
+							</p>
+						</Card.Content>
+					</Card.Root>
+
+					<!-- KPI 5: Success (Emerald) -->
+					<Card.Root class="border-emerald-500/30 bg-emerald-500/5 shadow-xs">
+						<Card.Header class="p-4 sm:p-5 pb-2 space-y-1.5">
+							<div class="flex items-center justify-between">
+								<Card.Description class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+									Stock en Mostrador
+								</Card.Description>
+								<Badge variant="outline" class="border-emerald-500/40 bg-emerald-500/10 text-emerald-700 text-[10px] px-1.5 py-0">Success</Badge>
+							</div>
+							<div class="flex items-center gap-3 pt-0.5">
+								<div class="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/15 text-emerald-600">
 									<Package class="size-6" />
 								</div>
 								<Card.Title class="text-2xl sm:text-3xl font-bold font-mono tracking-tight text-emerald-600">
@@ -397,17 +494,20 @@
 						</Card.Content>
 					</Card.Root>
 
-					<!-- KPI Crítico / Error -->
-					<Card.Root class="border-red-500/30 bg-red-500/5 shadow-xs">
+					<!-- KPI 6: Destructive (Red) -->
+					<Card.Root class="border-destructive/30 bg-destructive/5 shadow-xs">
 						<Card.Header class="p-4 sm:p-5 pb-2 space-y-1.5">
-							<Card.Description class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-								Insumos Bajo Mínimo
-							</Card.Description>
+							<div class="flex items-center justify-between">
+								<Card.Description class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+									Insumos Bajo Mínimo
+								</Card.Description>
+								<Badge variant="destructive" class="text-[10px] px-1.5 py-0">Destructive</Badge>
+							</div>
 							<div class="flex items-center gap-3 pt-0.5">
-								<div class="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-red-500/15 text-red-600">
+								<div class="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-destructive/15 text-destructive">
 									<AlertTriangle class="size-6" />
 								</div>
-								<Card.Title class="text-2xl sm:text-3xl font-bold font-mono tracking-tight text-red-600">
+								<Card.Title class="text-2xl sm:text-3xl font-bold font-mono tracking-tight text-destructive">
 									3
 								</Card.Title>
 							</div>
@@ -788,6 +888,28 @@
 									<span class="inline-flex items-center gap-1 rounded bg-amber-500/10 px-2 py-0.5 text-[11px] font-bold text-amber-700">
 										<Clock class="size-3" />
 										Alerta Stock
+									</span>
+								</td>
+								<td class="p-3.5 pr-5 text-right">
+									<Button variant="ghost" size="sm" class="h-7 px-2 text-xs">Editar</Button>
+								</td>
+							</tr>
+
+							<tr class="hover:bg-muted/30 transition-colors">
+								<td class="p-3.5 pl-5 font-mono font-semibold text-primary">CMB-002</td>
+								<td class="p-3.5 font-medium text-foreground">Combo Merienda Familiar (Torta + 6 Muffins)</td>
+								<td class="p-3.5">
+									<Badge variant="accent" class="text-[11px] gap-1">
+										<Sparkles class="size-2.5" />
+										Combo
+									</Badge>
+								</td>
+								<td class="p-3.5 text-right font-mono font-bold text-foreground">12.00 u</td>
+								<td class="p-3.5 text-right font-mono text-muted-foreground">3.00 u</td>
+								<td class="p-3.5">
+									<span class="inline-flex items-center gap-1 rounded bg-amber-500/10 px-2 py-0.5 text-[11px] font-bold text-amber-700">
+										<Sparkles class="size-3" />
+										Promoción
 									</span>
 								</td>
 								<td class="p-3.5 pr-5 text-right">

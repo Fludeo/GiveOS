@@ -5,13 +5,13 @@
 @layer base {
 	:root {
 		/* ==========================================================================
-		   Paleta principal de marca (Modo Claro)
+		   Paleta principal de marca (Modo Claro - Tailwind Blue & Indigo)
 		   ========================================================================== */
-		--primary: #2b7fff;
+		--primary: #2563eb;
 		--primary-foreground: #ffffff;
-		--ring: #2b7fff;
+		--ring: #2563eb;
 
-		/* Superficies y fondos */
+		/* Superficies y fondos (Tailwind Zinc) */
 		--background: #ffffff;
 		--foreground: #09090b;
 		--card: #ffffff;
@@ -19,15 +19,15 @@
 		--popover: #ffffff;
 		--popover-foreground: #09090b;
 
-		/* Secundarios, neutros y acentos */
+		/* Secundarios, neutros y acentos (Zinc, Índigo y Ámbar Cálido) */
 		--secondary: #4f46e5;
 		--secondary-foreground: #ffffff;
 		--muted: #f4f4f5;
 		--muted-foreground: #71717a;
-		--accent: #eff6ff;
-		--accent-foreground: #1e40af;
+		--accent: #fef3c7;
+		--accent-foreground: #92400e;
 
-		/* Estados y bordes */
+		/* Estados y bordes (Tailwind Zinc) */
 		--destructive: #ef4444;
 		--destructive-foreground: #fafafa;
 		--border: #e4e4e7;
@@ -37,27 +37,27 @@
 
 	.dark {
 		/* ==========================================================================
-		   Paleta de marca (Modo Oscuro - shadcn/ui)
+		   Paleta de marca (Modo Oscuro - Pure Zinc & Vibrant Blue/Indigo)
 		   ========================================================================== */
 		--primary: #3b82f6;
 		--primary-foreground: #ffffff;
 		--ring: #3b82f6;
 
-		/* Superficies y fondos oscuros */
+		/* Superficies y fondos oscuros (Pure Zinc: 950 fondo, 900 tarjetas) */
 		--background: #09090b;
 		--foreground: #fafafa;
-		--card: #121215;
+		--card: #18181b;
 		--card-foreground: #fafafa;
-		--popover: #121215;
+		--popover: #18181b;
 		--popover-foreground: #fafafa;
 
 		/* Secundarios, neutros y acentos */
 		--secondary: #6366f1;
 		--secondary-foreground: #ffffff;
-		--muted: #1e1e24;
+		--muted: #27272a;
 		--muted-foreground: #a1a1aa;
-		--accent: #1e293b;
-		--accent-foreground: #93c5fd;
+		--accent: #451a03;
+		--accent-foreground: #fde68a;
 
 		/* Estados y bordes */
 		--destructive: #7f1d1d;
