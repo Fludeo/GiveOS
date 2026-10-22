@@ -546,7 +546,7 @@
 				? 'bg-primary text-primary-foreground shadow-xs font-semibold'
 				: 'text-muted-foreground hover:text-foreground'}"
 		>
-			<GraphHub class="size-4" />
+			<CakeSlice class="size-4" />
 			<span>Recetas</span>
 		</button>
 
