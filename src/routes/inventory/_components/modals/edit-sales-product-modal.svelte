@@ -9,7 +9,7 @@
 	import X from '@lucide/svelte/icons/x';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
-	import { formatCurrency, calculateComponentsRecipeCost } from '../utils';
+	import { formatCurrency, formatQuantity, calculateComponentsRecipeCost } from '../utils';
 
 	interface Props {
 		open: boolean;
@@ -166,7 +166,7 @@
 										>
 											{#each linkableItems as candidate (candidate.id)}
 												<option value={candidate.id}>
-													[{candidate.code}] {candidate.name} ({ITEM_TYPE_LABELS[candidate.type]} · Stock: {candidate.currentStock} {candidate.baseUnit})
+													[{candidate.code}] {candidate.name} ({ITEM_TYPE_LABELS[candidate.type]} · Stock: {formatQuantity(candidate.currentStock)} {candidate.baseUnit === 'unit' ? 'un.' : candidate.baseUnit})
 												</option>
 											{/each}
 										</select>

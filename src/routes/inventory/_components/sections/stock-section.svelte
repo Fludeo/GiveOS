@@ -334,7 +334,7 @@
 												</span>
 												<div class="flex items-baseline gap-1.5 font-mono">
 													<span class="text-2xl sm:text-3xl font-black tracking-tight {isLow ? 'text-destructive' : 'text-foreground'}">
-														{item.currentStock}
+														{formatQuantity(item.currentStock)}
 													</span>
 													<span class="text-xs font-semibold text-muted-foreground uppercase font-sans">
 														{item.baseUnit === 'unit' ? 'un.' : item.baseUnit}
@@ -346,7 +346,7 @@
 										<div class="text-right">
 											<div class="flex items-center justify-end gap-1 font-mono text-[11px] {isLow ? 'text-destructive font-bold' : 'text-muted-foreground'}">
 												<AlertTriangle class="size-3.5 {isLow ? 'text-destructive' : 'text-muted-foreground/70'}" />
-												<span>Mín: {item.minStock} {item.baseUnit === 'unit' ? 'un.' : item.baseUnit}</span>
+												<span>Mín: {formatQuantity(item.minStock)} {item.baseUnit === 'unit' ? 'un.' : item.baseUnit}</span>
 											</div>
 											{#if isLow}
 												<span class="text-[10px] text-destructive font-semibold">Stock Crítico</span>
@@ -488,11 +488,11 @@
 										<td class="px-4 py-4 align-middle whitespace-nowrap">
 											<div class="space-y-0.5">
 												<p class="font-mono text-xs font-semibold {isLow ? 'text-destructive' : 'text-foreground'}">
-													{item.currentStock} {item.baseUnit === 'unit' ? 'un.' : item.baseUnit}
+													{formatQuantity(item.currentStock)} {item.baseUnit === 'unit' ? 'un.' : item.baseUnit}
 												</p>
 												<div class="flex items-center gap-1 font-mono text-[11px] text-muted-foreground">
 													<AlertTriangle class="size-3 text-muted-foreground/70" />
-													<span>{item.minStock} {item.baseUnit === 'unit' ? 'un.' : item.baseUnit}</span>
+													<span>{formatQuantity(item.minStock)} {item.baseUnit === 'unit' ? 'un.' : item.baseUnit}</span>
 												</div>
 											</div>
 										</td>

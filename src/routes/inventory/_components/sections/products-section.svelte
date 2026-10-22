@@ -17,7 +17,7 @@
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import Link2 from '@lucide/svelte/icons/link-2';
-	import { formatCurrency } from '../utils';
+	import { formatCurrency, formatQuantity } from '../utils';
 
 	interface Props {
 		salesProducts: SalesProductWithItems[];
@@ -339,7 +339,7 @@
 																</button>
 																<ItemTypeBadge type={comp.item.type} short={true} />
 																<span class="font-mono text-xs text-muted-foreground">
-																	× {comp.quantity} {comp.item.baseUnit} (Stock: {comp.item.currentStock} {comp.item.baseUnit})
+																	× {comp.quantity} {comp.item.baseUnit} (Stock: {formatQuantity(comp.item.currentStock)} {comp.item.baseUnit === 'unit' ? 'un.' : comp.item.baseUnit})
 																</span>
 															</div>
 														{:else}

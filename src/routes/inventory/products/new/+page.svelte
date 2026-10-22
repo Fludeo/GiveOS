@@ -21,6 +21,7 @@
 	import Percent from '@lucide/svelte/icons/percent';
 	import Sparkles from '@lucide/svelte/icons/sparkles';
 	import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
+	import { formatQuantity } from '../../_components/utils';
 
 	let { data, form }: PageProps = $props();
 
@@ -264,7 +265,7 @@
 								>
 									{#each linkableItems as cand (cand.id)}
 										<option value={cand.id}>
-											[{cand.code}] {cand.name} ({ITEM_TYPE_LABELS[cand.type]} · Stock: {cand.currentStock} {cand.baseUnit})
+											[{cand.code}] {cand.name} ({ITEM_TYPE_LABELS[cand.type]} · Stock: {formatQuantity(cand.currentStock)} {cand.baseUnit === 'unit' ? 'un.' : cand.baseUnit})
 										</option>
 									{/each}
 								</select>

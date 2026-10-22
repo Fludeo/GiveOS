@@ -10,7 +10,7 @@
 	import Star from '@lucide/svelte/icons/star';
 	import Check from '@lucide/svelte/icons/check';
 	import CakeSlice from '@lucide/svelte/icons/cake-slice';
-	import { formatCurrency, calculateComponentsRecipeCost } from '../utils';
+	import { formatCurrency, formatQuantity, calculateComponentsRecipeCost } from '../utils';
 
 	interface Props {
 		open: boolean;
@@ -226,7 +226,7 @@
 													>
 														{#each linkableItems as candidate (candidate.id)}
 															<option value={candidate.id}>
-																[{candidate.code}] {candidate.name} ({ITEM_TYPE_LABELS[candidate.type]} · {candidate.currentStock} {candidate.baseUnit})
+																[{candidate.code}] {candidate.name} ({ITEM_TYPE_LABELS[candidate.type]} · {formatQuantity(candidate.currentStock)} {candidate.baseUnit === 'unit' ? 'un.' : candidate.baseUnit})
 															</option>
 														{/each}
 													</select>
