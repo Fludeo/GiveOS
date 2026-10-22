@@ -17,10 +17,17 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 
 	const { orderService } = getServices();
 
-	const [orders, salesProducts] = await Promise.all([
+	const [orders, salesProducts, preorderForecast] = await Promise.all([
 		orderService.listOrders(activeBusiness.id),
-		orderService.listSalesProducts(activeBusiness.id)
+		orderService.listSalesProducts(activeBusiness.id),
+		orderService.getPreorderForecast(activeBusiness.id)
 	]);
+
+	const requestedTab = url.searchParams.get('tab');
+	const initialTab: 'orders' | 'upcoming' | 'forecast' =
+		requestedTab === 'upcoming' || requestedTab === 'forecast'
+			? requestedTab
+			: 'orders';
 
 	return {
 		user: locals.user,
@@ -28,6 +35,9 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		businesses: memberships.map((m) => ({ ...m.business, role: m.role })),
 		orders,
 		salesProducts: salesProducts.filter((p) => p.isActive),
+		allSalesProducts: salesProducts,
+		preorderForecast,
+		initialTab,
 		openNewModalOnLoad: url.searchParams.get('new') === '1',
 		createdOrderNumber: url.searchParams.get('created')
 	};

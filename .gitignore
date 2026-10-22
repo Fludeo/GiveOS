@@ -24,3 +24,4 @@ vite.config.ts.timestamp-*
 # SQLite & PGlite
 *.db
 .pglite_data/
+.pglite_data*/

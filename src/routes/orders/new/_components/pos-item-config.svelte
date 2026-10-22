@@ -3,6 +3,7 @@
 	import { Button } from '#lib/components/ui/button';
 	import { Input } from '#lib/components/ui/input';
 	import { Label } from '#lib/components/ui/label';
+	import { DatePicker } from '#lib/components/ui/date-picker';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Minus from '@lucide/svelte/icons/minus';
 	import Sparkles from '@lucide/svelte/icons/sparkles';
@@ -373,13 +374,10 @@
 							<Label for="pos-item-delivery-date" class="text-xs font-semibold">
 								Fecha de Entrega
 							</Label>
-							<input
-								id="pos-item-delivery-date"
-								type="date"
-								min={minDeliveryDateOnly}
+							<DatePicker
 								bind:value={configDeliveryDateOnly}
+								min={minDeliveryDateOnly}
 								onchange={syncDeliveryDateTime}
-								class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-sm shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring cursor-pointer"
 							/>
 						</div>
 

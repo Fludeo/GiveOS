@@ -91,7 +91,7 @@
 							class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs"
 						>
 							<option value="paid">Pagado Total ({formatCurrency(order.totalAmount)})</option>
-							<option value="partially_paid">Pago Parcial / Seña</option>
+							<option value="partially_paid">Pago Parcial</option>
 							<option value="pending">Sin Pagar ($ 0,00)</option>
 						</select>
 					</div>

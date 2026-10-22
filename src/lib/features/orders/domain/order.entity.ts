@@ -15,7 +15,7 @@ export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
 
 export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
 	pending: 'Sin Pagar',
-	partially_paid: 'Pago Parcial (Seña)',
+	partially_paid: 'Pago Parcial',
 	paid: 'Pagado'
 };
 
@@ -211,6 +211,12 @@ export interface PreorderForecastLine {
 	projectedBalance: number;
 	deficitQuantity: number;
 	isShortage: boolean;
+	prepTimeMinutes?: number;
+	isPrepTimeScalable?: boolean;
+	yieldQuantity?: number;
+	batchesNeededForDeficit?: number;
+	laborMinutesForDeficit?: number;
+	laborMinutesTotalDemand?: number;
 }
 
 export interface PreorderForecastSummary {
@@ -223,9 +229,20 @@ export interface PreorderForecastSummary {
 		baseUnit: UnitOfMeasure;
 		totalOrderedQty: number;
 		currentProductStock: number;
+		projectedBalance: number;
+		deficitQuantity: number;
+		isShortage: boolean;
+		prepTimeMinutes?: number;
+		isPrepTimeScalable?: boolean;
+		yieldQuantity?: number;
+		batchesNeededForDeficit?: number;
+		laborMinutesForDeficit?: number;
+		laborMinutesTotalDemand?: number;
 	}>;
 	subAssemblyForecast: PreorderForecastLine[];
 	rawMaterialForecast: PreorderForecastLine[];
+	totalLaborMinutesForDeficit: number;
+	totalLaborMinutesTotalDemand: number;
 }
 
 export function generateNextSalesProductCode(existingCodes: string[]): string {

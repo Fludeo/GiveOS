@@ -4,13 +4,16 @@
 	import type { OrderWithItems } from '#lib/features/orders/domain/order.entity';
 	import AppShell from '#lib/components/layout/app-shell.svelte';
 	import { Button } from '#lib/components/ui/button';
-	import Plus from '@lucide/svelte/icons/plus';
-	import Tag from '@lucide/svelte/icons/tag';
+	import ShoppingBag from '@lucide/svelte/icons/shopping-bag';
+	import CalendarClock from '@lucide/svelte/icons/calendar-clock';
+	import Boxes from '@lucide/svelte/icons/boxes';
 	import { toast } from '#lib/components/ui/toast';
 
 	// Componentes modulares
 	import OrdersSummaryCards from './_components/sections/orders-summary-cards.svelte';
 	import OrdersListSection from './_components/sections/orders-list-section.svelte';
+	import OrdersDeliveriesWidget from './_components/sections/orders-deliveries-widget.svelte';
+	import OrdersForecastSection from './_components/sections/orders-forecast-section.svelte';
 	import NewOrderModal from './_components/modals/new-order-modal.svelte';
 	import ViewOrderModal from './_components/modals/view-order-modal.svelte';
 	import PayOrderModal from './_components/modals/pay-order-modal.svelte';
@@ -19,6 +22,21 @@
 	import ConfirmOrderModal from './_components/modals/confirm-order-modal.svelte';
 
 	let { data }: PageProps = $props();
+
+	// Pestaña activa: 'orders' | 'upcoming' | 'forecast'
+	let activeTab = $state<'orders' | 'upcoming' | 'forecast' | null>(null);
+	const currentTab = $derived<'orders' | 'upcoming' | 'forecast'>(
+		activeTab ?? data.initialTab ?? 'orders'
+	);
+
+	function switchTab(tab: 'orders' | 'upcoming' | 'forecast') {
+		activeTab = tab;
+		if (typeof window !== 'undefined') {
+			const url = new URL(window.location.href);
+			url.searchParams.set('tab', tab);
+			replaceState(url, {});
+		}
+	}
 
 	$effect(() => {
 		if (data.createdOrderNumber) {
@@ -66,42 +84,101 @@
 	<title>Órdenes de Compra — {data.activeBusiness.name}</title>
 </svelte:head>
 
-{#snippet headerActions()}
-	<Button variant="outline" href="/inventory?tab=products">
-		<Tag class="size-4" />
-		<span>Catálogo de Venta ({data.salesProducts.length})</span>
-	</Button>
-	<Button
-		onclick={() => (showNewOrderModal = true)}
-		variant="secondary"
-		class="gap-1.5 font-bold shadow-xs cursor-pointer"
-	>
-		<Plus class="size-4" />
-		<span>Nueva Orden Rápida</span>
-	</Button>
-{/snippet}
-
 <AppShell
 	user={data.user}
 	activeBusiness={data.activeBusiness}
 	businesses={data.businesses}
 	currentSection="orders"
 	title="Órdenes de Compra"
-	description="Gestión integral de órdenes con entrega inmediata en mostrador y órdenes programadas por encargo"
-	{headerActions}
+	description="Gestión de pedidos de mostrador, agenda de próximas entregas y previsión de demanda de insumos"
 >
-	<!-- 1. Tarjetas de Resumen y KPIs -->
-	<OrdersSummaryCards orders={data.orders} />
+	<!-- Barra de Pestañas Unificada de Órdenes -->
+	<div class="flex flex-wrap items-center gap-1.5 rounded-2xl border border-border bg-card p-1.5 shadow-2xs">
+		<button
+			type="button"
+			onclick={() => switchTab('orders')}
+			class="inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-colors cursor-pointer {currentTab ===
+			'orders'
+				? 'bg-primary text-primary-foreground shadow-xs font-semibold'
+				: 'text-muted-foreground hover:text-foreground'}"
+		>
+			<ShoppingBag class="size-4" />
+			<span>Órdenes de Compra</span>
+		</button>
 
-	<!-- 2. Listado, Filtros y Paginación de Órdenes -->
-	<OrdersListSection
-		orders={data.orders}
-		onViewOrder={(order: OrderWithItems) => (viewingOrderId = order.id)}
-		onPayOrder={(order: OrderWithItems) => (payingOrderId = order.id)}
-		onDeliverOrder={(order: OrderWithItems) => (deliveringOrderId = order.id)}
-		onCancelOrder={(order: OrderWithItems) => (cancellingOrderId = order.id)}
-		onConfirmOrder={(order: OrderWithItems) => (confirmingOrderId = order.id)}
-	/>
+		<button
+			type="button"
+			onclick={() => switchTab('upcoming')}
+			class="inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-colors cursor-pointer {currentTab ===
+			'upcoming'
+				? 'bg-primary text-primary-foreground shadow-xs font-semibold'
+				: 'text-muted-foreground hover:text-foreground'}"
+		>
+			<CalendarClock class="size-4" />
+			<span>Próximos Pedidos</span>
+			{#if data.preorderForecast.pendingOrdersCount > 0}
+				<span
+					class="ml-1 rounded-full px-1.5 py-0.2 text-[10px] font-bold {currentTab ===
+					'upcoming'
+						? 'bg-primary-foreground/20 text-primary-foreground'
+						: 'bg-amber-500/15 text-amber-700 dark:text-amber-400'}"
+				>
+					{data.preorderForecast.pendingOrdersCount}
+				</span>
+			{/if}
+		</button>
+
+		<button
+			type="button"
+			onclick={() => switchTab('forecast')}
+			class="inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-colors cursor-pointer {currentTab ===
+			'forecast'
+				? 'bg-primary text-primary-foreground shadow-xs font-semibold'
+				: 'text-muted-foreground hover:text-foreground'}"
+		>
+			<Boxes class="size-4" />
+			<span>Demanda de Insumos & Ensambles</span>
+			{#if data.preorderForecast.subAssemblyForecast.some((i) => i.isShortage) || data.preorderForecast.rawMaterialForecast.some((i) => i.isShortage)}
+				<span
+					class="ml-1 rounded-full px-1.5 py-0.2 text-[10px] font-bold {currentTab ===
+					'forecast'
+						? 'bg-primary-foreground/20 text-primary-foreground'
+						: 'bg-red-500/15 text-red-700 dark:text-red-400'}"
+				>
+					Faltantes
+				</span>
+			{/if}
+		</button>
+	</div>
+
+	{#if currentTab === 'orders'}
+		<!-- 1. Tarjetas de Resumen y KPIs -->
+		<OrdersSummaryCards
+			orders={data.orders}
+			salesProducts={data.allSalesProducts ?? data.salesProducts}
+		/>
+
+		<!-- 2. Listado, Filtros y Paginación de Órdenes -->
+		<OrdersListSection
+			orders={data.orders}
+			onViewOrder={(order: OrderWithItems) => (viewingOrderId = order.id)}
+			onPayOrder={(order: OrderWithItems) => (payingOrderId = order.id)}
+			onDeliverOrder={(order: OrderWithItems) => (deliveringOrderId = order.id)}
+			onCancelOrder={(order: OrderWithItems) => (cancellingOrderId = order.id)}
+			onConfirmOrder={(order: OrderWithItems) => (confirmingOrderId = order.id)}
+		/>
+	{:else if currentTab === 'upcoming'}
+		<!-- Agenda Completa de Próximos Pedidos con pestañas de 7 Días, +7 Días y Todos -->
+		<OrdersDeliveriesWidget
+			orders={data.orders}
+			onViewOrder={(order: OrderWithItems) => (viewingOrderId = order.id)}
+			onPayOrder={(order: OrderWithItems) => (payingOrderId = order.id)}
+			onDeliverOrder={(order: OrderWithItems) => (deliveringOrderId = order.id)}
+			onConfirmOrder={(order: OrderWithItems) => (confirmingOrderId = order.id)}
+		/>
+	{:else if currentTab === 'forecast'}
+		<OrdersForecastSection forecast={data.preorderForecast} />
+	{/if}
 
 	<!-- 3. Modales Modulares -->
 	<NewOrderModal

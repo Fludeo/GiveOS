@@ -54,6 +54,26 @@ export function toTimeString(date: Date): string {
 	return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
+export function calculateOrderCost(
+	order: { items: Array<{ salesProductId: string; quantity: number }> },
+	costMap: Map<string, number>
+): number {
+	return order.items.reduce((acc, item) => {
+		const unitCost = costMap.get(item.salesProductId) ?? 0;
+		return acc + unitCost * (item.quantity || 0);
+	}, 0);
+}
+
+export function calculateOrderProfit(
+	totalAmount: number,
+	cost: number
+): { profit: number; marginPct: number } {
+	const profit = totalAmount - cost;
+	const marginPct = totalAmount > 0 ? Math.round((profit / totalAmount) * 100) : 0;
+	return { profit, marginPct };
+}
+
+
 export function toDatetimeLocalString(date: Date): string {
 	const pad = (n: number) => String(n).padStart(2, '0');
 	return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;

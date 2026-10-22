@@ -629,10 +629,50 @@ export class OrderService {
 		const subAssemblyRequiredMap = new Map<string, number>();
 		const directRawRequiredMap = new Map<string, number>();
 
+		const calcLabor = (
+			qty: number,
+			prepTime: number | undefined,
+			yieldQty: number | undefined,
+			scalable: boolean | undefined
+		) => {
+			if (!prepTime || prepTime <= 0 || qty <= 0) {
+				return { laborMinutes: 0, batchesNeeded: 0 };
+			}
+			const y = yieldQty && yieldQty > 0 ? yieldQty : 1;
+			if (scalable) {
+				return {
+					laborMinutes: Math.round((qty / y) * prepTime),
+					batchesNeeded: Number((qty / y).toFixed(2))
+				};
+			}
+			const batches = Math.ceil(qty / y);
+			return {
+				laborMinutes: batches * prepTime,
+				batchesNeeded: batches
+			};
+		};
+
 		// 1. Explotar cada Producto Final demandado en pedidos futuros
 		for (const [itemId, totalOrderedQty] of productDemandMap.entries()) {
 			const productItem = itemsById.get(itemId);
 			if (!productItem) continue;
+
+			const projectedBalance = Number((productItem.currentStock - totalOrderedQty).toFixed(3));
+			const deficitQuantity = projectedBalance < 0 ? Math.abs(projectedBalance) : 0;
+			const isShortage = deficitQuantity > 0;
+
+			const { laborMinutes: laborDeficit, batchesNeeded: batchesDeficit } = calcLabor(
+				deficitQuantity,
+				productItem.prepTimeMinutes,
+				productItem.yieldQuantity,
+				productItem.isPrepTimeScalable
+			);
+			const { laborMinutes: laborDemand } = calcLabor(
+				totalOrderedQty,
+				productItem.prepTimeMinutes,
+				productItem.yieldQuantity,
+				productItem.isPrepTimeScalable
+			);
 
 			productDemands.push({
 				itemId: productItem.id,
@@ -640,7 +680,16 @@ export class OrderService {
 				name: productItem.name,
 				baseUnit: productItem.baseUnit,
 				totalOrderedQty: Number(totalOrderedQty.toFixed(3)),
-				currentProductStock: productItem.currentStock
+				currentProductStock: productItem.currentStock,
+				projectedBalance,
+				deficitQuantity: Number(deficitQuantity.toFixed(3)),
+				isShortage,
+				prepTimeMinutes: productItem.prepTimeMinutes,
+				isPrepTimeScalable: productItem.isPrepTimeScalable,
+				yieldQuantity: productItem.yieldQuantity,
+				batchesNeededForDeficit: batchesDeficit,
+				laborMinutesForDeficit: laborDeficit,
+				laborMinutesTotalDemand: laborDemand
 			});
 
 			const summary = recipeSummaries[productItem.id];
@@ -670,36 +719,107 @@ export class OrderService {
 			}
 		}
 
-		// 2. Construir previsión de Sub-ensambles y calcular qué sub-ensambles faltan fabricar
+		// 2. Construir previsión de Sub-ensambles multinivel (N-niveles) y Materias Primas
 		const subAssemblyForecast: PreorderForecastLine[] = [];
+		const subAssemblyTotalDemandMap = new Map<string, number>();
+		const subAssemblyRemainingStock = new Map<string, number>();
+		const subAssemblyTotalDeficitMap = new Map<string, number>();
 		const totalRawRequiredMap = new Map<string, number>(directRawRequiredMap);
 
-		const explodeSubAssemblyRawMaterials = (nodes: RecipeTreeNode[], multiplier: number) => {
-			for (const node of nodes) {
-				const comp = node.component;
-				const reqInBase = convertQuantity(
-					node.quantity * multiplier,
-					node.unit,
-					comp.baseUnit
+		// Cola para explosión multinivel (BFS)
+		const subAssemblyQueue: Array<{ itemId: string; reqQty: number }> = [];
+		for (const [subId, reqQty] of subAssemblyRequiredMap.entries()) {
+			subAssemblyQueue.push({ itemId: subId, reqQty });
+		}
+
+		let safetyLoopCounter = 0;
+		const MAX_EXPLOSION_ITERATIONS = 1000;
+
+		while (subAssemblyQueue.length > 0 && safetyLoopCounter < MAX_EXPLOSION_ITERATIONS) {
+			safetyLoopCounter++;
+			const itemToProcess = subAssemblyQueue.shift();
+			if (!itemToProcess) break;
+			const { itemId, reqQty } = itemToProcess;
+			const subItem = itemsById.get(itemId);
+			if (!subItem) continue;
+
+			// Acumular demanda bruta total de este elaborado
+			subAssemblyTotalDemandMap.set(
+				itemId,
+				(subAssemblyTotalDemandMap.get(itemId) ?? 0) + reqQty
+			);
+
+			// Consultar stock remanente para ver cuánto cubre este requerimiento
+			const availableStock = subAssemblyRemainingStock.has(itemId)
+				? subAssemblyRemainingStock.get(itemId)!
+				: subItem.currentStock;
+
+			let deficitPortion = 0;
+			if (availableStock >= reqQty) {
+				subAssemblyRemainingStock.set(itemId, availableStock - reqQty);
+			} else {
+				deficitPortion = reqQty - availableStock;
+				subAssemblyRemainingStock.set(itemId, 0);
+			}
+
+			// Si hay déficit, necesitamos fabricar esta porción y por tanto explotar su receta
+			if (deficitPortion > 0) {
+				subAssemblyTotalDeficitMap.set(
+					itemId,
+					(subAssemblyTotalDeficitMap.get(itemId) ?? 0) + deficitPortion
 				);
-				if (comp.type === 'raw_material') {
-					totalRawRequiredMap.set(
-						comp.id,
-						(totalRawRequiredMap.get(comp.id) ?? 0) + reqInBase
+
+				const subSummary = recipeSummaries[itemId];
+				const subNodes = subSummary?.nodes ?? [];
+				const subYield = subItem.yieldQuantity > 0 ? subItem.yieldQuantity : 1;
+				const batchesForDeficit = deficitPortion / subYield;
+
+				for (const node of subNodes) {
+					const childComp = node.component;
+					const childReqInBase = convertQuantity(
+						node.quantity * batchesForDeficit,
+						node.unit,
+						childComp.baseUnit
 					);
-				} else if (node.children.length > 0) {
-					const childYield = comp.yieldQuantity > 0 ? comp.yieldQuantity : 1;
-					explodeSubAssemblyRawMaterials(node.children, reqInBase / childYield);
+
+					if (childComp.type === 'raw_material') {
+						totalRawRequiredMap.set(
+							childComp.id,
+							(totalRawRequiredMap.get(childComp.id) ?? 0) + childReqInBase
+						);
+					} else if (childComp.type === 'prepared') {
+						// Sub-ensamble anidado (Nivel 2, Nivel 3...): se encola para calcular stock, demanda y mano de obra
+						subAssemblyQueue.push({
+							itemId: childComp.id,
+							reqQty: childReqInBase
+						});
+					}
 				}
 			}
-		};
+		}
 
-		for (const [subId, reqQty] of subAssemblyRequiredMap.entries()) {
+		for (const [subId, reqQty] of subAssemblyTotalDemandMap.entries()) {
 			const subItem = itemsById.get(subId);
 			if (!subItem) continue;
 
 			const projectedBalance = Number((subItem.currentStock - reqQty).toFixed(3));
-			const deficitQuantity = projectedBalance < 0 ? Math.abs(projectedBalance) : 0;
+			const deficitQuantity =
+				subAssemblyTotalDeficitMap.get(subId) ??
+				(projectedBalance < 0 ? Math.abs(projectedBalance) : 0);
+			const isShortage = deficitQuantity > 0;
+
+			const { laborMinutes: laborDeficit, batchesNeeded: batchesDeficit } = calcLabor(
+				deficitQuantity,
+				subItem.prepTimeMinutes,
+				subItem.yieldQuantity,
+				subItem.isPrepTimeScalable
+			);
+			const { laborMinutes: laborDemand } = calcLabor(
+				reqQty,
+				subItem.prepTimeMinutes,
+				subItem.yieldQuantity,
+				subItem.isPrepTimeScalable
+			);
 
 			subAssemblyForecast.push({
 				itemId: subItem.id,
@@ -712,16 +832,14 @@ export class OrderService {
 				requiredQuantity: Number(reqQty.toFixed(3)),
 				projectedBalance,
 				deficitQuantity: Number(deficitQuantity.toFixed(3)),
-				isShortage: deficitQuantity > 0
+				isShortage,
+				prepTimeMinutes: subItem.prepTimeMinutes,
+				isPrepTimeScalable: subItem.isPrepTimeScalable,
+				yieldQuantity: subItem.yieldQuantity,
+				batchesNeededForDeficit: batchesDeficit,
+				laborMinutesForDeficit: laborDeficit,
+				laborMinutesTotalDemand: laborDemand
 			});
-
-			// Si falta sub-ensamble (déficit > 0), explotamos sus materias primas para saber si alcanza la materia prima para producir el faltante
-			if (deficitQuantity > 0) {
-				const subSummary = recipeSummaries[subItem.id];
-				const subNodes = subSummary?.nodes ?? [];
-				const subYield = subItem.yieldQuantity > 0 ? subItem.yieldQuantity : 1;
-				explodeSubAssemblyRawMaterials(subNodes, deficitQuantity / subYield);
-			}
 		}
 
 		// Ordenar primero los que tienen déficit
@@ -749,7 +867,13 @@ export class OrderService {
 				requiredQuantity: Number(reqQty.toFixed(3)),
 				projectedBalance,
 				deficitQuantity: Number(deficitQuantity.toFixed(3)),
-				isShortage: deficitQuantity > 0
+				isShortage: deficitQuantity > 0,
+				prepTimeMinutes: rawItem.prepTimeMinutes,
+				isPrepTimeScalable: rawItem.isPrepTimeScalable,
+				yieldQuantity: rawItem.yieldQuantity,
+				batchesNeededForDeficit: 0,
+				laborMinutesForDeficit: 0,
+				laborMinutesTotalDemand: 0
 			});
 		}
 
@@ -758,12 +882,22 @@ export class OrderService {
 			return a.projectedBalance - b.projectedBalance;
 		});
 
+		const totalLaborMinutesForDeficit =
+			subAssemblyForecast.reduce((acc, i) => acc + (i.laborMinutesForDeficit ?? 0), 0) +
+			productDemands.reduce((acc, p) => acc + (p.laborMinutesForDeficit ?? 0), 0);
+
+		const totalLaborMinutesTotalDemand =
+			subAssemblyForecast.reduce((acc, i) => acc + (i.laborMinutesTotalDemand ?? 0), 0) +
+			productDemands.reduce((acc, p) => acc + (p.laborMinutesTotalDemand ?? 0), 0);
+
 		return {
 			pendingOrdersCount: pendingOrders.length,
 			pendingPreorderLinesCount,
 			productDemands,
 			subAssemblyForecast,
-			rawMaterialForecast
+			rawMaterialForecast,
+			totalLaborMinutesForDeficit,
+			totalLaborMinutesTotalDemand
 		};
 	}
 }

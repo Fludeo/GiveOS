@@ -4,6 +4,7 @@
 	import * as Card from '#lib/components/ui/card';
 	import { Input } from '#lib/components/ui/input';
 	import { Label } from '#lib/components/ui/label';
+	import { DatePicker } from '#lib/components/ui/date-picker';
 	import TablePagination from '#lib/components/ui/pagination/table-pagination.svelte';
 	import { toast } from '#lib/components/ui/toast/toast.svelte';
 	import ThemeToggle from '#lib/components/theme-toggle.svelte';
@@ -40,6 +41,7 @@
 	let demoToggle = $state(true);
 	let demoCheckbox1 = $state(true);
 	let demoCheckbox2 = $state(false);
+	let demoDate = $state('2026-10-22');
 
 	// Estado interactivo para paginación
 	let demoCurrentPage = $state(2);
@@ -848,6 +850,12 @@
 							/>
 							<span>Requiere confirmación previa de seña</span>
 						</label>
+					</div>
+
+					<div class="space-y-1.5 pt-2 border-t border-border">
+						<Label class="text-xs font-semibold">Selector de Fecha (DatePicker shadcn)</Label>
+						<DatePicker bind:value={demoDate} />
+						<p class="text-[11px] text-muted-foreground font-mono">Valor seleccionado: {demoDate || '(ninguno)'}</p>
 					</div>
 
 					<div class="space-y-1.5 pt-2 border-t border-border">
