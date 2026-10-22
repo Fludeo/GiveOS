@@ -1,4 +1,4 @@
-CREATE TABLE "account" (
+CREATE TABLE IF NOT EXISTS "account" (
 	"id" text PRIMARY KEY NOT NULL,
 	"account_id" text NOT NULL,
 	"provider_id" text NOT NULL,
@@ -14,7 +14,7 @@ CREATE TABLE "account" (
 	"updated_at" timestamp NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "businesses" (
+CREATE TABLE IF NOT EXISTS "businesses" (
 	"id" text PRIMARY KEY NOT NULL,
 	"name" text NOT NULL,
 	"description" text DEFAULT '' NOT NULL,
@@ -23,7 +23,7 @@ CREATE TABLE "businesses" (
 	"created_at" timestamp NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "items" (
+CREATE TABLE IF NOT EXISTS "items" (
 	"id" text PRIMARY KEY NOT NULL,
 	"business_id" text NOT NULL,
 	"code" text NOT NULL,
@@ -41,7 +41,7 @@ CREATE TABLE "items" (
 	"created_at" timestamp NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "order_items" (
+CREATE TABLE IF NOT EXISTS "order_items" (
 	"id" text PRIMARY KEY NOT NULL,
 	"order_id" text NOT NULL,
 	"sales_product_id" text NOT NULL,
@@ -53,7 +53,7 @@ CREATE TABLE "order_items" (
 	"notes" text
 );
 --> statement-breakpoint
-CREATE TABLE "orders" (
+CREATE TABLE IF NOT EXISTS "orders" (
 	"id" text PRIMARY KEY NOT NULL,
 	"business_id" text NOT NULL,
 	"order_number" text NOT NULL,
@@ -69,7 +69,7 @@ CREATE TABLE "orders" (
 	"updated_at" timestamp NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "recipe_lines" (
+CREATE TABLE IF NOT EXISTS "recipe_lines" (
 	"id" text PRIMARY KEY NOT NULL,
 	"parent_item_id" text NOT NULL,
 	"component_item_id" text NOT NULL,
@@ -79,14 +79,14 @@ CREATE TABLE "recipe_lines" (
 	"sort_order" integer DEFAULT 0 NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "sales_product_items" (
+CREATE TABLE IF NOT EXISTS "sales_product_items" (
 	"id" text PRIMARY KEY NOT NULL,
 	"sales_product_id" text NOT NULL,
 	"item_id" text NOT NULL,
 	"quantity" double precision DEFAULT 1 NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "sales_products" (
+CREATE TABLE IF NOT EXISTS "sales_products" (
 	"id" text PRIMARY KEY NOT NULL,
 	"business_id" text NOT NULL,
 	"code" text NOT NULL,
@@ -99,7 +99,7 @@ CREATE TABLE "sales_products" (
 	"created_at" timestamp NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "session" (
+CREATE TABLE IF NOT EXISTS "session" (
 	"id" text PRIMARY KEY NOT NULL,
 	"expires_at" timestamp NOT NULL,
 	"token" text NOT NULL,
@@ -111,7 +111,7 @@ CREATE TABLE "session" (
 	CONSTRAINT "session_token_unique" UNIQUE("token")
 );
 --> statement-breakpoint
-CREATE TABLE "user" (
+CREATE TABLE IF NOT EXISTS "user" (
 	"id" text PRIMARY KEY NOT NULL,
 	"name" text NOT NULL,
 	"email" text NOT NULL,
@@ -122,7 +122,7 @@ CREATE TABLE "user" (
 	CONSTRAINT "user_email_unique" UNIQUE("email")
 );
 --> statement-breakpoint
-CREATE TABLE "user_businesses" (
+CREATE TABLE IF NOT EXISTS "user_businesses" (
 	"id" text PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
 	"business_id" text NOT NULL,
@@ -130,7 +130,7 @@ CREATE TABLE "user_businesses" (
 	"created_at" timestamp NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "verification" (
+CREATE TABLE IF NOT EXISTS "verification" (
 	"id" text PRIMARY KEY NOT NULL,
 	"identifier" text NOT NULL,
 	"value" text NOT NULL,
@@ -152,7 +152,7 @@ ALTER TABLE "sales_products" ADD CONSTRAINT "sales_products_business_id_business
 ALTER TABLE "session" ADD CONSTRAINT "session_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "user_businesses" ADD CONSTRAINT "user_businesses_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "user_businesses" ADD CONSTRAINT "user_businesses_business_id_businesses_id_fk" FOREIGN KEY ("business_id") REFERENCES "public"."businesses"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-CREATE UNIQUE INDEX "items_business_code_unique" ON "items" USING btree ("business_id","code");--> statement-breakpoint
-CREATE UNIQUE INDEX "orders_business_number_unique" ON "orders" USING btree ("business_id","order_number");--> statement-breakpoint
-CREATE UNIQUE INDEX "sales_products_business_code_unique" ON "sales_products" USING btree ("business_id","code");--> statement-breakpoint
-CREATE UNIQUE INDEX "user_businesses_user_business_unique" ON "user_businesses" USING btree ("user_id","business_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "items_business_code_unique" ON "items" USING btree ("business_id","code");--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS "orders_business_number_unique" ON "orders" USING btree ("business_id","order_number");--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS "sales_products_business_code_unique" ON "sales_products" USING btree ("business_id","code");--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS "user_businesses_user_business_unique" ON "user_businesses" USING btree ("user_id","business_id");

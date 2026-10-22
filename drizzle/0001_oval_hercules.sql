@@ -1,1 +1,1 @@
-ALTER TABLE "items" ADD COLUMN "is_prep_time_scalable" boolean DEFAULT false NOT NULL;
+ALTER TABLE "items" ADD COLUMN IF NOT EXISTS "is_prep_time_scalable" boolean DEFAULT false NOT NULL;

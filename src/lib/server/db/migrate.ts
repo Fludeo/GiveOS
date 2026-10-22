@@ -6,6 +6,7 @@ import { migrate as migratePglite } from 'drizzle-orm/pglite/migrator';
 import { PGlite } from '@electric-sql/pglite';
 import fs from 'node:fs';
 import { dev } from '$app/env';
+import { getDb, getPgliteClient } from './index';
 
 export async function runMigrations() {
 	if (!fs.existsSync('./drizzle')) {
@@ -20,10 +21,11 @@ export async function runMigrations() {
 	try {
 		if (usePglite) {
 			console.log('[db:migrate] Running local PGlite migrations (development environment)...');
-			const dataDir = process.env.PGLITE_DATA_DIR || './.pglite_data';
-			const client = new PGlite(dataDir);
-			const db = drizzlePglite(client);
-			await migratePglite(db, { migrationsFolder: './drizzle' });
+			// Reuse the already initialized DB / client or create it through getDb()
+			const db = getDb();
+			const client = getPgliteClient() || new PGlite(process.env.PGLITE_DATA_DIR || './.pglite_data');
+			const migDb = drizzlePglite(client);
+			await migratePglite(migDb, { migrationsFolder: './drizzle' });
 			console.log('[db:migrate] PGlite migrations completed.');
 		} else {
 			if (!dbUrl) {

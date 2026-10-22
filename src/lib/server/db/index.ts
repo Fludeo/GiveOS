@@ -9,6 +9,11 @@ import * as schema from './schema';
 export type AppDb = PgDatabase<any, typeof schema, any>;
 
 let _db: AppDb | null = null;
+let _pgliteClient: PGlite | null = null;
+
+export function getPgliteClient(): PGlite | null {
+	return _pgliteClient;
+}
 
 export function getDb(): AppDb {
 	if (!_db) {
@@ -18,8 +23,8 @@ export function getDb(): AppDb {
 
 		if (usePglite) {
 			const dataDir = process.env.PGLITE_DATA_DIR || './.pglite_data';
-			const client = new PGlite(dataDir);
-			_db = drizzlePglite(client, { schema });
+			_pgliteClient = new PGlite(dataDir);
+			_db = drizzlePglite(_pgliteClient, { schema });
 		} else {
 			if (!dbUrl || (!dbUrl.startsWith('postgres://') && !dbUrl.startsWith('postgresql://'))) {
 				throw new Error(
