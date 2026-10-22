@@ -4,6 +4,7 @@ import {
 	applyStockRestoration,
 	areUnitsCompatible,
 	convertQuantity,
+	calculateRecipeConsumption,
 	getDirectUnitCost,
 	type Item,
 	type ItemStockBatch
@@ -263,7 +264,6 @@ export class RecipeService {
 
 		const directLines = allLines.filter((l) => l.parentItemId === parentItemId);
 		const yieldQty = parent.yieldQuantity > 0 ? parent.yieldQuantity : 1;
-		const batchFactor = producedQty / yieldQty;
 
 		const consumedComponents: Array<{ item: Item; consumedQty: number }> = [];
 
@@ -271,12 +271,14 @@ export class RecipeService {
 			const comp = itemsById.get(line.componentItemId);
 			if (!comp) continue;
 
-			const requiredInCompBase = convertQuantity(
-				line.quantity * batchFactor,
+			const requiredInCompBase = calculateRecipeConsumption(
+				line.quantity,
 				line.unit,
-				comp.baseUnit
+				comp.baseUnit,
+				producedQty,
+				yieldQty
 			);
-			const nextStock = Math.max(0, Number((comp.currentStock - requiredInCompBase).toFixed(4)));
+			const nextStock = Math.max(0, Math.round((comp.currentStock - requiredInCompBase) * 10000) / 10000);
 			let newBatches = comp.batches;
 			let newRefCost = comp.referenceCost;
 			if (comp.batches && comp.batches.length > 0) {
@@ -295,7 +297,7 @@ export class RecipeService {
 			}
 		}
 
-		const nextParentStock = Number((parent.currentStock + producedQty).toFixed(4));
+		const nextParentStock = Math.round((parent.currentStock + producedQty) * 10000) / 10000;
 		const newBatch: ItemStockBatch = {
 			id: uuidv7(),
 			createdAt: new Date().toISOString(),
@@ -348,23 +350,24 @@ export class RecipeService {
 
 		const producedQty = batchToDelete.initialQuantity;
 		const yieldQty = parent.yieldQuantity > 0 ? parent.yieldQuantity : 1;
-		const batchFactor = producedQty / yieldQty;
 		const directLines = allLines.filter((l) => l.parentItemId === parentItemId);
 
 		const restoredComponents: Array<{ item: Item; restoredQty: number }> = [];
 
-		// Reponer stock de los insumos y elaboraciones consumidas
+		// Reponer stock de los insumos y elaboraciones consumidas de forma reversible y exacta
 		for (const line of directLines) {
 			const comp = itemsById.get(line.componentItemId);
 			if (!comp) continue;
 
-			const qtyToRestore = convertQuantity(
-				line.quantity * batchFactor,
+			const qtyToRestore = calculateRecipeConsumption(
+				line.quantity,
 				line.unit,
-				comp.baseUnit
+				comp.baseUnit,
+				producedQty,
+				yieldQty
 			);
 
-			const nextStock = Number((comp.currentStock + qtyToRestore).toFixed(4));
+			const nextStock = Math.round((comp.currentStock + qtyToRestore) * 10000) / 10000;
 			let newBatches = comp.batches;
 			let newRefCost = comp.referenceCost;
 
@@ -387,7 +390,7 @@ export class RecipeService {
 		}
 
 		// Descontar del padre y eliminar el lote
-		const nextParentStock = Math.max(0, Number((parent.currentStock - batchToDelete.remainingQuantity).toFixed(4)));
+		const nextParentStock = Math.max(0, Math.round((parent.currentStock - batchToDelete.remainingQuantity) * 10000) / 10000);
 		const updatedBatches = currentBatches.filter((b) => b.id !== batchId);
 
 		const updatedParent = await this.itemRepo.update(parent.id, businessId, {

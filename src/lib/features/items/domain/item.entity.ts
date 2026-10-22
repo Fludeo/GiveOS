@@ -158,6 +158,30 @@ export function convertQuantity(
 	return inCanonical / TO_BASE_FACTOR[to];
 }
 
+/**
+ * Calcula el consumo exacto de un ingrediente según la proporción de la receta y el tamaño del lote.
+ * Evita la división prematura que ocasiona pérdida de decimales.
+ */
+export function calculateRecipeConsumption(
+	lineQuantity: number,
+	lineUnit: UnitOfMeasure,
+	componentBaseUnit: UnitOfMeasure,
+	producedQty: number,
+	yieldQty: number
+): number {
+	if (yieldQty <= 0 || producedQty <= 0 || lineQuantity <= 0) return 0;
+
+	// Convertir la cantidad de la línea a la unidad base del componente de forma exacta
+	const canonicalQty = lineQuantity * TO_BASE_FACTOR[lineUnit];
+	const inCompBase = canonicalQty / TO_BASE_FACTOR[componentBaseUnit];
+
+	// Multiplicar numeradores antes de dividir para no truncar fracciones (ej. (1 * 3) / 3 = 1 exacto)
+	const exactQuantity = (inCompBase * producedQty) / yieldQty;
+
+	// Redondear a 4 decimales pero normalizando a precisión flotante limpia
+	return Math.round(exactQuantity * 10000) / 10000;
+}
+
 export function getDirectUnitCost(item: Pick<Item, 'referenceCost' | 'purchaseQuantity'>): number {
 	if (!item.purchaseQuantity || item.purchaseQuantity <= 0) return 0;
 	return item.referenceCost / item.purchaseQuantity;
@@ -237,11 +261,16 @@ export function applyStockConsumption(
 			return batch;
 		}
 		const deductFromThis = Math.min(batch.remainingQuantity, remainingToDeduct);
-		remainingToDeduct -= deductFromThis;
+		remainingToDeduct = Math.max(0, remainingToDeduct - deductFromThis);
 		consumedCost += deductFromThis * batch.unitCost;
+		let nextRem = batch.remainingQuantity - deductFromThis;
+		// Absorción de micro-residuos de punto flotante (< 0.0005)
+		if (nextRem <= 0.0005) {
+			nextRem = 0;
+		}
 		return {
 			...batch,
-			remainingQuantity: Math.max(0, batch.remainingQuantity - deductFromThis)
+			remainingQuantity: Math.round(nextRem * 10000) / 10000
 		};
 	});
 
@@ -274,11 +303,12 @@ export function applyStockRestoration(
 		const capacity = Math.max(0, batch.initialQuantity - batch.remainingQuantity);
 		if (capacity > 0) {
 			const restoreToThis = Math.min(capacity, remainingToRestore);
+			const nextRem = Math.min(batch.initialQuantity, batch.remainingQuantity + restoreToThis);
 			updated[i] = {
 				...batch,
-				remainingQuantity: Number((batch.remainingQuantity + restoreToThis).toFixed(4))
+				remainingQuantity: Math.round(nextRem * 10000) / 10000
 			};
-			remainingToRestore = Number((remainingToRestore - restoreToThis).toFixed(4));
+			remainingToRestore = Math.max(0, remainingToRestore - restoreToThis);
 		}
 	}
 
@@ -288,7 +318,7 @@ export function applyStockRestoration(
 		const lastIdx = updated.length - 1;
 		updated[lastIdx] = {
 			...updated[lastIdx],
-			remainingQuantity: Number((updated[lastIdx].remainingQuantity + remainingToRestore).toFixed(4))
+			remainingQuantity: Math.round((updated[lastIdx].remainingQuantity + remainingToRestore) * 10000) / 10000
 		};
 	}
 
