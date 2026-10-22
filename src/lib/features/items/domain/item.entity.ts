@@ -71,6 +71,8 @@ export interface ItemRecipeConfig {
 	activeTimeMinutes: number;
 	passiveTimeMinutes?: number;
 	isScalable?: boolean;
+	/** Si se elabora únicamente a demanda (Make-to-Order / JIT) sin stock permanente */
+	isMakeToOrder?: boolean;
 	operationalCosts?: RecipeOperationalCost[];
 	notes?: string | null;
 }

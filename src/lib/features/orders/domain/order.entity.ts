@@ -211,6 +211,7 @@ export interface PreorderForecastLine {
 	projectedBalance: number;
 	deficitQuantity: number;
 	isShortage: boolean;
+	isMakeToOrder?: boolean;
 	prepTimeMinutes?: number;
 	passiveTimeMinutes?: number;
 	isPrepTimeScalable?: boolean;
@@ -235,6 +236,7 @@ export interface PreorderForecastSummary {
 		projectedBalance: number;
 		deficitQuantity: number;
 		isShortage: boolean;
+		isMakeToOrder?: boolean;
 		prepTimeMinutes?: number;
 		passiveTimeMinutes?: number;
 		isPrepTimeScalable?: boolean;

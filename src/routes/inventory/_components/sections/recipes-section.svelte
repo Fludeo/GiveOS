@@ -246,6 +246,12 @@
 								<span class="rounded-md bg-muted px-2 py-0.5 font-mono text-xs font-bold text-muted-foreground">
 									{selectedRoot.code}
 								</span>
+								{#if selectedRoot.recipeConfig?.isMakeToOrder}
+									<span class="inline-flex items-center gap-1 rounded-full border border-secondary/40 bg-secondary/15 px-2.5 py-0.5 text-[11px] font-bold text-secondary dark:text-secondary-foreground">
+										<Sparkles class="size-3" />
+										<span>A Demanda (Sin Stock)</span>
+									</span>
+								{/if}
 								<Button
 									variant="ghost"
 									size="icon"

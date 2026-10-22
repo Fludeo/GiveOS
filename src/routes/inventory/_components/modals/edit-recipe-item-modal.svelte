@@ -24,17 +24,15 @@
 
 	let editName = $state('');
 	let editYieldQuantity = $state<number | ''>(1);
-	let editPrepTimeMinutes = $state<number | ''>(0);
+	let editIsMakeToOrder = $state(false);
 	let editNotes = $state('');
-	let editIsPrepTimeScalable = $state(false);
 	let isSubmitting = $state(false);
 
 	$effect(() => {
 		if (open && item) {
 			editName = item.name;
 			editYieldQuantity = item.yieldQuantity > 0 ? item.yieldQuantity : 1;
-			editPrepTimeMinutes = item.prepTimeMinutes ?? 0;
-			editIsPrepTimeScalable = Boolean(item.isPrepTimeScalable);
+			editIsMakeToOrder = Boolean(item.recipeConfig?.isMakeToOrder);
 			editNotes = item.notes ?? '';
 			isSubmitting = false;
 		}
@@ -118,26 +116,48 @@
 					/>
 				</div>
 
-				<!-- Parámetros de Receta: Rendimiento y Tiempo -->
+				<!-- Parámetros de Receta: Rendimiento y Modalidad Make-to-Order -->
 				<div class="space-y-1.5">
-						<Label for="edit-yieldQuantity" class="flex items-center gap-1.5 font-semibold text-foreground">
-							<CirclePile class="size-3.5 text-secondary" />
-							<span>Rendimiento Base ({item.baseUnit === 'unit' ? 'un' : item.baseUnit})</span>
-						</Label>
-						<Input
-							id="edit-yieldQuantity"
-							name="yieldQuantity"
-							type="number"
-							step="any"
-							min="0.001"
-							bind:value={editYieldQuantity}
-							class="h-10 font-mono text-sm"
-							required
+					<Label for="edit-yieldQuantity" class="flex items-center gap-1.5 font-semibold text-foreground">
+						<CirclePile class="size-3.5 text-secondary" />
+						<span>Rendimiento Base ({item.baseUnit === 'unit' ? 'un' : item.baseUnit})</span>
+					</Label>
+					<Input
+						id="edit-yieldQuantity"
+						name="yieldQuantity"
+						type="number"
+						step="any"
+						min="0.001"
+						bind:value={editYieldQuantity}
+						class="h-10 font-mono text-sm"
+						required
+					/>
+					<p class="text-[11px] text-muted-foreground">
+						Cantidad producida por cada tanda completa.
+					</p>
+				</div>
+
+				<!-- Elaboración a Demanda (Make-to-Order / JIT) -->
+				<div class="rounded-xl border border-secondary/20 bg-secondary/5 p-3.5 space-y-2">
+					<label class="flex items-start gap-2.5 cursor-pointer">
+						<input
+							type="checkbox"
+							name="isMakeToOrder"
+							value="true"
+							bind:checked={editIsMakeToOrder}
+							class="size-4 mt-0.5 rounded border-border text-secondary focus:ring-secondary/30 accent-secondary"
 						/>
-						<p class="text-[11px] text-muted-foreground">
-							Cantidad producida por cada tanda completa.
-						</p>
-					</div>
+						<div class="space-y-0.5 select-none">
+							<span class="text-xs font-bold text-foreground block">
+								Elaboración a Demanda (Make-to-Order / Sin Stock Físico)
+							</span>
+							<span class="text-[11px] text-muted-foreground block leading-relaxed">
+								Para preparados perecederos o inmediatos (ej. merengue italiano, crema chantilly fresca).
+								No exige stock en almacén y calcula automáticamente sus materias primas y mano de obra en cada pedido.
+							</span>
+						</div>
+					</label>
+				</div>
 
 										<!-- Notas -->
 				<div class="space-y-1.5">

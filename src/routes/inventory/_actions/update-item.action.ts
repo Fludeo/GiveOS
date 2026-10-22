@@ -48,6 +48,23 @@ export async function updateItemAction({ request, locals, url }: RequestEvent) {
 		? String(formData.get('notes') ?? '').trim() || null
 		: existing.notes;
 
+	let recipeConfig = existing.recipeConfig;
+	if (formData.has('isMakeToOrder') || formData.has('yieldQuantity')) {
+		const isMakeToOrder = formData.has('isMakeToOrder')
+			? formData.get('isMakeToOrder') === 'true' || formData.get('isMakeToOrder') === 'on'
+			: Boolean(existing.recipeConfig?.isMakeToOrder);
+
+		recipeConfig = {
+			yieldQuantity: Number.isFinite(yieldQuantity) && yieldQuantity > 0 ? yieldQuantity : 1,
+			activeTimeMinutes: existing.recipeConfig?.activeTimeMinutes ?? 0,
+			passiveTimeMinutes: existing.recipeConfig?.passiveTimeMinutes ?? 0,
+			isScalable: existing.recipeConfig?.isScalable ?? false,
+			isMakeToOrder,
+			operationalCosts: existing.recipeConfig?.operationalCosts ?? [],
+			notes
+		};
+	}
+
 	try {
 		const updated = await itemService.updateItem(id, activeBusiness.id, {
 			name,
@@ -58,15 +75,7 @@ export async function updateItemAction({ request, locals, url }: RequestEvent) {
 				Number.isFinite(purchaseQuantity) && purchaseQuantity > 0 ? purchaseQuantity : 1,
 			yieldQuantity: Number.isFinite(yieldQuantity) && yieldQuantity > 0 ? yieldQuantity : 1,
 			minStock: Number.isFinite(minStock) && minStock >= 0 ? minStock : 0,
-			prepTimeMinutes:
-				prepTimeMinutes !== undefined && Number.isFinite(prepTimeMinutes) && prepTimeMinutes >= 0
-					? Math.round(prepTimeMinutes)
-					: undefined,
-			passiveTimeMinutes:
-				passiveTimeMinutes !== undefined && Number.isFinite(passiveTimeMinutes) && passiveTimeMinutes >= 0
-					? Math.round(passiveTimeMinutes)
-					: undefined,
-			isPrepTimeScalable: Boolean(isPrepTimeScalable),
+			recipeConfig,
 			notes
 		});
 		return {

@@ -89,6 +89,7 @@
 		projectedBalance: number;
 		deficitQuantity: number;
 		isShortage: boolean;
+		isMakeToOrder?: boolean;
 		prepTimeMinutes?: number;
 		passiveTimeMinutes?: number;
 		isPrepTimeScalable?: boolean;
@@ -133,6 +134,7 @@
 				projectedBalance: projBalance,
 				deficitQuantity: defQty,
 				isShortage: shortage,
+				isMakeToOrder: sub.isMakeToOrder,
 				prepTimeMinutes: sub.prepTimeMinutes ?? 0,
 				passiveTimeMinutes: sub.passiveTimeMinutes ?? 0,
 				isPrepTimeScalable: sub.isPrepTimeScalable,
@@ -213,6 +215,7 @@
 				projectedBalance: projBalance,
 				deficitQuantity: defQty,
 				isShortage: shortage,
+				isMakeToOrder: prod.isMakeToOrder,
 				prepTimeMinutes: prod.prepTimeMinutes ?? 0,
 				passiveTimeMinutes: prod.passiveTimeMinutes ?? 0,
 				isPrepTimeScalable: prod.isPrepTimeScalable,
@@ -573,10 +576,20 @@
 												Venta
 											</span>
 										{/if}
+										{#if item.isMakeToOrder}
+											<span class="rounded border border-secondary/40 bg-secondary/15 px-1.5 py-0.2 text-[10px] font-bold text-secondary">
+												A Demanda
+											</span>
+										{/if}
 									</div>
 
 									<!-- Píldora de Estado / Faltante -->
-									{#if item.isShortage}
+									{#if item.isMakeToOrder}
+										<span class="inline-flex items-center gap-1 rounded-md bg-secondary/15 border border-secondary/30 px-2 py-0.5 font-mono text-[11px] font-bold text-secondary dark:text-secondary-foreground">
+											<Sparkles class="size-3" />
+											Fabricar {formatNum(item.deficitQuantity)} {formatUnit(item.baseUnit)}
+										</span>
+									{:else if item.isShortage}
 										<span class="inline-flex items-center gap-1 rounded-md bg-red-500/15 border border-red-500/30 px-2 py-0.5 font-mono text-[11px] font-bold text-red-600 dark:text-red-400">
 											<AlertTriangle class="size-3" />
 											Faltan {formatNum(item.deficitQuantity)} {formatUnit(item.baseUnit)}
@@ -750,7 +763,11 @@
 
 									<!-- Balance -->
 									<td class="py-3 px-3 align-middle text-right font-mono font-bold whitespace-nowrap">
-										{#if item.isShortage}
+										{#if item.isMakeToOrder}
+											<span class="text-secondary dark:text-secondary-foreground font-semibold text-xs">
+												A demanda ({formatNum(item.deficitQuantity)} {formatUnit(item.baseUnit)})
+											</span>
+										{:else if item.isShortage}
 											<span class="text-red-600 dark:text-red-400">
 												-{formatNum(item.deficitQuantity)} {formatUnit(item.baseUnit)}
 											</span>

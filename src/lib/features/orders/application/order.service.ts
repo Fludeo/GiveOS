@@ -711,9 +711,12 @@ export class OrderService {
 			const productItem = itemsById.get(itemId);
 			if (!productItem) continue;
 
-			const projectedBalance = Number((productItem.currentStock - totalOrderedQty).toFixed(3));
-			const deficitQuantity = projectedBalance < 0 ? Math.abs(projectedBalance) : 0;
-			const isShortage = deficitQuantity > 0;
+			const isMakeToOrder = Boolean(productItem.recipeConfig?.isMakeToOrder);
+			const projectedBalance = isMakeToOrder ? 0 : Number((productItem.currentStock - totalOrderedQty).toFixed(3));
+			const deficitQuantity = isMakeToOrder
+				? totalOrderedQty
+				: (projectedBalance < 0 ? Math.abs(projectedBalance) : 0);
+			const isShortage = !isMakeToOrder && deficitQuantity > 0;
 
 			const {
 				laborMinutes: laborDeficit,
@@ -738,6 +741,7 @@ export class OrderService {
 				projectedBalance,
 				deficitQuantity: Number(deficitQuantity.toFixed(3)),
 				isShortage,
+				isMakeToOrder,
 				prepTimeMinutes: productItem.prepTimeMinutes,
 				passiveTimeMinutes: productItem.passiveTimeMinutes,
 				isPrepTimeScalable: productItem.isPrepTimeScalable,
@@ -806,17 +810,24 @@ export class OrderService {
 				(subAssemblyTotalDemandMap.get(itemId) ?? 0) + reqQty
 			);
 
-			// Consultar stock remanente para ver cuánto cubre este requerimiento
-			const availableStock = subAssemblyRemainingStock.has(itemId)
-				? subAssemblyRemainingStock.get(itemId)!
-				: subItem.currentStock;
+			// Si es un producto Make-to-Order (a demanda, sin stock almacenable), se produce siempre el 100% requerido
+			const isMakeToOrder = Boolean(subItem.recipeConfig?.isMakeToOrder);
 
 			let deficitPortion = 0;
-			if (availableStock >= reqQty) {
-				subAssemblyRemainingStock.set(itemId, availableStock - reqQty);
+			if (isMakeToOrder) {
+				deficitPortion = reqQty;
 			} else {
-				deficitPortion = reqQty - availableStock;
-				subAssemblyRemainingStock.set(itemId, 0);
+				// Consultar stock remanente para ver cuánto cubre este requerimiento
+				const availableStock = subAssemblyRemainingStock.has(itemId)
+					? subAssemblyRemainingStock.get(itemId)!
+					: subItem.currentStock;
+
+				if (availableStock >= reqQty) {
+					subAssemblyRemainingStock.set(itemId, availableStock - reqQty);
+				} else {
+					deficitPortion = reqQty - availableStock;
+					subAssemblyRemainingStock.set(itemId, 0);
+				}
 			}
 
 			// Si hay déficit, necesitamos fabricar esta porción y por tanto explotar su receta
@@ -859,11 +870,12 @@ export class OrderService {
 			const subItem = itemsById.get(subId);
 			if (!subItem) continue;
 
-			const projectedBalance = Number((subItem.currentStock - reqQty).toFixed(3));
-			const deficitQuantity =
-				subAssemblyTotalDeficitMap.get(subId) ??
-				(projectedBalance < 0 ? Math.abs(projectedBalance) : 0);
-			const isShortage = deficitQuantity > 0;
+			const isMakeToOrder = Boolean(subItem.recipeConfig?.isMakeToOrder);
+			const projectedBalance = isMakeToOrder ? 0 : Number((subItem.currentStock - reqQty).toFixed(3));
+			const deficitQuantity = isMakeToOrder
+				? reqQty
+				: (subAssemblyTotalDeficitMap.get(subId) ?? (projectedBalance < 0 ? Math.abs(projectedBalance) : 0));
+			const isShortage = !isMakeToOrder && deficitQuantity > 0;
 
 			const {
 				laborMinutes: laborDeficit,
@@ -890,6 +902,7 @@ export class OrderService {
 				projectedBalance,
 				deficitQuantity: Number(deficitQuantity.toFixed(3)),
 				isShortage,
+				isMakeToOrder,
 				prepTimeMinutes: subItem.prepTimeMinutes,
 				passiveTimeMinutes: subItem.passiveTimeMinutes,
 				isPrepTimeScalable: subItem.isPrepTimeScalable,
