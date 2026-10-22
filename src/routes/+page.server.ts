@@ -1,6 +1,6 @@
 import { redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { getServices } from '#lib/server/container';
+import * as rootActions from './_actions';
 
 export const load: PageServerLoad = async ({ url, locals }) => {
 	if (!locals.user) {
@@ -16,9 +16,5 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 };
 
 export const actions: Actions = {
-	signOut: async ({ request }) => {
-		const { authService } = getServices();
-		await authService.signOut(request.headers);
-		throw redirect(302, '/login');
-	}
+	...rootActions
 };
