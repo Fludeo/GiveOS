@@ -5,6 +5,7 @@ import { drizzle as drizzlePglite } from 'drizzle-orm/pglite';
 import { migrate as migratePglite } from 'drizzle-orm/pglite/migrator';
 import { PGlite } from '@electric-sql/pglite';
 import fs from 'node:fs';
+import { dev } from '$app/env';
 
 export async function runMigrations() {
 	if (!fs.existsSync('./drizzle')) {
@@ -12,38 +13,38 @@ export async function runMigrations() {
 		return;
 	}
 
+	const isDev = dev || process.env.NODE_ENV === 'development';
 	const dbUrl = process.env.DATABASE_URL;
+	const usePglite = process.env.USE_PGLITE === 'true' || (isDev && !dbUrl);
 
 	try {
-		if (dbUrl && (dbUrl.startsWith('postgres://') || dbUrl.startsWith('postgresql://'))) {
-			console.log('[db:migrate] Connecting to Postgres for migrations...');
-			const migrationClient = postgres(dbUrl, { max: 1 });
-			const db = drizzlePostgres(migrationClient);
-
-			// Direct DDL safeguard to ensure critical schema patches are applied immediately
-			try {
-				await migrationClient.unsafe(`
-					ALTER TABLE IF EXISTS "items" ADD COLUMN IF NOT EXISTS "prep_time_minutes" integer DEFAULT 0 NOT NULL;
-					UPDATE "items" SET "type" = 'prepared' WHERE "type" IN ('sub_assembly', 'finished_product');
-				`);
-				console.log('[db:migrate] Applied direct DDL safeguards.');
-			} catch (ddlErr) {
-				console.warn('[db:migrate] Direct DDL safeguard notice:', ddlErr);
-			}
-
-			console.log('[db:migrate] Running Drizzle migrations...');
-			await migratePostgres(db, { migrationsFolder: './drizzle' });
-			console.log('[db:migrate] Migrations completed successfully.');
-			await migrationClient.end();
-		} else {
-			console.log('[db:migrate] Running local PGlite migrations...');
+		if (usePglite) {
+			console.log('[db:migrate] Running local PGlite migrations (development environment)...');
 			const dataDir = process.env.PGLITE_DATA_DIR || './.pglite_data';
 			const client = new PGlite(dataDir);
 			const db = drizzlePglite(client);
 			await migratePglite(db, { migrationsFolder: './drizzle' });
 			console.log('[db:migrate] PGlite migrations completed.');
+		} else {
+			if (!dbUrl) {
+				throw new Error(
+					'[db:migrate] DATABASE_URL is not set. PGlite is only allowed in local development.'
+				);
+			}
+
+			console.log('[db:migrate] Connecting to Postgres for migrations...');
+			const migrationClient = postgres(dbUrl, { max: 1 });
+			const db = drizzlePostgres(migrationClient);
+
+			console.log('[db:migrate] Running Drizzle migrations...');
+			await migratePostgres(db, { migrationsFolder: './drizzle' });
+			console.log('[db:migrate] Migrations completed successfully.');
+			await migrationClient.end();
 		}
 	} catch (error) {
 		console.error('[db:migrate] Migration error:', error);
+		if (!isDev) {
+			throw error;
+		}
 	}
 }

@@ -29,6 +29,13 @@
       "when": 1792557738017,
       "tag": "0003_curved_paladin",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792641158124,
+      "tag": "0004_sticky_onslaught",
+      "breakpoints": true
     }
   ]
 }
