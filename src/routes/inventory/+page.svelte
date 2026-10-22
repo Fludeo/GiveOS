@@ -677,7 +677,7 @@
 							class="gap-1.5"
 							onclick={() => (filterType = 'prepared')}
 						>
-							<CakeSlice class="size-3.5 text-indigo-600 dark:text-indigo-400" />
+							<CakeSlice class="size-3.5 text-secondary" />
 							<span>Elaboraciones</span>
 						</Button>
 						<Button
@@ -775,7 +775,7 @@
 														<Badge variant="destructive" class="text-[10px] px-1.5 py-0">Bajo Stock</Badge>
 													{/if}
 													{#if item.type === 'prepared' && item.prepTimeMinutes > 0}
-														<span class="inline-flex items-center gap-1 rounded-md border border-indigo-500/20 bg-indigo-500/10 px-1.5 py-0.5 text-[11px] font-semibold text-indigo-700 dark:text-indigo-400">
+														<span class="inline-flex items-center gap-1 rounded-md border border-secondary/30 bg-secondary/10 px-1.5 py-0.5 text-[11px] font-semibold text-secondary">
 															<Clock class="size-2.5" />
 															{item.prepTimeMinutes}m
 														</span>
@@ -1230,7 +1230,7 @@
 					<CardHeader class="p-3.5 sm:p-4 pb-2.5">
 						<div class="flex items-center justify-between gap-1.5">
 							<div class="flex items-center gap-1.5 min-w-0">
-								<ChefHat class="size-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+								<ChefHat class="size-4 text-secondary shrink-0" />
 								<CardTitle class="text-sm font-bold truncate">Elaboraciones</CardTitle>
 								<Badge variant="secondary" class="px-1.5 py-0.2 text-[10px] font-semibold shrink-0">
 									{filteredRecipeCatalog.length}
@@ -1238,7 +1238,8 @@
 							</div>
 							<Button
 								size="sm"
-								class="h-7 px-2 gap-1 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs shadow-xs shrink-0"
+								variant="secondary"
+								class="h-7 px-2 gap-1 font-medium text-xs shadow-xs shrink-0"
 								onclick={() => openNewItemModal('prepared')}
 							>
 								<Plus class="size-3.5" />
@@ -1271,15 +1272,15 @@
 										type="button"
 										onclick={() => selectCatalogItem(item.id)}
 										class="w-full text-left rounded-xl border p-2.5 sm:p-3 transition-all cursor-pointer shadow-2xs {isSelected
-											? 'border-indigo-600 bg-indigo-500/10 ring-2 ring-indigo-600/30'
-											: 'border-border bg-card hover:border-indigo-500/40 hover:bg-muted/30'}"
+											? 'border-secondary bg-secondary/10 ring-2 ring-secondary/30'
+											: 'border-border bg-card hover:border-secondary/40 hover:bg-muted/30'}"
 									>
 										<div class="flex items-center justify-between gap-1">
 											<span class="rounded-md bg-muted px-1.5 py-0.5 font-mono text-[11px] font-bold text-foreground">
 												{item.code}
 											</span>
 											{#if item.prepTimeMinutes > 0}
-												<span class="inline-flex items-center gap-1 font-semibold text-[11px] text-indigo-700 dark:text-indigo-400">
+												<span class="inline-flex items-center gap-1 font-semibold text-[11px] text-secondary">
 													<Clock class="size-3" />
 													{item.prepTimeMinutes} min
 												</span>
@@ -1330,7 +1331,8 @@
 								</p>
 								<Button
 									size="sm"
-									class="mt-2.5 h-7 text-xs gap-1 bg-indigo-600 hover:bg-indigo-700 text-white"
+									variant="secondary"
+									class="mt-2.5 h-7 text-xs gap-1"
 									onclick={() => openNewItemModal('prepared')}
 								>
 									<Plus class="size-3.5" />
@@ -1359,10 +1361,10 @@
 										<span class="rounded-md bg-muted px-2 py-0.5 font-mono text-xs font-bold text-foreground">
 											{selectedRoot.code}
 										</span>
-										<span class="inline-flex items-center gap-1.5 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-2.5 py-0.5 text-xs font-semibold text-indigo-700 dark:text-indigo-400">
+										<Badge variant="secondary" class="gap-1.5 px-2.5 py-0.5 text-xs font-semibold">
 											<ChefHat class="size-3.5" />
 											<span>Elaboración</span>
-										</span>
+										</Badge>
 									</div>
 									<CardTitle class="text-2xl leading-tight font-bold">{selectedRoot.name}</CardTitle>
 									{#if selectedRoot.notes}
@@ -1375,10 +1377,10 @@
 							{#if !isEditingRecipeParams}
 								<div class="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-3.5">
 									<!-- Tarjeta 1: Rendimiento -->
-									<div class="relative overflow-hidden rounded-2xl border border-indigo-500/20 bg-gradient-to-br from-indigo-500/5 to-indigo-500/10 p-4 transition-all">
+									<div class="relative overflow-hidden rounded-2xl border border-secondary/20 bg-gradient-to-br from-secondary/5 to-secondary/10 p-4 transition-all">
 										<div class="flex items-center justify-between">
 											<div class="flex items-center gap-2">
-												<div class="flex size-8 items-center justify-center rounded-lg bg-indigo-500/15 text-indigo-700 dark:text-indigo-300">
+												<div class="flex size-8 items-center justify-center rounded-lg bg-secondary/15 text-secondary">
 													<ChefHat class="size-4" />
 												</div>
 												<span class="text-xs font-bold uppercase tracking-wider text-muted-foreground">Rendimiento</span>
@@ -1386,7 +1388,7 @@
 											<Button
 												variant="ghost"
 												size="icon"
-												class="size-7 rounded-lg text-muted-foreground hover:bg-indigo-500/20 hover:text-indigo-700 dark:hover:text-indigo-300"
+												class="size-7 rounded-lg text-muted-foreground hover:bg-secondary/20 hover:text-secondary"
 												onclick={startEditingRecipeParams}
 												title="Modificar rendimiento y tiempo"
 											>
@@ -1473,13 +1475,13 @@
 											isEditingRecipeParams = false;
 										};
 									}}
-									class="mt-5 rounded-2xl border-2 border-indigo-500/40 bg-indigo-500/5 p-4 sm:p-5 shadow-xs transition-all space-y-4"
+									class="mt-5 rounded-2xl border-2 border-secondary/40 bg-secondary/5 p-4 sm:p-5 shadow-xs transition-all space-y-4"
 								>
 									<input type="hidden" name="businessId" value={data.activeBusiness.id} />
 									<input type="hidden" name="id" value={selectedRoot.id} />
 
 									<div class="flex items-center justify-between">
-										<div class="flex items-center gap-2 text-sm font-bold text-indigo-700 dark:text-indigo-300">
+										<div class="flex items-center gap-2 text-sm font-bold text-secondary">
 											<Pencil class="size-4" />
 											<span>Editar Parámetros de la Receta</span>
 										</div>
@@ -1496,8 +1498,9 @@
 											</Button>
 											<Button
 												type="submit"
+												variant="secondary"
 												size="sm"
-												class="h-8 gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs shadow-xs"
+												class="h-8 gap-1.5 font-semibold text-xs shadow-xs"
 											>
 												<Check class="size-3.5" />
 												<span>Guardar</span>
@@ -1508,7 +1511,7 @@
 									<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 										<div class="space-y-1.5">
 											<Label for="quick-recipe-yield" class="text-xs font-semibold flex items-center gap-1.5 text-foreground">
-												<ChefHat class="size-3.5 text-indigo-600 dark:text-indigo-400" />
+												<ChefHat class="size-3.5 text-secondary" />
 												<span>Rendimiento del Lote ({selectedRoot.baseUnit})</span>
 											</Label>
 											<div class="relative flex items-center">
@@ -1575,7 +1578,8 @@
 								<Button
 									type="button"
 									size="sm"
-									class="gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-xs"
+									variant="secondary"
+									class="gap-1.5 font-semibold shadow-xs"
 									disabled={availableComponentsForSelected.length === 0}
 									onclick={() => (showAddRecipeLineModal = true)}
 								>
@@ -1642,7 +1646,8 @@
 									</p>
 									{#if availableComponentsForSelected.length > 0}
 										<Button
-											class="mt-4 gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white"
+											class="mt-4 gap-1.5"
+											variant="secondary"
 											size="sm"
 											onclick={() => (showAddRecipeLineModal = true)}
 										>
@@ -2040,7 +2045,7 @@
 				<div class="border-b border-border p-5">
 					<div class="flex items-center justify-between">
 						<div class="flex items-center gap-2">
-							<span class="rounded-full {newItemInitialType === 'prepared' ? 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-400' : 'bg-primary/10 text-primary'} px-2.5 py-0.5 text-xs font-bold">
+							<span class="rounded-full {newItemInitialType === 'prepared' ? 'bg-secondary/10 text-secondary' : 'bg-primary/10 text-primary'} px-2.5 py-0.5 text-xs font-bold">
 								{#if newItemInitialType === 'prepared'}
 									Paso {newItemStep === 2 ? 1 : 2} de 2 · Elaboración
 								{:else}
@@ -2073,8 +2078,8 @@
 					<!-- Barra de progreso visual -->
 					<div class="mt-3 flex gap-1.5">
 						{#if newItemInitialType === 'prepared'}
-							<div class="h-1 flex-1 rounded-full {newItemStep >= 2 ? 'bg-indigo-600' : 'bg-muted'}"></div>
-							<div class="h-1 flex-1 rounded-full {newItemStep >= 3 ? 'bg-indigo-600' : 'bg-muted'}"></div>
+							<div class="h-1 flex-1 rounded-full {newItemStep >= 2 ? 'bg-secondary' : 'bg-muted'}"></div>
+							<div class="h-1 flex-1 rounded-full {newItemStep >= 3 ? 'bg-secondary' : 'bg-muted'}"></div>
 						{:else}
 							<div class="h-1 flex-1 rounded-full {newItemStep >= 1 ? 'bg-primary' : 'bg-muted'}"></div>
 							<div class="h-1 flex-1 rounded-full {newItemStep >= 2 ? 'bg-primary' : 'bg-muted'}"></div>
@@ -2158,7 +2163,7 @@
 										: 'border-border hover:border-muted-foreground/30 hover:bg-muted/30'}"
 								>
 									<div
-										class="mb-3 flex size-14 items-center justify-center rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400"
+										class="mb-3 flex size-14 items-center justify-center rounded-full bg-secondary/10 text-secondary"
 									>
 										<ChefHat class="size-7" />
 									</div>
@@ -2336,7 +2341,7 @@
 								type="button"
 								disabled={!newItemName.trim()}
 								onclick={() => (newItemStep = 3)}
-								class={newItemType === 'prepared' ? 'bg-indigo-600 hover:bg-indigo-700 text-white' : ''}
+								variant={newItemType === 'prepared' ? 'secondary' : 'default'}
 							>
 								Siguiente →
 							</Button>
@@ -2346,7 +2351,7 @@
 							</Button>
 							<Button
 								type="submit"
-								class={newItemType === 'prepared' ? 'bg-indigo-600 hover:bg-indigo-700 text-white' : ''}
+								variant={newItemType === 'prepared' ? 'secondary' : 'default'}
 							>
 								<Check class="size-4" />
 								<span>{newItemType === 'prepared' ? 'Guardar Elaboración' : 'Guardar Ítem'}</span>

@@ -1235,7 +1235,7 @@
 							<input
 								type="checkbox"
 								bind:checked={draftCreateAsUnconfirmed}
-								class="size-4 mt-0.5 rounded border-border text-indigo-600 focus:ring-indigo-500 accent-indigo-600 cursor-pointer"
+								class="size-4 mt-0.5 rounded border-border text-secondary focus:ring-secondary accent-secondary cursor-pointer"
 							/>
 							<div class="space-y-0.5">
 								<span class="block text-xs font-bold text-foreground">
@@ -1261,7 +1261,8 @@
 					<Button
 						type="submit"
 						disabled={draftLines.length === 0 || isSubmitting}
-						class="w-full h-12 text-sm font-bold gap-2 shadow-md cursor-pointer {draftCreateAsUnconfirmed ? 'bg-indigo-600 hover:bg-indigo-700 text-white' : ''}"
+						variant={draftCreateAsUnconfirmed ? 'secondary' : 'default'}
+						class="w-full h-12 text-sm font-bold gap-2 shadow-md cursor-pointer"
 					>
 						<Check class="size-5" />
 						{#if draftCreateAsUnconfirmed}

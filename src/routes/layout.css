@@ -20,8 +20,8 @@
 		--popover-foreground: #09090b;
 
 		/* Secundarios, neutros y acentos */
-		--secondary: #f4f4f5;
-		--secondary-foreground: #18181b;
+		--secondary: #4f46e5;
+		--secondary-foreground: #ffffff;
 		--muted: #f4f4f5;
 		--muted-foreground: #71717a;
 		--accent: #eff6ff;
@@ -52,8 +52,8 @@
 		--popover-foreground: #fafafa;
 
 		/* Secundarios, neutros y acentos */
-		--secondary: #1e1e24;
-		--secondary-foreground: #fafafa;
+		--secondary: #6366f1;
+		--secondary-foreground: #ffffff;
 		--muted: #1e1e24;
 		--muted-foreground: #a1a1aa;
 		--accent: #1e293b;

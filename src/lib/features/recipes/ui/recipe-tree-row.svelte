@@ -53,10 +53,10 @@
 					<button
 						type="button"
 						onclick={() => (isExpanded = !isExpanded)}
-						class="ml-1 inline-flex items-center gap-1 rounded-md border border-indigo-500/20 bg-indigo-500/10 px-2 py-0.5 text-xs font-medium text-indigo-700 dark:text-indigo-400 hover:bg-indigo-500/20 cursor-pointer transition-colors"
+						class="ml-1 inline-flex items-center gap-1 rounded-md border border-secondary/30 bg-secondary/10 px-2 py-0.5 text-xs font-medium text-secondary hover:bg-secondary/20 cursor-pointer transition-colors"
 						title={isExpanded ? 'Ocultar ingredientes de esta sub-receta' : 'Desplegar ingredientes de esta sub-receta'}
 					>
-						<Layers class="size-3 text-indigo-600 dark:text-indigo-400" />
+						<Layers class="size-3 text-secondary" />
 						<span>{current.children.length > 0 ? `${current.children.length} ingr.` : 'Sub-receta'}</span>
 						<ChevronDown class="size-3.5 transition-transform duration-200 {isExpanded ? 'rotate-180' : ''}" />
 					</button>
@@ -96,7 +96,7 @@
 
 		<td class="px-4 py-4 text-center align-middle font-mono text-xs">
 			{#if current.component.type === 'prepared' && current.component.prepTimeMinutes > 0}
-				<span class="inline-flex items-center gap-1 rounded-full border border-indigo-500/20 bg-indigo-500/10 px-2 py-0.5 text-xs text-indigo-700 dark:text-indigo-400 font-semibold">
+				<span class="inline-flex items-center gap-1 rounded-full border border-secondary/30 bg-secondary/10 px-2 py-0.5 text-xs text-secondary font-semibold">
 					<Clock class="size-3" />
 					{current.component.prepTimeMinutes} min
 				</span>
@@ -112,7 +112,7 @@
 						type="button"
 						variant="ghost"
 						size="icon"
-						class="size-8 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500/10"
+						class="size-8 text-secondary hover:bg-secondary/10"
 						onclick={() => (isExpanded = !isExpanded)}
 						title={isExpanded ? 'Ocultar ingredientes' : 'Desplegar sub-receta'}
 					>

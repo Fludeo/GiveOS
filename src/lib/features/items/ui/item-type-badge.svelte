@@ -26,7 +26,7 @@
 	{#if type === 'raw_material'}
 		<Wheat class="size-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
 	{:else}
-		<ChefHat class="size-3.5 shrink-0 text-indigo-600 dark:text-indigo-400" />
+		<ChefHat class="size-3.5 shrink-0 text-secondary" />
 	{/if}
 	<span>{short ? config.shortLabel : config.label}</span>
 </span>
