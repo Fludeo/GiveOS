@@ -166,7 +166,7 @@
 										>
 											{#each linkableItems as candidate (candidate.id)}
 												<option value={candidate.id}>
-													[{candidate.code}] {candidate.name} ({ITEM_TYPE_LABELS[candidate.type]} · Stock: {formatQuantity(candidate.currentStock)} {candidate.baseUnit === 'unit' ? 'un.' : candidate.baseUnit})
+													[{candidate.code}] {candidate.name} ({ITEM_TYPE_LABELS[candidate.type]} · Stock: {formatQuantity(candidate.currentStock)} {candidate.baseUnit === 'unit' ? 'un' : candidate.baseUnit})
 												</option>
 											{/each}
 										</select>
@@ -182,7 +182,7 @@
 											required
 										/>
 										<span class="w-8 text-[11px] text-muted-foreground">
-											{selectedItem?.baseUnit === 'unit' ? 'un.' : (selectedItem?.baseUnit ?? 'un.')}
+											{selectedItem?.baseUnit === 'unit' ? 'un' : (selectedItem?.baseUnit ?? 'un')}
 										</span>
 									</div>
 

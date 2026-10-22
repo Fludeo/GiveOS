@@ -67,11 +67,11 @@
 
 		<td class="px-4 py-4 text-right align-middle font-mono text-sm">
 			<span class="font-semibold text-foreground">{current.quantity}</span>
-			<span class="ml-1 text-xs text-muted-foreground">{current.unit === 'unit' ? 'un.' : current.unit}</span>
+			<span class="ml-1 text-xs text-muted-foreground">{current.unit === 'unit' ? 'un' : current.unit}</span>
 		</td>
 
 		<td class="px-4 py-4 text-right align-middle font-mono text-xs text-muted-foreground">
-			{formatCurrency(current.componentUnitCost)} / {current.component.baseUnit === 'unit' ? 'un.' : current.component.baseUnit}
+			{formatCurrency(current.componentUnitCost)} / {current.component.baseUnit === 'unit' ? 'un' : current.component.baseUnit}
 		</td>
 
 		<td class="px-4 py-4 text-right align-middle font-mono text-sm font-medium">
@@ -85,10 +85,10 @@
 
 		<td class="px-4 py-4 text-center align-middle font-mono text-xs">
 			{#if current.component.type === 'prepared' && current.component.prepTimeMinutes > 0}
-				<span class="inline-flex items-center gap-1 rounded-full border border-secondary/30 bg-secondary/10 px-2 py-0.5 text-xs text-secondary font-semibold" title={current.component.isPrepTimeScalable ? "Tiempo: min / un." : "Tiempo: min / lote"}>
+				<span class="inline-flex items-center gap-1 rounded-full border border-secondary/30 bg-secondary/10 px-2 py-0.5 text-xs text-secondary font-semibold" title={current.component.isPrepTimeScalable ? "Tiempo: min / un" : "Tiempo: min / lote"}>
 					{#if current.component.isPrepTimeScalable}
 						<ClockFading class="size-3" />
-						{current.component.prepTimeMinutes} min / un.
+						{current.component.prepTimeMinutes} min / un
 					{:else}
 						<Clock class="size-3" />
 						{current.component.prepTimeMinutes} min

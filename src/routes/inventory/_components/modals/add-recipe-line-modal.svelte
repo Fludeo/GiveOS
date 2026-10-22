@@ -80,7 +80,7 @@
 					</h2>
 					<p class="text-xs text-muted-foreground flex items-center gap-1">
 						<CirclePile class="size-3 text-secondary shrink-0" />
-						<span>Rinde {parentItem.yieldQuantity} {parentItem.baseUnit === 'unit' ? 'un.' : parentItem.baseUnit}</span>
+						<span>Rinde {parentItem.yieldQuantity} {parentItem.baseUnit === 'unit' ? 'un' : parentItem.baseUnit}</span>
 					</p>
 				</div>
 				<Button
@@ -152,7 +152,7 @@
 								class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs"
 							>
 								{#each compatibleUnits as u}
-									<option value={u}>{u === 'unit' ? 'un.' : u}</option>
+									<option value={u}>{u === 'unit' ? 'un' : u}</option>
 								{/each}
 							</select>
 						</div>

@@ -56,7 +56,7 @@
 					<div class="flex flex-wrap items-center gap-3 text-xs text-muted-foreground pt-0.5">
 						<span class="inline-flex items-center gap-1 font-medium text-foreground">
 							<CirclePile class="size-3.5 text-secondary shrink-0" />
-							<span>Rendimiento: <strong>{item.yieldQuantity} {item.baseUnit === 'unit' ? 'un.' : item.baseUnit}</strong></span>
+							<span>Rendimiento: <strong>{item.yieldQuantity} {item.baseUnit === 'unit' ? 'un' : item.baseUnit}</strong></span>
 						</span>
 						<span class="text-muted-foreground/40">•</span>
 						<span class="inline-flex items-center gap-1 font-medium text-foreground">
@@ -68,7 +68,7 @@
 							<span class="inline-flex items-center gap-1 font-medium text-foreground">
 								{#if item.isPrepTimeScalable}
 									<ClockFading class="size-3.5 text-secondary shrink-0" />
-									<span>Tiempo: <strong>{item.prepTimeMinutes} min / un.</strong></span>
+									<span>Tiempo: <strong>{item.prepTimeMinutes} min / un</strong></span>
 								{:else}
 									<Clock class="size-3.5 text-secondary shrink-0" />
 									<span>Tiempo: <strong>{item.prepTimeMinutes} min / lote</strong></span>

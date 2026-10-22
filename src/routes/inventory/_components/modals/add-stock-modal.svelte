@@ -273,7 +273,7 @@
 						</div>
 						<div>
 							<p class="font-mono text-base font-bold text-foreground">
-								{formatQuantity(item.currentStock)} <span class="text-xs font-normal text-muted-foreground">{item.baseUnit === 'unit' ? 'un.' : item.baseUnit}</span>
+								{formatQuantity(item.currentStock)} <span class="text-xs font-normal text-muted-foreground">{item.baseUnit === 'unit' ? 'un' : item.baseUnit}</span>
 							</p>
 							<p class="text-[10px] text-transparent select-none">&nbsp;</p>
 						</div>
@@ -434,7 +434,7 @@
 								{#if item.type === 'prepared' && estimatedTimeMinutes > 0}
 									<div
 										class="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-muted/30 px-2.5 font-mono text-xs font-semibold text-foreground/90 select-none"
-										title={item.isPrepTimeScalable ? `Tiempo estimado: ${item.prepTimeMinutes} min/un. × ${stockIntakeQty || 0} ${item.baseUnit === 'unit' ? 'un.' : item.baseUnit}` : "Tiempo estimado por tanda completa (/ lote)"}
+										title={item.isPrepTimeScalable ? `Tiempo estimado: ${item.prepTimeMinutes} min/un × ${stockIntakeQty || 0} ${item.baseUnit === 'unit' ? 'un' : item.baseUnit}` : "Tiempo estimado por tanda completa (/ lote)"}
 									>
 										{#if item.isPrepTimeScalable}
 											<ClockFading class="size-3.5 text-secondary shrink-0" />

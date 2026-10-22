@@ -226,7 +226,7 @@
 													>
 														{#each linkableItems as candidate (candidate.id)}
 															<option value={candidate.id}>
-																[{candidate.code}] {candidate.name} ({ITEM_TYPE_LABELS[candidate.type]} · {formatQuantity(candidate.currentStock)} {candidate.baseUnit === 'unit' ? 'un.' : candidate.baseUnit})
+																[{candidate.code}] {candidate.name} ({ITEM_TYPE_LABELS[candidate.type]} · {formatQuantity(candidate.currentStock)} {candidate.baseUnit === 'unit' ? 'un' : candidate.baseUnit})
 															</option>
 														{/each}
 													</select>

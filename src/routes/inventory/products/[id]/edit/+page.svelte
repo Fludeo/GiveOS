@@ -249,7 +249,7 @@
 							>
 								{#each linkableItems as cand (cand.id)}
 									<option value={cand.id}>
-										[{cand.code}] {cand.name} ({ITEM_TYPE_LABELS[cand.type]} · Stock: {formatQuantity(cand.currentStock)} {cand.baseUnit === 'unit' ? 'un.' : cand.baseUnit})
+										[{cand.code}] {cand.name} ({ITEM_TYPE_LABELS[cand.type]} · Stock: {formatQuantity(cand.currentStock)} {cand.baseUnit === 'unit' ? 'un' : cand.baseUnit})
 									</option>
 								{/each}
 							</select>
@@ -417,7 +417,7 @@
 										class="h-9 font-mono text-xs font-bold"
 										required
 									/>
-									<span class="text-xs text-muted-foreground">u.</span>
+									<span class="text-xs text-muted-foreground">un</span>
 								</div>
 							</div>
 
