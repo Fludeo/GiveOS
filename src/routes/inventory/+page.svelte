@@ -239,21 +239,6 @@
 	let recipeTablePage = $state(1);
 	let recipeTablePageSize = $state(8);
 
-	let isEditingRecipeParams = $state(false);
-	let editRecipeYield = $state(1);
-	let editRecipePrepTime = $state(0);
-
-	function startEditingRecipeParams() {
-		if (!selectedRoot) return;
-		editRecipeYield = selectedRoot.yieldQuantity;
-		editRecipePrepTime = selectedRoot.prepTimeMinutes ?? 0;
-		isEditingRecipeParams = true;
-	}
-
-	function cancelEditingRecipeParams() {
-		isEditingRecipeParams = false;
-	}
-
 	let showEditItemModal = $state(false);
 	let showAddRecipeLineModal = $state(false);
 	let showDeleteRecipeItemModal = $state(false);
@@ -322,7 +307,6 @@
 	$effect(() => {
 		void selectedRoot?.id;
 		recipeTablePage = 1;
-		isEditingRecipeParams = false;
 	});
 
 	const availableComponentsForSelected = $derived(
@@ -510,20 +494,6 @@
 	<title>Inventario, Recetas y Productos — {data.activeBusiness.name}</title>
 </svelte:head>
 
-{#snippet headerActions()}
-	{#if currentTab === 'products'}
-		<Button variant="secondary" onclick={openNewSalesProductModal} class="gap-1.5 shadow-xs font-semibold">
-			<Plus class="size-4" />
-			<span>Nuevo Producto</span>
-		</Button>
-	{:else}
-		<Button variant="secondary" onclick={() => openNewItemModal()} class="gap-1.5 shadow-xs font-semibold">
-			<Plus class="size-4" />
-			<span>Nuevo Ítem</span>
-		</Button>
-	{/if}
-{/snippet}
-
 {#snippet tabsBar()}
 	<!-- Barra de Pestañas Unificada (Inventario | Recetas | Productos para Venta) -->
 	<div class="flex items-center gap-1 rounded-2xl border border-border bg-card p-1.5 shadow-2xs">
@@ -703,6 +673,15 @@
 								<span>Tabla</span>
 							</Button>
 						</div>
+
+						<Button
+							variant="tertiary"
+							onclick={() => openNewItemModal()}
+							class="h-9 gap-1.5 shadow-xs font-semibold cursor-pointer"
+						>
+							<Plus class="size-4" />
+							<span>Nuevo Ítem</span>
+						</Button>
 					</div>
 				</div>
 			</CardHeader>
@@ -1199,7 +1178,7 @@
 						<p class="mt-1 text-sm text-muted-foreground">
 							Registra insumos o productos para comenzar el control de stock.
 						</p>
-						<Button variant="secondary" class="mt-4" onclick={() => openNewItemModal()}>
+						<Button variant="tertiary" class="mt-4" onclick={() => openNewItemModal()}>
 							<Plus class="size-4" />
 							<span>Nuevo Ítem</span>
 						</Button>
@@ -1226,15 +1205,6 @@
 									{filteredRecipeCatalog.length}
 								</Badge>
 							</div>
-							<Button
-								size="sm"
-								variant="secondary"
-								class="h-7 px-2 gap-1 font-medium text-xs shadow-xs shrink-0"
-								onclick={() => openNewItemModal('prepared')}
-							>
-								<Plus class="size-3.5" />
-								<span>Nueva</span>
-							</Button>
 						</div>
 						<CardDescription class="text-[11px] mt-0.5 leading-snug">
 							Selecciona para ver o armar su receta
@@ -1318,17 +1288,8 @@
 									No hay elaboraciones
 								</p>
 								<p class="mt-0.5 text-[11px] text-muted-foreground">
-									Crea una elaboración para diseñar su receta.
+									Puedes registrar elaboraciones desde la pestaña Inventario.
 								</p>
-								<Button
-									size="sm"
-									variant="secondary"
-									class="mt-2.5 h-7 text-xs gap-1"
-									onclick={() => openNewItemModal('prepared')}
-								>
-									<Plus class="size-3.5" />
-									<span>Crear Elaboración</span>
-								</Button>
 							</div>
 						{/if}
 					</CardContent>
@@ -1356,6 +1317,15 @@
 											<GraphHub class="size-3.5" />
 											<span>Elaboración</span>
 										</Badge>
+										<Button
+											variant="ghost"
+											size="icon"
+											class="size-7 rounded-lg text-muted-foreground hover:bg-secondary/15 hover:text-secondary cursor-pointer"
+											onclick={() => (showEditItemModal = true)}
+											title="Editar elaboración (ficha técnica, rendimiento y tiempo)"
+										>
+											<Pencil class="size-3.5" />
+										</Button>
 									</div>
 									<CardTitle class="text-2xl leading-tight font-bold">{selectedRoot.name}</CardTitle>
 									{#if selectedRoot.notes}
@@ -1365,194 +1335,77 @@
 							</div>
 
 							<!-- TARJETAS GRANDES Y SIMPLIFICADAS PARA RENDIMIENTO, TIEMPO Y COSTO -->
-							{#if !isEditingRecipeParams}
-								<div class="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-									<!-- Tarjeta 1: Rendimiento -->
-									<div class="relative overflow-hidden rounded-2xl border border-secondary/20 bg-gradient-to-br from-secondary/5 to-secondary/10 p-4 transition-all">
-										<div class="flex items-center justify-between">
-											<div class="flex items-center gap-2">
-												<div class="flex size-8 items-center justify-center rounded-lg bg-secondary/15 text-secondary">
-													<CirclePile class="size-4" />
-												</div>
-												<span class="text-xs font-bold uppercase tracking-wider text-muted-foreground">Rendimiento</span>
+							<div class="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+								<!-- Tarjeta 1: Rendimiento -->
+								<div class="relative overflow-hidden rounded-2xl border border-secondary/20 bg-gradient-to-br from-secondary/5 to-secondary/10 p-4 transition-all">
+									<div class="flex items-center justify-between">
+										<div class="flex items-center gap-2">
+											<div class="flex size-8 items-center justify-center rounded-lg bg-secondary/15 text-secondary">
+												<CirclePile class="size-4" />
 											</div>
-											<Button
-												variant="ghost"
-												size="icon"
-												class="size-7 rounded-lg text-muted-foreground hover:bg-secondary/20 hover:text-secondary"
-												onclick={startEditingRecipeParams}
-												title="Modificar rendimiento y tiempo"
-											>
-												<Pencil class="size-3.5" />
-											</Button>
-										</div>
-										<div class="mt-2.5">
-											<div class="flex items-baseline gap-1.5 font-mono">
-												<span class="text-2xl font-black text-foreground">
-													{selectedRoot.yieldQuantity}
-												</span>
-												<span class="text-sm font-semibold text-muted-foreground uppercase">
-													{selectedRoot.baseUnit}
-												</span>
-											</div>
-											<p class="mt-0.5 text-[11px] text-muted-foreground">
-												Tamaño del lote producido
-											</p>
+											<span class="text-xs font-bold uppercase tracking-wider text-muted-foreground">Rendimiento</span>
 										</div>
 									</div>
-
-									<!-- Tarjeta 2: Tiempo de Elaboración -->
-									<div class="relative overflow-hidden rounded-2xl border border-amber-500/20 bg-gradient-to-br from-amber-500/5 to-amber-500/10 p-4 transition-all">
-										<div class="flex items-center justify-between">
-											<div class="flex items-center gap-2">
-												<div class="flex size-8 items-center justify-center rounded-lg bg-amber-500/15 text-amber-700 dark:text-amber-400">
-													<Clock class="size-4" />
-												</div>
-												<span class="text-xs font-bold uppercase tracking-wider text-muted-foreground">Tiempo Estimado</span>
-											</div>
-											<Button
-												variant="ghost"
-												size="icon"
-												class="size-7 rounded-lg text-muted-foreground hover:bg-amber-500/20 hover:text-amber-700 dark:hover:text-amber-300"
-												onclick={startEditingRecipeParams}
-												title="Modificar rendimiento y tiempo"
-											>
-												<Pencil class="size-3.5" />
-											</Button>
+									<div class="mt-2.5">
+										<div class="flex items-baseline gap-1.5 font-mono">
+											<span class="text-2xl font-black text-foreground">
+												{selectedRoot.yieldQuantity}
+											</span>
+											<span class="text-sm font-semibold text-muted-foreground uppercase">
+												{selectedRoot.baseUnit}
+											</span>
 										</div>
-										<div class="mt-2.5">
-											<div class="flex items-baseline gap-1.5 font-mono">
-												<span class="text-2xl font-black text-foreground">
-													{selectedRoot.prepTimeMinutes ? selectedRoot.prepTimeMinutes : 0}
-												</span>
-												<span class="text-sm font-semibold text-muted-foreground">
-													minutos
-												</span>
-											</div>
-											<p class="mt-0.5 text-[11px] text-muted-foreground">
-												Preparación y cocción
-											</p>
-										</div>
-									</div>
-
-									<!-- Tarjeta 3: Costo Estimado -->
-									<div class="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-muted/30 to-muted/10 p-4">
-										<div class="flex items-center justify-between">
-											<div class="flex items-center gap-2">
-												<div class="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-													<Calculator class="size-4" />
-												</div>
-												<span class="text-xs font-bold uppercase tracking-wider text-muted-foreground">Costo Estimado</span>
-											</div>
-										</div>
-										<div class="mt-2.5">
-											<div class="font-mono text-2xl font-black text-foreground">
-												{formatCurrency(tree.estimatedTotalCost)}
-											</div>
-											<p class="mt-0.5 font-mono text-[11px] text-muted-foreground">
-												Unitario: {formatCurrency(tree.estimatedUnitCost)} / {selectedRoot.baseUnit}
-											</p>
-										</div>
+										<p class="mt-0.5 text-[11px] text-muted-foreground">
+											Tamaño del lote producido
+										</p>
 									</div>
 								</div>
-							{:else}
-								<!-- MODO EDICIÓN DE PARÁMETROS LIMPIO Y ACCESIBLE -->
-								<form
-									method="POST"
-									action="?/updateRecipeYield"
-									use:enhance={() => {
-										return async ({ update }) => {
-											await update();
-											isEditingRecipeParams = false;
-										};
-									}}
-									class="mt-5 rounded-2xl border-2 border-secondary/40 bg-secondary/5 p-4 sm:p-5 shadow-xs transition-all space-y-4"
-								>
-									<input type="hidden" name="businessId" value={data.activeBusiness.id} />
-									<input type="hidden" name="id" value={selectedRoot.id} />
 
+								<!-- Tarjeta 2: Tiempo de Elaboración -->
+								<div class="relative overflow-hidden rounded-2xl border border-amber-500/20 bg-gradient-to-br from-amber-500/5 to-amber-500/10 p-4 transition-all">
 									<div class="flex items-center justify-between">
-										<div class="flex items-center gap-2 text-sm font-bold text-secondary">
-											<Pencil class="size-4" />
-											<span>Editar Parámetros de la Receta</span>
-										</div>
 										<div class="flex items-center gap-2">
-											<Button
-												type="button"
-												variant="ghost"
-												size="sm"
-												class="h-8 gap-1 text-xs text-muted-foreground hover:text-foreground"
-												onclick={cancelEditingRecipeParams}
-											>
-												<X class="size-3.5" />
-												<span>Cancelar</span>
-											</Button>
-											<Button
-												type="submit"
-												variant="secondary"
-												size="sm"
-												class="h-8 gap-1.5 font-semibold text-xs shadow-xs"
-											>
-												<Check class="size-3.5" />
-												<span>Guardar</span>
-											</Button>
+											<div class="flex size-8 items-center justify-center rounded-lg bg-amber-500/15 text-amber-700 dark:text-amber-400">
+												<Clock class="size-4" />
+											</div>
+											<span class="text-xs font-bold uppercase tracking-wider text-muted-foreground">Tiempo Estimado</span>
 										</div>
 									</div>
-
-									<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-										<div class="space-y-1.5">
-											<Label for="quick-recipe-yield" class="text-xs font-semibold flex items-center gap-1.5 text-foreground">
-												<CirclePile class="size-3.5 text-secondary" />
-												<span>Rendimiento del Lote ({selectedRoot.baseUnit})</span>
-											</Label>
-											<div class="relative flex items-center">
-												<Input
-													id="quick-recipe-yield"
-													name="yieldQuantity"
-													type="number"
-													step="any"
-													min="0.001"
-													bind:value={editRecipeYield}
-													class="h-9 pr-14 font-mono text-sm font-semibold bg-background"
-													required
-												/>
-												<span class="pointer-events-none absolute right-3 font-semibold text-xs text-muted-foreground uppercase">
-													{selectedRoot.baseUnit}
-												</span>
-											</div>
-											<p class="text-[10px] text-muted-foreground">
-												Cantidad total obtenida con los ingredientes detallados
-											</p>
+									<div class="mt-2.5">
+										<div class="flex items-baseline gap-1.5 font-mono">
+											<span class="text-2xl font-black text-foreground">
+												{selectedRoot.prepTimeMinutes ? selectedRoot.prepTimeMinutes : 0}
+											</span>
+											<span class="text-sm font-semibold text-muted-foreground">
+												minutos
+											</span>
 										</div>
+										<p class="mt-0.5 text-[11px] text-muted-foreground">
+											Preparación y cocción
+										</p>
+									</div>
+								</div>
 
-										<div class="space-y-1.5">
-											<Label for="quick-recipe-preptime" class="text-xs font-semibold flex items-center gap-1.5 text-foreground">
-												<Clock class="size-3.5 text-amber-600" />
-												<span>Tiempo de Elaboración (minutos)</span>
-											</Label>
-											<div class="relative flex items-center">
-												<Clock class="pointer-events-none absolute left-2.5 size-3.5 text-muted-foreground" />
-												<Input
-													id="quick-recipe-preptime"
-													name="prepTimeMinutes"
-													type="number"
-													step="1"
-													min="0"
-													bind:value={editRecipePrepTime}
-													class="h-9 pl-8 pr-12 font-mono text-sm font-semibold bg-background"
-													placeholder="0"
-												/>
-												<span class="pointer-events-none absolute right-3 font-semibold text-xs text-muted-foreground">
-													min
-												</span>
+								<!-- Tarjeta 3: Costo Estimado -->
+								<div class="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-muted/30 to-muted/10 p-4">
+									<div class="flex items-center justify-between">
+										<div class="flex items-center gap-2">
+											<div class="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+												<Calculator class="size-4" />
 											</div>
-											<p class="text-[10px] text-muted-foreground">
-												Tiempo de preparación, cocinado o armado
-											</p>
+											<span class="text-xs font-bold uppercase tracking-wider text-muted-foreground">Costo Estimado</span>
 										</div>
 									</div>
-								</form>
-							{/if}
+									<div class="mt-2.5">
+										<div class="font-mono text-2xl font-black text-foreground">
+											{formatCurrency(tree.estimatedTotalCost)}
+										</div>
+										<p class="mt-0.5 font-mono text-[11px] text-muted-foreground">
+											Unitario: {formatCurrency(tree.estimatedUnitCost)} / {selectedRoot.baseUnit}
+										</p>
+									</div>
+								</div>
+							</div>
 						</CardHeader>
 
 						<CardContent class="space-y-6 p-5 sm:p-6">
@@ -3445,7 +3298,6 @@
 	currentSection="inventory"
 	title="Inventario"
 	description="Stock de insumos, recetas y productos de venta"
-	{headerActions}
 >
 	{@render tabsBar()}
 
