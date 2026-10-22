@@ -38,7 +38,7 @@ export const UNIT_LABELS: Record<UnitOfMeasure, string> = {
 	kg: 'Kilogramos (kg)',
 	ml: 'Mililitros (ml)',
 	l: 'Litros (l)',
-	unit: 'Unidad (u)'
+	unit: 'Unidad (un.)'
 };
 
 export interface ItemStockBatch {
@@ -368,4 +368,9 @@ export function removeStockBatch(
 		newReferenceCost,
 		removedBatch
 	};
+}
+
+export function formatUnit(unit: string | null | undefined): string {
+	if (!unit) return '';
+	return unit === 'unit' ? 'un.' : unit;
 }

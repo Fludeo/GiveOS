@@ -162,10 +162,10 @@
 											{summary?.directComponentsCount ?? 0}
 										</span>
 										{#if item.prepTimeMinutes > 0}
-											<span class="inline-flex items-center gap-1 font-semibold text-[11px] text-secondary" title={item.isPrepTimeScalable ? "Tiempo por unidad (fraccionable)" : "Tiempo por lote"}>
+											<span class="inline-flex items-center gap-1 font-semibold text-[11px] text-secondary" title={item.isPrepTimeScalable ? "Tiempo: min / un." : "Tiempo: min / lote"}>
 												{#if item.isPrepTimeScalable}
 													<ClockFading class="size-3" />
-													{item.prepTimeMinutes} min/u
+													{item.prepTimeMinutes} min / un.
 												{:else}
 													<Clock class="size-3" />
 													{item.prepTimeMinutes} min
@@ -182,7 +182,7 @@
 								<div class="mt-2 pt-1.5 border-t border-border/50 flex items-center justify-between text-[11px]">
 									<span class="text-muted-foreground truncate mr-1 inline-flex items-center gap-1" title="Rendimiento del lote">
 										<CirclePile class="size-3 text-secondary shrink-0" />
-										<strong class="font-mono text-foreground font-semibold">{item.yieldQuantity} {item.baseUnit}</strong>
+										<strong class="font-mono text-foreground font-semibold">{item.yieldQuantity} {item.baseUnit === 'unit' ? 'un.' : item.baseUnit}</strong>
 									</span>
 									<div class="flex items-center gap-1.5 shrink-0">
 										<span class="font-mono font-bold text-foreground">
@@ -270,7 +270,7 @@
 										{selectedRoot.yieldQuantity}
 									</span>
 									<span class="text-sm font-semibold text-muted-foreground uppercase">
-										{selectedRoot.baseUnit}
+										{selectedRoot.baseUnit === 'unit' ? 'un.' : selectedRoot.baseUnit}
 									</span>
 								</div>
 							</div>
@@ -297,12 +297,12 @@
 										{selectedRoot.prepTimeMinutes ? selectedRoot.prepTimeMinutes : 0}
 									</span>
 									<span class="text-sm font-semibold text-muted-foreground">
-										{selectedRoot.isPrepTimeScalable ? 'min / unidad' : 'minutos'}
+										{selectedRoot.isPrepTimeScalable ? 'min / un.' : 'min / lote'}
 									</span>
 								</div>
 							</div>
 							<p class="text-xs text-muted-foreground">
-								{selectedRoot.isPrepTimeScalable ? 'Tiempo proporcional por unidad' : 'Preparación y producción por lote'}
+								{selectedRoot.isPrepTimeScalable ? 'Tiempo proporcional / un.' : 'Preparación y producción / lote'}
 							</p>
 						</div>
 
@@ -320,12 +320,12 @@
 										{formatCurrency(tree.estimatedUnitCost)}
 									</span>
 									<span class="text-xs font-semibold text-muted-foreground">
-										/ {selectedRoot.baseUnit}
+										/ {selectedRoot.baseUnit === 'unit' ? 'un.' : selectedRoot.baseUnit}
 									</span>
 								</div>
 							</div>
 							<p class="text-xs font-mono text-muted-foreground">
-								Costo por tanda: {formatCurrency(tree.estimatedTotalCost)} ({selectedRoot.yieldQuantity} {selectedRoot.baseUnit})
+								Costo por tanda: {formatCurrency(tree.estimatedTotalCost)} ({selectedRoot.yieldQuantity} {selectedRoot.baseUnit === 'unit' ? 'un.' : selectedRoot.baseUnit})
 							</p>
 						</div>
 					</div>

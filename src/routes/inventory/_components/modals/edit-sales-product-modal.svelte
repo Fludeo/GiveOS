@@ -182,7 +182,7 @@
 											required
 										/>
 										<span class="w-8 text-[11px] text-muted-foreground">
-											{selectedItem?.baseUnit ?? 'unit'}
+											{selectedItem?.baseUnit === 'unit' ? 'un.' : (selectedItem?.baseUnit ?? 'un.')}
 										</span>
 									</div>
 

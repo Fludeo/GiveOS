@@ -337,7 +337,7 @@
 														{item.currentStock}
 													</span>
 													<span class="text-xs font-semibold text-muted-foreground uppercase font-sans">
-														{item.baseUnit}
+														{item.baseUnit === 'unit' ? 'un.' : item.baseUnit}
 													</span>
 												</div>
 											</div>
@@ -346,7 +346,7 @@
 										<div class="text-right">
 											<div class="flex items-center justify-end gap-1 font-mono text-[11px] {isLow ? 'text-destructive font-bold' : 'text-muted-foreground'}">
 												<AlertTriangle class="size-3.5 {isLow ? 'text-destructive' : 'text-muted-foreground/70'}" />
-												<span>Mín: {item.minStock} {item.baseUnit}</span>
+												<span>Mín: {item.minStock} {item.baseUnit === 'unit' ? 'un.' : item.baseUnit}</span>
 											</div>
 											{#if isLow}
 												<span class="text-[10px] text-destructive font-semibold">Stock Crítico</span>
@@ -361,7 +361,7 @@
 										<div class="flex items-center gap-1.5 text-muted-foreground text-[11px] truncate">
 											<History class="size-3.5 shrink-0 text-muted-foreground/70" />
 											{#if latestBatch}
-												<span class="truncate">Últ: <strong class="text-foreground/90 font-medium">{getDaysAgo(latestBatch.createdAt)}</strong> <span class="{item.type === 'prepared' ? 'text-secondary' : 'text-primary'} font-bold">(+{formatQuantity(latestBatch.initialQuantity)} {item.baseUnit})</span></span>
+												<span class="truncate">Últ: <strong class="text-foreground/90 font-medium">{getDaysAgo(latestBatch.createdAt)}</strong> <span class="{item.type === 'prepared' ? 'text-secondary' : 'text-primary'} font-bold">(+{formatQuantity(latestBatch.initialQuantity)} {item.baseUnit === 'unit' ? 'un.' : item.baseUnit})</span></span>
 											{:else}
 												<span class="text-muted-foreground/60">Sin cargas</span>
 											{/if}
@@ -372,12 +372,12 @@
 												<span class="font-mono text-xs font-bold text-foreground">
 													{formatCurrency(getDirectUnitCost(item))}
 												</span>
-												<span class="text-[10px] text-muted-foreground">/{item.baseUnit}</span>
+												<span class="text-[10px] text-muted-foreground">/{item.baseUnit === 'unit' ? 'un.' : item.baseUnit}</span>
 											{:else if recipeSummary && recipeSummary.directComponentsCount > 0}
 												<span class="font-mono text-xs font-bold text-foreground">
 													{formatCurrency(recipeSummary.estimatedUnitCost)}
 												</span>
-												<span class="text-[10px] text-muted-foreground">/{item.baseUnit}</span>
+												<span class="text-[10px] text-muted-foreground">/{item.baseUnit === 'unit' ? 'un.' : item.baseUnit}</span>
 											{:else}
 												<button
 													type="button"
@@ -488,11 +488,11 @@
 										<td class="px-4 py-4 align-middle whitespace-nowrap">
 											<div class="space-y-0.5">
 												<p class="font-mono text-xs font-semibold {isLow ? 'text-destructive' : 'text-foreground'}">
-													{item.currentStock} {item.baseUnit}
+													{item.currentStock} {item.baseUnit === 'unit' ? 'un.' : item.baseUnit}
 												</p>
 												<div class="flex items-center gap-1 font-mono text-[11px] text-muted-foreground">
 													<AlertTriangle class="size-3 text-muted-foreground/70" />
-													<span>{item.minStock} {item.baseUnit}</span>
+													<span>{item.minStock} {item.baseUnit === 'unit' ? 'un.' : item.baseUnit}</span>
 												</div>
 											</div>
 										</td>
@@ -505,7 +505,7 @@
 														<span>{getDaysAgo(latestBatch.createdAt)}</span>
 													</div>
 													<p class="font-mono text-[11px] {item.type === 'prepared' ? 'text-secondary' : 'text-primary'} font-bold">
-														+{formatQuantity(latestBatch.initialQuantity)} {item.baseUnit}
+														+{formatQuantity(latestBatch.initialQuantity)} {item.baseUnit === 'unit' ? 'un.' : item.baseUnit}
 													</p>
 												{:else}
 													<div class="flex items-center gap-1.5 text-muted-foreground">
@@ -522,14 +522,14 @@
 													<p class="font-mono text-xs font-semibold text-foreground">
 														{formatCurrency(getDirectUnitCost(item))}
 														<span class="font-sans font-normal text-muted-foreground">
-															/ {item.baseUnit}
+															/ {item.baseUnit === 'unit' ? 'un.' : item.baseUnit}
 														</span>
 													</p>
 												</div>
 											{:else if recipeSummary && recipeSummary.directComponentsCount > 0}
 												<div class="space-y-0.5">
 													<p class="font-mono text-xs font-semibold text-foreground">
-														{formatCurrency(recipeSummary.estimatedUnitCost)} / {item.baseUnit}
+														{formatCurrency(recipeSummary.estimatedUnitCost)} / {item.baseUnit === 'unit' ? 'un.' : item.baseUnit}
 													</p>
 												</div>
 											{:else}

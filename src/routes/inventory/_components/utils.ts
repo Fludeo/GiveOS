@@ -42,7 +42,7 @@ export function getUnitPriceLabel(unit: string): string {
 		case 'ml':
 			return 'Costo por mililitro ($ / ml)';
 		case 'unit':
-			return 'Costo por unidad ($ / u)';
+			return 'Costo por unidad ($ / un.)';
 		default:
 			return `Costo por ${unit} ($)`;
 	}
@@ -71,4 +71,9 @@ export function calculateComponentsRecipeCost(
 		total += unitCost * qty;
 	}
 	return total;
+}
+
+export function formatUnit(unit: string | null | undefined): string {
+	if (!unit) return '';
+	return unit === 'unit' ? 'un.' : unit;
 }
