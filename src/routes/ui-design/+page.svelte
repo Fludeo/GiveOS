@@ -21,8 +21,10 @@
 	import CakeSlice from '@lucide/svelte/icons/cake-slice';
 	import Package from '@lucide/svelte/icons/package';
 	import Sparkles from '@lucide/svelte/icons/sparkles';
+	import Star from '@lucide/svelte/icons/star';
 	import Tag from '@lucide/svelte/icons/tag';
 	import Layers from '@lucide/svelte/icons/layers';
+	import GraphHub from '@lucide/svelte/icons/graph-hub';
 	import ChefHat from '@lucide/svelte/icons/chef-hat';
 	import ShoppingBag from '@lucide/svelte/icons/shopping-bag';
 	import ExternalLink from '@lucide/svelte/icons/external-link';
@@ -116,13 +118,13 @@
 		<section id="colors" class="space-y-4 scroll-mt-24">
 			<div class="border-b border-border pb-2">
 				<h2 class="text-lg font-bold text-foreground">1. Paleta de Colores y Tokens de Marca</h2>
-				<p class="text-xs text-muted-foreground">Sistema basado en Tailwind CSS v4 + shadcn/ui con base neutra de <strong>Zinc</strong>, Azul como <strong>Primary</strong>, Índigo como <strong>Secondary</strong> y Ámbar cálido como <strong>Accent</strong>.</p>
+				<p class="text-xs text-muted-foreground">Sistema basado en Tailwind CSS v4 + shadcn/ui con base neutra de <strong>Zinc</strong>, Azul como <strong>Primary</strong>, Índigo como <strong>Secondary</strong>, y opciones de acento en <strong>Lima Eléctrico</strong> y <strong>Amarillo Puro</strong>.</p>
 			</div>
 
 			<!-- Tokens Semánticos Principales -->
 			<div class="space-y-2">
 				<h3 class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tokens Semánticos de Marca y Estado</h3>
-				<div class="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
+				<div class="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
 					<div class="rounded-xl border border-border bg-card p-3 shadow-2xs space-y-2">
 						<div class="h-14 w-full rounded-lg bg-primary shadow-inner flex items-center justify-center text-primary-foreground font-bold text-xs">Primary</div>
 						<div>
@@ -140,10 +142,18 @@
 					</div>
 
 					<div class="rounded-xl border border-border bg-card p-3 shadow-2xs space-y-2">
-						<div class="h-14 w-full rounded-lg bg-accent border border-amber-300 dark:border-amber-800 shadow-inner flex items-center justify-center text-accent-foreground font-bold text-xs">Accent</div>
+						<div class="h-14 w-full rounded-lg bg-lime-400 dark:bg-lime-500 shadow-inner flex items-center justify-center text-lime-950 font-bold text-xs">Accent Lima</div>
 						<div>
-							<p class="text-xs font-bold text-foreground">Accent (Amber)</p>
-							<p class="font-mono text-[11px] text-muted-foreground">#fef3c7 / #451a03</p>
+							<p class="text-xs font-bold text-foreground">Accent (Lima)</p>
+							<p class="font-mono text-[11px] text-muted-foreground">#84cc16 / lime-500</p>
+						</div>
+					</div>
+
+					<div class="rounded-xl border border-border bg-card p-3 shadow-2xs space-y-2">
+						<div class="h-14 w-full rounded-lg bg-yellow-400 dark:bg-yellow-500 shadow-inner flex items-center justify-center text-yellow-950 font-bold text-xs">Amarillo</div>
+						<div>
+							<p class="text-xs font-bold text-foreground">Yellow (Amarillo)</p>
+							<p class="font-mono text-[11px] text-muted-foreground">#facc15 / yellow-400</p>
 						</div>
 					</div>
 
@@ -221,34 +231,113 @@
 				<p class="text-xs text-muted-foreground">Componente nativo con variantes tipadas y soporte para etiquetas <code class="rounded bg-muted px-1.5 py-0.5">button</code> y <code class="rounded bg-muted px-1.5 py-0.5">a</code>.</p>
 			</div>
 
-			<!-- Variantes -->
-			<div class="space-y-2">
-				<h3 class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Variantes Visuales</h3>
+			<!-- Variantes Visuales en Todos los Colores -->
+			<div class="space-y-3">
+				<h3 class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Todos los Tipos de Botones en Todos los Colores del Tema</h3>
 				<div class="flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-card p-5">
 					<Button variant="default">Primary (Blue)</Button>
 					<Button variant="secondary">Secondary (Indigo)</Button>
-					<Button variant="accent">Accent (Amber)</Button>
-					<Button variant="muted">Muted (Zinc)</Button>
+					<Button variant="accent">Accent (Lima)</Button>
+					<Button variant="yellow">Yellow (Amarillo)</Button>
+					<Button variant="success">Success (Emerald)</Button>
+					<Button variant="warning">Warning (Amber)</Button>
 					<Button variant="destructive">Destructive (Red)</Button>
+					<Button variant="muted">Muted (Zinc)</Button>
 					<Button variant="outline">Outline</Button>
 					<Button variant="ghost">Ghost</Button>
 					<Button variant="link">Link Button</Button>
 				</div>
 			</div>
 
-			<!-- Tamaños -->
-			<div class="space-y-2">
-				<h3 class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Escala de Tamaños</h3>
-				<div class="flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-card p-5">
-					<Button size="sm">Small (sm)</Button>
-					<Button size="default">Default</Button>
-					<Button size="lg">Large (lg)</Button>
-					<Button size="icon" variant="outline" title="Icon Button">
-						<Plus class="size-4" />
-					</Button>
-					<Button size="icon" variant="default" title="Icon Primary">
-						<Search class="size-4" />
-					</Button>
+			<!-- Matriz Completa: Todos los Tamaños en Todos los Colores -->
+			<div class="space-y-3">
+				<h3 class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Matriz Completa: Todos los Tamaños en Todos los Colores</h3>
+				<div class="overflow-x-auto rounded-2xl border border-border bg-card shadow-xs">
+					<table class="w-full text-left text-xs">
+						<thead class="border-b border-border bg-muted/40 font-semibold text-muted-foreground">
+							<tr>
+								<th class="p-3 pl-4">Color / Variante</th>
+								<th class="p-3">Small (sm)</th>
+								<th class="p-3">Default</th>
+								<th class="p-3">Large (lg)</th>
+								<th class="p-3 pr-4 text-center">Icon Only</th>
+							</tr>
+						</thead>
+						<tbody class="divide-y divide-border">
+							<!-- Primary (Blue) -->
+							<tr class="hover:bg-muted/20">
+								<td class="p-3 pl-4 font-semibold text-primary">Primary (Blue)</td>
+								<td class="p-3"><Button variant="default" size="sm">Small</Button></td>
+								<td class="p-3"><Button variant="default" size="default">Default</Button></td>
+								<td class="p-3"><Button variant="default" size="lg">Large</Button></td>
+								<td class="p-3 pr-4 text-center"><Button variant="default" size="icon" title="Primary"><Plus class="size-4" /></Button></td>
+							</tr>
+							<!-- Secondary (Indigo) -->
+							<tr class="hover:bg-muted/20">
+								<td class="p-3 pl-4 font-semibold text-secondary">Secondary (Indigo)</td>
+								<td class="p-3"><Button variant="secondary" size="sm">Small</Button></td>
+								<td class="p-3"><Button variant="secondary" size="default">Default</Button></td>
+								<td class="p-3"><Button variant="secondary" size="lg">Large</Button></td>
+								<td class="p-3 pr-4 text-center"><Button variant="secondary" size="icon" title="Secondary"><ChefHat class="size-4" /></Button></td>
+							</tr>
+							<!-- Accent (Lima) -->
+							<tr class="hover:bg-muted/20">
+								<td class="p-3 pl-4 font-semibold text-lime-600 dark:text-lime-400">Accent (Lima)</td>
+								<td class="p-3"><Button variant="accent" size="sm">Small</Button></td>
+								<td class="p-3"><Button variant="accent" size="default">Default</Button></td>
+								<td class="p-3"><Button variant="accent" size="lg">Large</Button></td>
+								<td class="p-3 pr-4 text-center"><Button variant="accent" size="icon" title="Accent Lima"><Sparkles class="size-4" /></Button></td>
+							</tr>
+							<!-- Yellow (Amarillo) -->
+							<tr class="hover:bg-muted/20">
+								<td class="p-3 pl-4 font-semibold text-yellow-600 dark:text-yellow-400">Yellow (Amarillo)</td>
+								<td class="p-3"><Button variant="yellow" size="sm">Small</Button></td>
+								<td class="p-3"><Button variant="yellow" size="default">Default</Button></td>
+								<td class="p-3"><Button variant="yellow" size="lg">Large</Button></td>
+								<td class="p-3 pr-4 text-center"><Button variant="yellow" size="icon" title="Yellow"><Star class="size-4" /></Button></td>
+							</tr>
+							<!-- Success (Emerald) -->
+							<tr class="hover:bg-muted/20">
+								<td class="p-3 pl-4 font-semibold text-emerald-600 dark:text-emerald-400">Success (Emerald)</td>
+								<td class="p-3"><Button variant="success" size="sm">Small</Button></td>
+								<td class="p-3"><Button variant="success" size="default">Default</Button></td>
+								<td class="p-3"><Button variant="success" size="lg">Large</Button></td>
+								<td class="p-3 pr-4 text-center"><Button variant="success" size="icon" title="Success"><Check class="size-4" /></Button></td>
+							</tr>
+							<!-- Warning (Amber) -->
+							<tr class="hover:bg-muted/20">
+								<td class="p-3 pl-4 font-semibold text-amber-600 dark:text-amber-400">Warning (Amber)</td>
+								<td class="p-3"><Button variant="warning" size="sm">Small</Button></td>
+								<td class="p-3"><Button variant="warning" size="default">Default</Button></td>
+								<td class="p-3"><Button variant="warning" size="lg">Large</Button></td>
+								<td class="p-3 pr-4 text-center"><Button variant="warning" size="icon" title="Warning"><AlertTriangle class="size-4" /></Button></td>
+							</tr>
+							<!-- Destructive (Red) -->
+							<tr class="hover:bg-muted/20">
+								<td class="p-3 pl-4 font-semibold text-destructive">Destructive (Red)</td>
+								<td class="p-3"><Button variant="destructive" size="sm">Small</Button></td>
+								<td class="p-3"><Button variant="destructive" size="default">Default</Button></td>
+								<td class="p-3"><Button variant="destructive" size="lg">Large</Button></td>
+								<td class="p-3 pr-4 text-center"><Button variant="destructive" size="icon" title="Destructive"><Trash2 class="size-4" /></Button></td>
+							</tr>
+							<!-- Muted (Zinc) -->
+							<tr class="hover:bg-muted/20">
+								<td class="p-3 pl-4 font-semibold text-muted-foreground">Muted (Zinc)</td>
+								<td class="p-3"><Button variant="muted" size="sm">Small</Button></td>
+								<td class="p-3"><Button variant="muted" size="default">Default</Button></td>
+								<td class="p-3"><Button variant="muted" size="lg">Large</Button></td>
+								<td class="p-3 pr-4 text-center"><Button variant="muted" size="icon" title="Muted"><Layers class="size-4" /></Button></td>
+							</tr>
+							<!-- Outline (Zinc Border) -->
+							<tr class="hover:bg-muted/20">
+								<td class="p-3 pl-4 font-semibold text-foreground">Outline (Zinc)</td>
+								<td class="p-3"><Button variant="outline" size="sm">Small</Button></td>
+								<td class="p-3"><Button variant="outline" size="default">Default</Button></td>
+								<td class="p-3"><Button variant="outline" size="lg">Large</Button></td>
+								<td class="p-3 pr-4 text-center"><Button variant="outline" size="icon" title="Outline"><Search class="size-4" /></Button></td>
+							</tr>
+						</tbody>
+					</table>
 				</div>
 			</div>
 
@@ -259,6 +348,18 @@
 					<Button class="gap-2">
 						<Plus class="size-4" />
 						<span>Crear Pedido</span>
+					</Button>
+					<Button variant="secondary" class="gap-2">
+						<ChefHat class="size-4" />
+						<span>Nueva Elaboración</span>
+					</Button>
+					<Button variant="accent" class="gap-2">
+						<Sparkles class="size-4" />
+						<span>Acento Lima</span>
+					</Button>
+					<Button variant="yellow" class="gap-2">
+						<Star class="size-4" />
+						<span>Atajo Amarillo</span>
 					</Button>
 					<Button variant="outline" class="gap-2">
 						<SlidersHorizontal class="size-4" />
@@ -295,9 +396,12 @@
 					<div class="flex flex-wrap gap-2">
 						<Badge variant="default">Primary</Badge>
 						<Badge variant="secondary">Secondary</Badge>
-						<Badge variant="accent">Accent</Badge>
-						<Badge variant="muted">Muted</Badge>
+						<Badge variant="accent">Accent (Lima)</Badge>
+						<Badge variant="yellow">Yellow (Amarillo)</Badge>
+						<Badge variant="success">Success</Badge>
+						<Badge variant="warning">Warning</Badge>
 						<Badge variant="destructive">Destructive</Badge>
+						<Badge variant="muted">Muted</Badge>
 						<Badge variant="outline">Outline</Badge>
 					</div>
 				</div>
@@ -419,27 +523,27 @@
 						</Card.Content>
 					</Card.Root>
 
-					<!-- KPI 3: Accent (Amber) -->
-					<Card.Root class="border-amber-500/30 bg-amber-500/5 shadow-xs">
+					<!-- KPI 3: Accent (Lima) -->
+					<Card.Root class="border-lime-500/30 bg-lime-500/5 shadow-xs">
 						<Card.Header class="p-4 sm:p-5 pb-2 space-y-1.5">
 							<div class="flex items-center justify-between">
 								<Card.Description class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-									Pedidos Pendientes
+									Atajos y Destacados
 								</Card.Description>
-								<Badge variant="accent" class="text-[10px] px-1.5 py-0">Accent</Badge>
+								<Badge variant="accent" class="text-[10px] px-1.5 py-0">Accent (Lima)</Badge>
 							</div>
 							<div class="flex items-center gap-3 pt-0.5">
-								<div class="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-amber-500/15 text-amber-600">
-									<Clock class="size-6" />
+								<div class="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-lime-400/20 text-lime-800 dark:text-lime-300">
+									<Sparkles class="size-6" />
 								</div>
-								<Card.Title class="text-2xl sm:text-3xl font-bold font-mono tracking-tight text-amber-600">
+								<Card.Title class="text-2xl sm:text-3xl font-bold font-mono tracking-tight text-lime-700 dark:text-lime-300">
 									12
 								</Card.Title>
 							</div>
 						</Card.Header>
 						<Card.Content class="p-4 sm:p-5 pt-0">
 							<p class="text-xs text-muted-foreground font-mono">
-								18 unidades por entregar
+								Productos con acceso rápido
 							</p>
 						</Card.Content>
 					</Card.Root>
@@ -799,7 +903,7 @@
 							? 'bg-card text-foreground shadow-xs font-bold'
 							: 'text-muted-foreground hover:text-foreground'}"
 					>
-						<Layers class="size-4" />
+						<GraphHub class="size-4" />
 						<span>Estructura de Recetas</span>
 					</button>
 

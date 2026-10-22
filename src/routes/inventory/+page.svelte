@@ -39,6 +39,7 @@
 	import Package from '@lucide/svelte/icons/package';
 	import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
 	import Layers from '@lucide/svelte/icons/layers';
+	import GraphHub from '@lucide/svelte/icons/graph-hub';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import Check from '@lucide/svelte/icons/check';
 	import Pencil from '@lucide/svelte/icons/pencil';
@@ -551,7 +552,7 @@
 				? 'bg-primary text-primary-foreground shadow-xs'
 				: 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
 		>
-			<Layers class="size-4" />
+			<GraphHub class="size-4" />
 			<span>Recetas</span>
 		</button>
 

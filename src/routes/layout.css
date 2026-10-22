@@ -19,13 +19,13 @@
 		--popover: #ffffff;
 		--popover-foreground: #09090b;
 
-		/* Secundarios, neutros y acentos (Zinc, Índigo y Ámbar Cálido) */
+		/* Secundarios, neutros y acentos (Zinc, Índigo y Lima Eléctrico) */
 		--secondary: #4f46e5;
 		--secondary-foreground: #ffffff;
 		--muted: #f4f4f5;
 		--muted-foreground: #71717a;
-		--accent: #fef3c7;
-		--accent-foreground: #92400e;
+		--accent: #d9f99d;
+		--accent-foreground: #1a2e05;
 
 		/* Estados y bordes (Tailwind Zinc) */
 		--destructive: #ef4444;
@@ -51,13 +51,13 @@
 		--popover: #18181b;
 		--popover-foreground: #fafafa;
 
-		/* Secundarios, neutros y acentos */
+		/* Secundarios, neutros y acentos (Lima en Modo Oscuro) */
 		--secondary: #6366f1;
 		--secondary-foreground: #ffffff;
 		--muted: #27272a;
 		--muted-foreground: #a1a1aa;
-		--accent: #451a03;
-		--accent-foreground: #fde68a;
+		--accent: #1a2e05;
+		--accent-foreground: #bef264;
 
 		/* Estados y bordes */
 		--destructive: #7f1d1d;

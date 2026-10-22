@@ -11,7 +11,10 @@
 				destructive:
 					'border-transparent bg-destructive text-destructive-foreground shadow hover:bg-destructive/80',
 				outline: 'text-foreground',
-				accent: 'border-transparent bg-accent text-accent-foreground hover:bg-accent/80',
+				accent: 'border-lime-500/40 bg-lime-400/20 text-lime-900 dark:text-lime-300 font-semibold',
+				yellow: 'border-yellow-500/40 bg-yellow-400/20 text-yellow-900 dark:text-yellow-300 font-semibold',
+				success: 'border-emerald-500/40 bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 font-semibold',
+				warning: 'border-amber-500/40 bg-amber-500/15 text-amber-800 dark:text-amber-300 font-semibold',
 				muted: 'border-transparent bg-muted text-muted-foreground hover:bg-muted/80'
 			}
 		},
