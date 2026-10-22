@@ -591,8 +591,14 @@ export class OrderService {
 	 * Cruza las órdenes pendientes (pedidos a futuro / `pending_delivery`) con el árbol de Recetas
 	 * desglosando primero los componentes de cada producto de venta (incluyendo Combos)
 	 * para prever si alcanza el stock actual de Sub-ensambles y Materias Primas o si hay sobreventa/déficit.
+	 *
+	 * @param preserveDisplayStock Si es true (Mantener vidriera), no descuenta el stock de productos/ensambles terminados,
+	 * calculando la producción total a fabricar para los pedidos sin tocar el mostrador.
 	 */
-	async getPreorderForecast(businessId: string): Promise<PreorderForecastSummary> {
+	async getPreorderForecast(
+		businessId: string,
+		preserveDisplayStock: boolean = false
+	): Promise<PreorderForecastSummary> {
 		const [orders, allItems, recipeSummaries, salesProducts] = await Promise.all([
 			this.orderRepo.findOrdersByBusiness(businessId),
 			this.itemRepo.findAllByBusiness(businessId),
@@ -712,11 +718,13 @@ export class OrderService {
 			if (!productItem) continue;
 
 			const isMakeToOrder = Boolean(productItem.recipeConfig?.isMakeToOrder);
-			const projectedBalance = isMakeToOrder ? 0 : Number((productItem.currentStock - totalOrderedQty).toFixed(3));
-			const deficitQuantity = isMakeToOrder
+			// Si preserveDisplayStock es true, no gastamos el stock físico del mostrador/vidriera.
+			const isEffectiveMTO = isMakeToOrder || preserveDisplayStock;
+			const projectedBalance = isEffectiveMTO ? productItem.currentStock : Number((productItem.currentStock - totalOrderedQty).toFixed(3));
+			const deficitQuantity = isEffectiveMTO
 				? totalOrderedQty
 				: (projectedBalance < 0 ? Math.abs(projectedBalance) : 0);
-			const isShortage = !isMakeToOrder && deficitQuantity > 0;
+			const isShortage = !isEffectiveMTO && deficitQuantity > 0;
 
 			const {
 				laborMinutes: laborDeficit,
@@ -810,11 +818,13 @@ export class OrderService {
 				(subAssemblyTotalDemandMap.get(itemId) ?? 0) + reqQty
 			);
 
-			// Si es un producto Make-to-Order (a demanda, sin stock almacenable), se produce siempre el 100% requerido
+			// Si es un producto Make-to-Order (a demanda, sin stock almacenable) o si preserveDisplayStock es true,
+			// se produce siempre el 100% requerido sin consumir stock físico de mostrador.
 			const isMakeToOrder = Boolean(subItem.recipeConfig?.isMakeToOrder);
+			const isEffectiveMTO = isMakeToOrder || preserveDisplayStock;
 
 			let deficitPortion = 0;
-			if (isMakeToOrder) {
+			if (isEffectiveMTO) {
 				deficitPortion = reqQty;
 			} else {
 				// Consultar stock remanente para ver cuánto cubre este requerimiento
@@ -871,11 +881,12 @@ export class OrderService {
 			if (!subItem) continue;
 
 			const isMakeToOrder = Boolean(subItem.recipeConfig?.isMakeToOrder);
-			const projectedBalance = isMakeToOrder ? 0 : Number((subItem.currentStock - reqQty).toFixed(3));
-			const deficitQuantity = isMakeToOrder
+			const isEffectiveMTO = isMakeToOrder || preserveDisplayStock;
+			const projectedBalance = isEffectiveMTO ? subItem.currentStock : Number((subItem.currentStock - reqQty).toFixed(3));
+			const deficitQuantity = isEffectiveMTO
 				? reqQty
 				: (subAssemblyTotalDeficitMap.get(subId) ?? (projectedBalance < 0 ? Math.abs(projectedBalance) : 0));
-			const isShortage = !isMakeToOrder && deficitQuantity > 0;
+			const isShortage = !isEffectiveMTO && deficitQuantity > 0;
 
 			const {
 				laborMinutes: laborDeficit,

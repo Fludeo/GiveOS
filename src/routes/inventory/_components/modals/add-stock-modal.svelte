@@ -113,6 +113,7 @@
 		isDeficit: boolean;
 		deficitQty: number;
 		isLowStock: boolean;
+		isMakeToOrder: boolean;
 		maxProducibleUnits: number;
 	}
 
@@ -127,6 +128,7 @@
 
 		return recipeNodes.map((node) => {
 			const comp = allItems.find((i) => i.id === node.component.id) ?? node.component;
+			const isMakeToOrder = Boolean(comp.recipeConfig?.isMakeToOrder);
 			// Cantidad necesaria en la unidad base del componente para 1 tanda de rendimiento
 			const requiredInCompBaseForBatch = convertQuantity(node.quantity, node.unit, comp.baseUnit);
 			const requiredPerParentUnit = requiredInCompBaseForBatch / yieldQuantity;
@@ -139,13 +141,16 @@
 			);
 			const currentStock = comp.currentStock;
 			const remainingStock = currentStock - consumedForInput;
-			const isDeficit = inputQty > 0 && remainingStock < -0.0001;
+			// Si es make-to-order (a demanda), no se considera déficit de stock físico
+			const isDeficit = !isMakeToOrder && inputQty > 0 && remainingStock < -0.0001;
 			const deficitQty = isDeficit ? Math.abs(remainingStock) : 0;
-			const isLowStock = inputQty > 0 && !isDeficit && remainingStock <= comp.minStock;
+			const isLowStock = !isMakeToOrder && inputQty > 0 && !isDeficit && remainingStock <= comp.minStock;
 
 			// Unidades máximas del ítem padre que se pueden elaborar con el stock de este componente
-			const maxProducibleUnits =
-				requiredPerParentUnit > 0
+			// Si es a demanda, no actúa como cuello de botella físico directo de stock previo
+			const maxProducibleUnits = isMakeToOrder
+				? Infinity
+				: requiredPerParentUnit > 0
 					? Math.max(0, comp.currentStock / requiredPerParentUnit)
 					: Infinity;
 
@@ -159,6 +164,7 @@
 				isDeficit,
 				deficitQty,
 				isLowStock,
+				isMakeToOrder,
 				maxProducibleUnits
 			};
 		});
@@ -592,21 +598,28 @@
 
 												<!-- Stock con símbolo de caja 📦 -->
 												<div class="flex items-center gap-1.5">
-													<Package class="size-3.5 text-muted-foreground shrink-0" />
-													{#if inputQty > 0}
-														{#if imp.isDeficit}
-															<span class="font-bold text-destructive">
-																Faltan {formatQuantity(imp.deficitQty)} {imp.component.baseUnit}
-															</span>
+													{#if imp.isMakeToOrder}
+														<span class="inline-flex items-center gap-1 rounded bg-secondary/15 px-1.5 py-0.2 font-mono text-[10px] font-bold text-secondary">
+															<Sparkles class="size-3" />
+															A Demanda (Preparar {formatQuantity(imp.consumedForInput > 0 ? imp.consumedForInput : imp.requiredPerParentUnit)} {imp.component.baseUnit})
+														</span>
+													{:else}
+														<Package class="size-3.5 text-muted-foreground shrink-0" />
+														{#if inputQty > 0}
+															{#if imp.isDeficit}
+																<span class="font-bold text-destructive">
+																	Faltan {formatQuantity(imp.deficitQty)} {imp.component.baseUnit}
+																</span>
+															{:else}
+																<span class="text-foreground">
+																	{formatQuantity(imp.currentStock)} → <strong class="font-bold">{formatQuantity(imp.remainingStock)}</strong> {imp.component.baseUnit}
+																</span>
+															{/if}
 														{:else}
-															<span class="text-foreground">
-																{formatQuantity(imp.currentStock)} → <strong class="font-bold">{formatQuantity(imp.remainingStock)}</strong> {imp.component.baseUnit}
+															<span class="text-muted-foreground">
+																{formatQuantity(imp.currentStock)} {imp.component.baseUnit}
 															</span>
 														{/if}
-													{:else}
-														<span class="text-muted-foreground">
-															{formatQuantity(imp.currentStock)} {imp.component.baseUnit}
-														</span>
 													{/if}
 												</div>
 											</div>

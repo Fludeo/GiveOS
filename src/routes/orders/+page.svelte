@@ -177,7 +177,10 @@
 			onConfirmOrder={(order: OrderWithItems) => (confirmingOrderId = order.id)}
 		/>
 	{:else if currentTab === 'forecast'}
-		<OrdersForecastSection forecast={data.preorderForecast} />
+		<OrdersForecastSection
+			forecast={data.preorderForecast}
+			preserveDisplayStock={data.preserveDisplayStock}
+		/>
 	{/if}
 
 	<!-- 3. Modales Modulares -->

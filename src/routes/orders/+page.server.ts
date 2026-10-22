@@ -17,10 +17,12 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 
 	const { orderService } = getServices();
 
+	const preserveDisplayStock = url.searchParams.get('preserveDisplay') === '1';
+
 	const [orders, salesProducts, preorderForecast] = await Promise.all([
 		orderService.listOrders(activeBusiness.id),
 		orderService.listSalesProducts(activeBusiness.id),
-		orderService.getPreorderForecast(activeBusiness.id)
+		orderService.getPreorderForecast(activeBusiness.id, preserveDisplayStock)
 	]);
 
 	const requestedTab = url.searchParams.get('tab');
@@ -37,6 +39,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		salesProducts: salesProducts.filter((p) => p.isActive),
 		allSalesProducts: salesProducts,
 		preorderForecast,
+		preserveDisplayStock,
 		initialTab,
 		openNewModalOnLoad: url.searchParams.get('new') === '1',
 		createdOrderNumber: url.searchParams.get('created')

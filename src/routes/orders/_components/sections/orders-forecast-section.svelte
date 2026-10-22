@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import type {
 		PreorderForecastSummary,
 		PreorderForecastLine
@@ -26,12 +27,26 @@
 	import List from '@lucide/svelte/icons/list';
 	import Wheat from '@lucide/svelte/icons/wheat';
 	import GraphHub from '@lucide/svelte/icons/graph-hub';
+	import Store from '@lucide/svelte/icons/store';
 
 	interface Props {
 		forecast: PreorderForecastSummary;
+		preserveDisplayStock?: boolean;
 	}
 
-	let { forecast }: Props = $props();
+	let { forecast, preserveDisplayStock = false }: Props = $props();
+
+	function togglePreserveDisplayStock() {
+		if (typeof window !== 'undefined') {
+			const url = new URL(window.location.href);
+			if (preserveDisplayStock) {
+				url.searchParams.delete('preserveDisplay');
+			} else {
+				url.searchParams.set('preserveDisplay', '1');
+			}
+			goto(url.toString(), { replaceState: true });
+		}
+	}
 
 	type CategoryTab = 'all' | 'subassemblies' | 'rawmaterials' | 'products';
 	let selectedCategory = $state<CategoryTab>('all');
@@ -416,6 +431,26 @@
 				</div>
 
 				<div class="flex flex-wrap items-center gap-2">
+					<!-- Toggle Mantener Vidriera -->
+					<button
+						type="button"
+						onclick={togglePreserveDisplayStock}
+						class="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold transition-all cursor-pointer shadow-2xs {preserveDisplayStock
+							? 'border-secondary/40 bg-secondary/15 text-secondary hover:bg-secondary/20 ring-1 ring-secondary/30'
+							: 'border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted/50'}"
+						title="Al activar, el cálculo de faltantes no consumirá el stock ya disponible en mostrador/vidriera, planificando la producción completa para los pedidos."
+					>
+						<Store class="size-3.5 {preserveDisplayStock ? 'text-secondary' : 'text-muted-foreground'}" />
+						<span>Mantener Vidriera</span>
+						<span
+							class="ml-0.5 rounded px-1.5 py-0.2 text-[9px] font-bold uppercase tracking-wider {preserveDisplayStock
+								? 'bg-secondary text-secondary-foreground'
+								: 'bg-muted text-muted-foreground'}"
+						>
+							{preserveDisplayStock ? 'Activado' : 'Off'}
+						</span>
+					</button>
+
 					<!-- Switch de Vista -->
 					<div class="inline-flex items-center rounded-lg border border-border bg-background p-0.5 shadow-2xs">
 						<button
@@ -462,7 +497,16 @@
 				</div>
 			</div>
 
-			<!-- Pestañas de Categoría de Demanda -->
+			<!-- Pestañas de Categoría de Demanda y Aviso de Vidriera -->
+			{#if preserveDisplayStock}
+				<div class="flex items-center gap-2 rounded-lg border border-secondary/30 bg-secondary/10 px-3 py-2 text-xs text-secondary dark:text-secondary-foreground">
+					<Store class="size-4 shrink-0 text-secondary" />
+					<div class="flex-1">
+						<strong>Modo Mantener Vidriera activo:</strong> El cálculo considera el 100% de la demanda de pedidos como producción a elaborar sin consumir tus tortas ni elaborados terminados del mostrador.
+					</div>
+				</div>
+			{/if}
+
 			<div class="flex flex-wrap items-center gap-1.5 pt-2 border-t border-border/60">
 				<button
 					type="button"
@@ -587,6 +631,11 @@
 									{#if item.isMakeToOrder}
 										<span class="inline-flex items-center gap-1 rounded-md bg-secondary/15 border border-secondary/30 px-2 py-0.5 font-mono text-[11px] font-bold text-secondary dark:text-secondary-foreground">
 											<Sparkles class="size-3" />
+											Fabricar {formatNum(item.deficitQuantity)} {formatUnit(item.baseUnit)}
+										</span>
+									{:else if preserveDisplayStock && isFabricable}
+										<span class="inline-flex items-center gap-1 rounded-md bg-secondary/15 border border-secondary/30 px-2 py-0.5 font-mono text-[11px] font-bold text-secondary dark:text-secondary-foreground">
+											<Store class="size-3" />
 											Fabricar {formatNum(item.deficitQuantity)} {formatUnit(item.baseUnit)}
 										</span>
 									{:else if item.isShortage}
@@ -766,6 +815,10 @@
 										{#if item.isMakeToOrder}
 											<span class="text-secondary dark:text-secondary-foreground font-semibold text-xs">
 												A demanda ({formatNum(item.deficitQuantity)} {formatUnit(item.baseUnit)})
+											</span>
+										{:else if preserveDisplayStock && isFabricable}
+											<span class="text-secondary dark:text-secondary-foreground font-semibold text-xs">
+												Fabricar {formatNum(item.deficitQuantity)} {formatUnit(item.baseUnit)}
 											</span>
 										{:else if item.isShortage}
 											<span class="text-red-600 dark:text-red-400">
