@@ -257,6 +257,7 @@
 		businessId={data.activeBusiness.id}
 		allItems={data.items}
 		recipeSummary={selectedStockItem ? data.recipeSummaries[selectedStockItem.id] : undefined}
+		recipeSummaries={data.recipeSummaries}
 		estimatedUnitCost={selectedStockItem
 			? (data.recipeSummaries[selectedStockItem.id]?.estimatedUnitCost ?? 0)
 			: 0}

@@ -38,6 +38,15 @@
 			estimatedTotalCost?: number;
 			estimatedUnitCost?: number;
 		};
+		recipeSummaries?: Record<
+			string,
+			{
+				directComponentsCount: number;
+				estimatedTotalCost: number;
+				estimatedUnitCost: number;
+				nodes: RecipeTreeNode[];
+			}
+		>;
 		estimatedUnitCost?: number;
 		onClose: () => void;
 		onOpenRecipeStructure?: (itemId: string) => void;
@@ -49,6 +58,7 @@
 		businessId,
 		allItems = [],
 		recipeSummary,
+		recipeSummaries = {},
 		estimatedUnitCost = 0,
 		onClose,
 		onOpenRecipeStructure
@@ -103,6 +113,18 @@
 		item?.yieldQuantity && item.yieldQuantity > 0 ? item.yieldQuantity : 1
 	);
 
+	interface SubRecipeImpact {
+		node: RecipeTreeNode;
+		component: Item;
+		requiredPerParentUnit: number;
+		consumedForInput: number;
+		currentStock: number;
+		remainingStock: number;
+		isDeficit: boolean;
+		deficitQty: number;
+		isLowStock: boolean;
+	}
+
 	interface ComponentImpact {
 		node: RecipeTreeNode;
 		component: Item;
@@ -115,9 +137,10 @@
 		isLowStock: boolean;
 		isMakeToOrder: boolean;
 		maxProducibleUnits: number;
+		subIngredients?: SubRecipeImpact[];
 	}
 
-	// Cálculo reactivo del consumo en tiempo real y capacidad por cada componente
+	// Cálculo reactivo del consumo en tiempo real y capacidad por cada componente (con desglose de Make-To-Order)
 	const impacts = $derived.by<ComponentImpact[]>(() => {
 		if (!item || item.type !== 'prepared' || recipeNodes.length === 0) return [];
 		const inputQty =
@@ -128,7 +151,7 @@
 
 		return recipeNodes.map((node) => {
 			const comp = allItems.find((i) => i.id === node.component.id) ?? node.component;
-			const isMakeToOrder = Boolean(comp.recipeConfig?.isMakeToOrder);
+			const isMakeToOrder = comp.type === 'prepared' && Boolean(comp.recipeConfig?.isMakeToOrder);
 			// Cantidad necesaria en la unidad base del componente para 1 tanda de rendimiento
 			const requiredInCompBaseForBatch = convertQuantity(node.quantity, node.unit, comp.baseUnit);
 			const requiredPerParentUnit = requiredInCompBaseForBatch / yieldQuantity;
@@ -141,18 +164,63 @@
 			);
 			const currentStock = comp.currentStock;
 			const remainingStock = currentStock - consumedForInput;
-			// Si es make-to-order (a demanda), no se considera déficit de stock físico
-			const isDeficit = !isMakeToOrder && inputQty > 0 && remainingStock < -0.0001;
-			const deficitQty = isDeficit ? Math.abs(remainingStock) : 0;
-			const isLowStock = !isMakeToOrder && inputQty > 0 && !isDeficit && remainingStock <= comp.minStock;
 
-			// Unidades máximas del ítem padre que se pueden elaborar con el stock de este componente
-			// Si es a demanda, no actúa como cuello de botella físico directo de stock previo
-			const maxProducibleUnits = isMakeToOrder
-				? Infinity
-				: requiredPerParentUnit > 0
+			// Si es make-to-order (a demanda), no se considera déficit de stock físico directo del elaborado
+			let isDeficit = !isMakeToOrder && inputQty > 0 && remainingStock < -0.0001;
+			let deficitQty = isDeficit ? Math.abs(remainingStock) : 0;
+			let isLowStock = !isMakeToOrder && inputQty > 0 && !isDeficit && remainingStock <= comp.minStock;
+
+			let maxProducibleUnits = Infinity;
+			let subIngredients: SubRecipeImpact[] | undefined;
+
+			if (isMakeToOrder) {
+				// Explotar sub-receta del elaborado a demanda
+				const subSummary = recipeSummaries[comp.id] ?? (comp.id === node.component.id && node.children.length > 0 ? { nodes: node.children } : undefined);
+				const subNodes = subSummary?.nodes ?? [];
+				const subYield = comp.yieldQuantity > 0 ? comp.yieldQuantity : 1;
+
+				if (subNodes.length > 0) {
+					subIngredients = subNodes.map((subNode) => {
+						const subComp = allItems.find((i) => i.id === subNode.component.id) ?? subNode.component;
+						// Cantidad de sub-ingrediente necesaria por cada unidad del componente intermedio
+						const subReqPerIntermediate = convertQuantity(subNode.quantity, subNode.unit, subComp.baseUnit) / subYield;
+						// Cantidad de sub-ingrediente necesaria por cada unidad del producto padre principal
+						const subReqPerParentUnit = subReqPerIntermediate * requiredPerParentUnit;
+						const subConsumedForInput = subReqPerParentUnit * inputQty;
+						const subRemStock = subComp.currentStock - subConsumedForInput;
+						const subDeficit = inputQty > 0 && subRemStock < -0.0001;
+						const subDefQty = subDeficit ? Math.abs(subRemStock) : 0;
+						const subLow = inputQty > 0 && !subDeficit && subRemStock <= subComp.minStock;
+
+						return {
+							node: subNode,
+							component: subComp,
+							requiredPerParentUnit: subReqPerParentUnit,
+							consumedForInput: subConsumedForInput,
+							currentStock: subComp.currentStock,
+							remainingStock: subRemStock,
+							isDeficit: subDeficit,
+							deficitQty: subDefQty,
+							isLowStock: subLow
+						};
+					});
+
+					// Si algún sub-ingrediente tiene déficit, el elaborado a demanda se marca con déficit de materia prima
+					if (subIngredients.some((s) => s.isDeficit)) {
+						isDeficit = true;
+					}
+
+					// El límite de unidades del padre que se pueden hacer viene limitado por el cuello de botella de sus sub-ingredientes
+					const subLimits = subIngredients.map((s) =>
+						s.requiredPerParentUnit > 0 ? Math.max(0, s.currentStock / s.requiredPerParentUnit) : Infinity
+					);
+					maxProducibleUnits = subLimits.length > 0 ? Math.min(...subLimits) : Infinity;
+				}
+			} else {
+				maxProducibleUnits = requiredPerParentUnit > 0
 					? Math.max(0, comp.currentStock / requiredPerParentUnit)
 					: Infinity;
+			}
 
 			return {
 				node,
@@ -165,7 +233,8 @@
 				deficitQty,
 				isLowStock,
 				isMakeToOrder,
-				maxProducibleUnits
+				maxProducibleUnits,
+				subIngredients
 			};
 		});
 	});
@@ -626,21 +695,75 @@
 										</div>
 
 										<!-- Barra visual de stock remanente: comienza en 100% y desciende al descontar -->
-										<div class="mt-1.5 flex items-center gap-2">
-											<div class="h-1.5 w-full overflow-hidden rounded-full bg-muted/50">
-												<div
-													class="h-full rounded-full transition-all duration-300 {imp.isDeficit
-														? 'bg-destructive'
-														: imp.isLowStock
-															? 'bg-amber-500'
-															: 'bg-emerald-500'}"
-													style="width: {inputQty > 0 ? remainingPct : 100}%"
-												></div>
+										{#if !imp.isMakeToOrder}
+											<div class="mt-1.5 flex items-center gap-2">
+												<div class="h-1.5 w-full overflow-hidden rounded-full bg-muted/50">
+													<div
+														class="h-full rounded-full transition-all duration-300 {imp.isDeficit
+															? 'bg-destructive'
+															: imp.isLowStock
+																? 'bg-amber-500'
+																: 'bg-emerald-500'}"
+														style="width: {inputQty > 0 ? remainingPct : 100}%"
+													></div>
+												</div>
+												<span class="w-7 text-right font-mono text-[9px] text-muted-foreground shrink-0">
+													{inputQty > 0 ? `${remainingPct}%` : '100%'}
+												</span>
 											</div>
-											<span class="w-7 text-right font-mono text-[9px] text-muted-foreground shrink-0">
-												{inputQty > 0 ? `${remainingPct}%` : '100%'}
-											</span>
-										</div>
+										{/if}
+
+										<!-- Desglose anidado de insumos requeridos si es fabricación a demanda (Make-To-Order) -->
+										{#if imp.isMakeToOrder && imp.subIngredients && imp.subIngredients.length > 0}
+											<div class="mt-2.5 rounded-md border border-secondary/20 bg-secondary/5 p-2 space-y-1.5">
+												<div class="flex items-center justify-between text-[10px] font-bold text-secondary uppercase tracking-wider">
+													<span class="flex items-center gap-1">
+														<Layers class="size-3" />
+														Materias primas a consumir para preparar el elaborado:
+													</span>
+													<span>Stock & Consumo</span>
+												</div>
+												<div class="space-y-1">
+													{#each imp.subIngredients as sub (sub.node.lineId)}
+														{@const subRemPct = sub.currentStock > 0
+															? Math.max(0, Math.min(100, Math.round((sub.remainingStock / sub.currentStock) * 100)))
+															: 0}
+														<div class="flex flex-wrap items-center justify-between gap-1 text-[11px] font-mono py-0.5 border-b border-border/30 last:border-none">
+															<div class="flex items-center gap-1.5 text-foreground">
+																<span
+																	class="size-1.5 rounded-full {sub.isDeficit
+																		? 'bg-destructive animate-pulse'
+																		: sub.isLowStock
+																			? 'bg-amber-500'
+																			: 'bg-emerald-500'}"
+																></span>
+																<span class="text-muted-foreground font-semibold">{sub.component.code}</span>
+																<span class="truncate max-w-[130px] sm:max-w-[180px]">{sub.component.name}</span>
+															</div>
+															<div class="flex items-center gap-2">
+																<span class="{inputQty > 0 ? 'text-destructive font-bold' : 'text-muted-foreground'}">
+																	{inputQty > 0 ? `-${formatQuantity(sub.consumedForInput)}` : `${formatQuantity(sub.requiredPerParentUnit)}/u`} {sub.component.baseUnit}
+																</span>
+																<span class="text-muted-foreground/40">|</span>
+																{#if inputQty > 0 && sub.isDeficit}
+																	<span class="font-bold text-destructive">
+																		Faltan {formatQuantity(sub.deficitQty)} {sub.component.baseUnit}
+																	</span>
+																{:else if inputQty > 0}
+																	<span class="text-muted-foreground">
+																		{formatQuantity(sub.currentStock)} → <strong class="text-foreground font-bold">{formatQuantity(sub.remainingStock)}</strong> {sub.component.baseUnit}
+																	</span>
+																{:else}
+																	<span class="text-muted-foreground">
+																		Stock: {formatQuantity(sub.currentStock)} {sub.component.baseUnit}
+																	</span>
+																{/if}
+															</div>
+														</div>
+													{/each}
+												</div>
+											</div>
+										{/if}
 									</div>
 								{/each}
 							</div>

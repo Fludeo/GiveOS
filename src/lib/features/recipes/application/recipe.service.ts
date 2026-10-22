@@ -268,6 +268,8 @@ export class RecipeService {
 	 * Produce `producedQty` (en la unidad base del ítem padre):
 	 * 1. Suma +producedQty al stock actual del ítem padre.
 	 * 2. Descuenta proporcionalmente el stock de todos sus ingredientes/componentes directos de la receta.
+	 *    Si un componente es `isMakeToOrder` (fabricación a demanda), no descuenta de su propio stock (que es 0),
+	 *    sino que desciende recursivamente y descuenta los ingredientes de su sub-receta.
 	 */
 	async produceItemBatch(
 		businessId: string,
@@ -290,22 +292,62 @@ export class RecipeService {
 			throw new Error('El ítem a producir no existe en este negocio.');
 		}
 
-		const directLines = allLines.filter((l) => l.parentItemId === parentItemId);
-		const yieldQty = parent.yieldQuantity > 0 ? parent.yieldQuantity : 1;
+		const linesByParent = new Map<string, RecipeLine[]>();
+		for (const line of allLines) {
+			const list = linesByParent.get(line.parentItemId) ?? [];
+			list.push(line);
+			linesByParent.set(line.parentItemId, list);
+		}
+
+		// Recolectar consumos de insumos/componentes finales a descontar
+		// itemId -> { item, totalQtyToDeduct }
+		const deductionsMap = new Map<string, { item: Item; qty: number }>();
+
+		const queue: Array<{ itemId: string; qtyNeeded: number }> = [
+			{ itemId: parentItemId, qtyNeeded: producedQty }
+		];
+
+		let safetyCount = 0;
+		while (queue.length > 0 && safetyCount < 1000) {
+			safetyCount++;
+			const current = queue.shift()!;
+			const currentItem = itemsById.get(current.itemId);
+			if (!currentItem) continue;
+
+			const lines = linesByParent.get(current.itemId) ?? [];
+			const currentYield = currentItem.yieldQuantity > 0 ? currentItem.yieldQuantity : 1;
+
+			for (const line of lines) {
+				const comp = itemsById.get(line.componentItemId);
+				if (!comp) continue;
+
+				const requiredInCompBase = calculateRecipeConsumption(
+					line.quantity,
+					line.unit,
+					comp.baseUnit,
+					current.qtyNeeded,
+					currentYield
+				);
+
+				const isMakeToOrder = comp.type === 'prepared' && Boolean(comp.recipeConfig?.isMakeToOrder);
+				if (isMakeToOrder) {
+					// Si es a demanda, expandir en cascada a sus propios ingredientes
+					queue.push({ itemId: comp.id, qtyNeeded: requiredInCompBase });
+				} else {
+					// Si es insumo o elaborado tradicional con stock físico, acumular descuento
+					const existing = deductionsMap.get(comp.id);
+					if (existing) {
+						existing.qty += requiredInCompBase;
+					} else {
+						deductionsMap.set(comp.id, { item: comp, qty: requiredInCompBase });
+					}
+				}
+			}
+		}
 
 		const consumedComponents: Array<{ item: Item; consumedQty: number }> = [];
 
-		for (const line of directLines) {
-			const comp = itemsById.get(line.componentItemId);
-			if (!comp) continue;
-
-			const requiredInCompBase = calculateRecipeConsumption(
-				line.quantity,
-				line.unit,
-				comp.baseUnit,
-				producedQty,
-				yieldQty
-			);
+		for (const { item: comp, qty: requiredInCompBase } of deductionsMap.values()) {
 			const nextStock = Math.max(0, Math.round((comp.currentStock - requiredInCompBase) * 10000) / 10000);
 			let newBatches = comp.batches;
 			let newRefCost = comp.referenceCost;
@@ -352,7 +394,8 @@ export class RecipeService {
 	/**
 	 * Revierte una carga de producción de elaboración:
 	 * 1. Descuenta initialQuantity del ítem padre y remueve el batch.
-	 * 2. Devuelve / repone proporcionalmente el stock consumido a cada ingrediente/componente directo de la receta.
+	 * 2. Devuelve / repone proporcionalmente el stock consumido a cada ingrediente/componente de la receta
+	 *    (incluyendo los insumos descontados en cascada de elaborados Make-to-Order).
 	 */
 	async revertProducedBatch(
 		businessId: string,
@@ -377,24 +420,58 @@ export class RecipeService {
 		}
 
 		const producedQty = batchToDelete.initialQuantity;
-		const yieldQty = parent.yieldQuantity > 0 ? parent.yieldQuantity : 1;
-		const directLines = allLines.filter((l) => l.parentItemId === parentItemId);
+
+		const linesByParent = new Map<string, RecipeLine[]>();
+		for (const line of allLines) {
+			const list = linesByParent.get(line.parentItemId) ?? [];
+			list.push(line);
+			linesByParent.set(line.parentItemId, list);
+		}
+
+		const restorationsMap = new Map<string, { item: Item; qty: number }>();
+		const queue: Array<{ itemId: string; qtyNeeded: number }> = [
+			{ itemId: parentItemId, qtyNeeded: producedQty }
+		];
+
+		let safetyCount = 0;
+		while (queue.length > 0 && safetyCount < 1000) {
+			safetyCount++;
+			const current = queue.shift()!;
+			const currentItem = itemsById.get(current.itemId);
+			if (!currentItem) continue;
+
+			const lines = linesByParent.get(current.itemId) ?? [];
+			const currentYield = currentItem.yieldQuantity > 0 ? currentItem.yieldQuantity : 1;
+
+			for (const line of lines) {
+				const comp = itemsById.get(line.componentItemId);
+				if (!comp) continue;
+
+				const requiredInCompBase = calculateRecipeConsumption(
+					line.quantity,
+					line.unit,
+					comp.baseUnit,
+					current.qtyNeeded,
+					currentYield
+				);
+
+				const isMakeToOrder = comp.type === 'prepared' && Boolean(comp.recipeConfig?.isMakeToOrder);
+				if (isMakeToOrder) {
+					queue.push({ itemId: comp.id, qtyNeeded: requiredInCompBase });
+				} else {
+					const existing = restorationsMap.get(comp.id);
+					if (existing) {
+						existing.qty += requiredInCompBase;
+					} else {
+						restorationsMap.set(comp.id, { item: comp, qty: requiredInCompBase });
+					}
+				}
+			}
+		}
 
 		const restoredComponents: Array<{ item: Item; restoredQty: number }> = [];
 
-		// Reponer stock de los insumos y elaboraciones consumidas de forma reversible y exacta
-		for (const line of directLines) {
-			const comp = itemsById.get(line.componentItemId);
-			if (!comp) continue;
-
-			const qtyToRestore = calculateRecipeConsumption(
-				line.quantity,
-				line.unit,
-				comp.baseUnit,
-				producedQty,
-				yieldQty
-			);
-
+		for (const { item: comp, qty: qtyToRestore } of restorationsMap.values()) {
 			const nextStock = Math.round((comp.currentStock + qtyToRestore) * 10000) / 10000;
 			let newBatches = comp.batches;
 			let newRefCost = comp.referenceCost;
