@@ -764,26 +764,32 @@ export class OrderService {
 			const summary = recipeSummaries[productItem.id];
 			const nodes = summary?.nodes ?? [];
 			const yieldQty = productItem.yieldQuantity > 0 ? productItem.yieldQuantity : 1;
-			const batchesNeeded = totalOrderedQty / yieldQty;
+			// Solo necesitamos fabricar y explotar la receta de la cantidad en DÉFICIT.
+			// Si no está activado "Mantener Vidriera", las unidades cubiertas por el stock disponible
+			// ya están hechas en el mostrador, por lo que NO deben volver a descontar harina, huevos ni sub-ensambles.
+			const qtyToExplode = deficitQuantity;
+			const batchesNeeded = qtyToExplode > 0 ? qtyToExplode / yieldQty : 0;
 
-			for (const node of nodes) {
-				const comp = node.component;
-				const reqInBase = convertQuantity(
-					node.quantity * batchesNeeded,
-					node.unit,
-					comp.baseUnit
-				);
+			if (batchesNeeded > 0) {
+				for (const node of nodes) {
+					const comp = node.component;
+					const reqInBase = convertQuantity(
+						node.quantity * batchesNeeded,
+						node.unit,
+						comp.baseUnit
+					);
 
-				if (comp.type === 'prepared') {
-					subAssemblyRequiredMap.set(
-						comp.id,
-						(subAssemblyRequiredMap.get(comp.id) ?? 0) + reqInBase
-					);
-				} else {
-					directRawRequiredMap.set(
-						comp.id,
-						(directRawRequiredMap.get(comp.id) ?? 0) + reqInBase
-					);
+					if (comp.type === 'prepared') {
+						subAssemblyRequiredMap.set(
+							comp.id,
+							(subAssemblyRequiredMap.get(comp.id) ?? 0) + reqInBase
+						);
+					} else {
+						directRawRequiredMap.set(
+							comp.id,
+							(directRawRequiredMap.get(comp.id) ?? 0) + reqInBase
+						);
+					}
 				}
 			}
 		}

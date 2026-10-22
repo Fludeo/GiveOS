@@ -497,16 +497,6 @@
 				</div>
 			</div>
 
-			<!-- Pestañas de Categoría de Demanda y Aviso de Vidriera -->
-			{#if preserveDisplayStock}
-				<div class="flex items-center gap-2 rounded-lg border border-secondary/30 bg-secondary/10 px-3 py-2 text-xs text-secondary dark:text-secondary-foreground">
-					<Store class="size-4 shrink-0 text-secondary" />
-					<div class="flex-1">
-						<strong>Modo Mantener Vidriera activo:</strong> El cálculo considera el 100% de la demanda de pedidos como producción a elaborar sin consumir tus tortas ni elaborados terminados del mostrador.
-					</div>
-				</div>
-			{/if}
-
 			<div class="flex flex-wrap items-center gap-1.5 pt-2 border-t border-border/60">
 				<button
 					type="button"
@@ -659,38 +649,34 @@
 							<!-- BARRAS VERTICALES COMPARATIVAS (BAR CHART) -->
 							<div class="rounded-lg border border-border/60 bg-muted/20 p-3">
 								<div class="flex items-end justify-center gap-6 sm:gap-8 h-28 pt-2">
-									<!-- Columna 1: Stock -->
+									<!-- Columna 1: Stock (Siempre Azul) -->
 									<div class="flex flex-col items-center gap-1.5 h-full justify-end w-16 sm:w-20">
-										<span class="font-mono text-[11px] font-bold text-foreground">
+										<span class="font-mono text-[11px] font-bold text-blue-600 dark:text-blue-400">
 											{formatNum(item.currentStock)} {formatUnit(item.baseUnit)}
 										</span>
 										<div class="relative w-full rounded bg-muted/60 overflow-hidden flex flex-col justify-end h-20 border border-border/40">
 											<div
-												class="w-full rounded-sm {item.itemType === 'prepared'
-													? 'bg-secondary text-secondary-foreground'
-													: 'bg-tertiary text-yellow-950'} transition-all duration-300"
+												class="w-full rounded-sm bg-blue-500 text-white transition-all duration-300"
 												style="height: {Math.max(8, stockHeightPct)}%"
 											></div>
 										</div>
-										<span class="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">
+										<span class="text-[10px] uppercase font-bold text-blue-600 dark:text-blue-400 tracking-wider">
 											Stock
 										</span>
 									</div>
 
-									<!-- Columna 2: Demanda -->
+									<!-- Columna 2: Demanda (Siempre Rojo) -->
 									<div class="flex flex-col items-center gap-1.5 h-full justify-end w-16 sm:w-20">
-										<span class="font-mono text-[11px] font-bold {item.isShortage ? 'text-red-600 dark:text-red-400' : 'text-primary'}">
+										<span class="font-mono text-[11px] font-bold text-red-600 dark:text-red-400">
 											{formatNum(item.requiredQuantity)} {formatUnit(item.baseUnit)}
 										</span>
 										<div class="relative w-full rounded bg-muted/60 overflow-hidden flex flex-col justify-end h-20 border border-border/40">
 											<div
-												class="w-full rounded-sm {item.isShortage
-													? 'bg-red-500'
-													: 'bg-emerald-500'} transition-all duration-300"
+												class="w-full rounded-sm bg-red-500 transition-all duration-300"
 												style="height: {Math.max(8, demandHeightPct)}%"
 											></div>
 										</div>
-										<span class="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">
+										<span class="text-[10px] uppercase font-bold text-red-600 dark:text-red-400 tracking-wider">
 											Demanda
 										</span>
 									</div>
@@ -780,29 +766,29 @@
 									</td>
 
 									<!-- Demanda -->
-									<td class="py-3 px-3 align-middle text-right font-mono font-bold {item.isShortage ? 'text-red-600 dark:text-red-400' : 'text-primary'} whitespace-nowrap">
+									<td class="py-3 px-3 align-middle text-right font-mono font-bold text-red-600 dark:text-red-400 whitespace-nowrap">
 										{formatNum(item.requiredQuantity)} {formatUnit(item.baseUnit)}
 									</td>
 
 									<!-- Dos Barras Horizontales Comparativas (Stock vs Demanda) -->
 									<td class="py-3 px-3 align-middle min-w-[170px]">
 										<div class="space-y-1 font-mono text-[10px]">
-											<!-- Barra Stock -->
+											<!-- Barra Stock (Azul) -->
 											<div class="flex items-center gap-1.5">
-												<span class="w-8 shrink-0 text-muted-foreground text-right">Stk</span>
+												<span class="w-8 shrink-0 text-blue-600 dark:text-blue-400 font-bold text-right">Stk</span>
 												<div class="h-2 flex-1 rounded bg-muted/60 overflow-hidden">
 													<div
-														class="h-full rounded-xs {item.itemType === 'prepared' ? 'bg-secondary' : 'bg-tertiary'}"
+														class="h-full rounded-xs bg-blue-500"
 														style="width: {Math.max(6, stockWidthPct)}%"
 													></div>
 												</div>
 											</div>
-											<!-- Barra Demanda -->
+											<!-- Barra Demanda (Rojo) -->
 											<div class="flex items-center gap-1.5">
-												<span class="w-8 shrink-0 text-muted-foreground text-right">Dem</span>
+												<span class="w-8 shrink-0 text-red-600 dark:text-red-400 font-bold text-right">Dem</span>
 												<div class="h-2 flex-1 rounded bg-muted/60 overflow-hidden">
 													<div
-														class="h-full rounded-xs {item.isShortage ? 'bg-red-500' : 'bg-emerald-500'}"
+														class="h-full rounded-xs bg-red-500"
 														style="width: {Math.max(6, demandWidthPct)}%"
 													></div>
 												</div>
