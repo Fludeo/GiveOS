@@ -314,7 +314,7 @@
 		<Plus class="size-4" />
 		<span>Nuevo Ítem</span>
 	</Button>
-	<Button href="/orders/new" class="gap-1.5 cursor-pointer shadow-sm">
+	<Button href="/orders/new" variant="secondary" class="gap-1.5 cursor-pointer shadow-xs font-semibold">
 		<ShoppingCart class="size-4" />
 		<span>Nueva Orden</span>
 	</Button>

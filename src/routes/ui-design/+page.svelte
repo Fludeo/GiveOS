@@ -24,7 +24,6 @@
 	import Star from '@lucide/svelte/icons/star';
 	import Tag from '@lucide/svelte/icons/tag';
 	import Layers from '@lucide/svelte/icons/layers';
-	import GraphHub from '@lucide/svelte/icons/graph-hub';
 	import ChefHat from '@lucide/svelte/icons/chef-hat';
 	import ShoppingBag from '@lucide/svelte/icons/shopping-bag';
 	import ExternalLink from '@lucide/svelte/icons/external-link';
@@ -118,7 +117,7 @@
 		<section id="colors" class="space-y-4 scroll-mt-24">
 			<div class="border-b border-border pb-2">
 				<h2 class="text-lg font-bold text-foreground">1. Paleta de Colores y Tokens de Marca</h2>
-				<p class="text-xs text-muted-foreground">Sistema basado en Tailwind CSS v4 + shadcn/ui con base neutra de <strong>Zinc</strong>, Azul como <strong>Primary</strong>, Índigo como <strong>Secondary</strong>, y opciones de acento en <strong>Lima Eléctrico</strong> y <strong>Amarillo Puro</strong>.</p>
+				<p class="text-xs text-muted-foreground">Sistema basado en Tailwind CSS v4 + shadcn/ui con base neutra de <strong>Zinc</strong>, Azul como <strong>Primary</strong> (Navegación), Índigo como <strong>Secondary</strong> (Acciones), Lima como <strong>Accent</strong> y Amarillo Puro como <strong>Tertiary</strong>.</p>
 			</div>
 
 			<!-- Tokens Semánticos Principales -->
@@ -150,9 +149,9 @@
 					</div>
 
 					<div class="rounded-xl border border-border bg-card p-3 shadow-2xs space-y-2">
-						<div class="h-14 w-full rounded-lg bg-yellow-400 dark:bg-yellow-500 shadow-inner flex items-center justify-center text-yellow-950 font-bold text-xs">Amarillo</div>
+						<div class="h-14 w-full rounded-lg bg-tertiary shadow-inner flex items-center justify-center text-tertiary-foreground font-bold text-xs">Tertiary</div>
 						<div>
-							<p class="text-xs font-bold text-foreground">Yellow (Amarillo)</p>
+							<p class="text-xs font-bold text-foreground">Tertiary (Amarillo)</p>
 							<p class="font-mono text-[11px] text-muted-foreground">#facc15 / yellow-400</p>
 						</div>
 					</div>
@@ -238,7 +237,7 @@
 					<Button variant="default">Primary (Blue)</Button>
 					<Button variant="secondary">Secondary (Indigo)</Button>
 					<Button variant="accent">Accent (Lima)</Button>
-					<Button variant="yellow">Yellow (Amarillo)</Button>
+					<Button variant="tertiary">Tertiary (Amarillo)</Button>
 					<Button variant="success">Success (Emerald)</Button>
 					<Button variant="warning">Warning (Amber)</Button>
 					<Button variant="destructive">Destructive (Red)</Button>
@@ -288,13 +287,13 @@
 								<td class="p-3"><Button variant="accent" size="lg">Large</Button></td>
 								<td class="p-3 pr-4 text-center"><Button variant="accent" size="icon" title="Accent Lima"><Sparkles class="size-4" /></Button></td>
 							</tr>
-							<!-- Yellow (Amarillo) -->
+							<!-- Tertiary (Amarillo) -->
 							<tr class="hover:bg-muted/20">
-								<td class="p-3 pl-4 font-semibold text-yellow-600 dark:text-yellow-400">Yellow (Amarillo)</td>
-								<td class="p-3"><Button variant="yellow" size="sm">Small</Button></td>
-								<td class="p-3"><Button variant="yellow" size="default">Default</Button></td>
-								<td class="p-3"><Button variant="yellow" size="lg">Large</Button></td>
-								<td class="p-3 pr-4 text-center"><Button variant="yellow" size="icon" title="Yellow"><Star class="size-4" /></Button></td>
+								<td class="p-3 pl-4 font-semibold text-yellow-600 dark:text-yellow-400">Tertiary (Amarillo)</td>
+								<td class="p-3"><Button variant="tertiary" size="sm">Small</Button></td>
+								<td class="p-3"><Button variant="tertiary" size="default">Default</Button></td>
+								<td class="p-3"><Button variant="tertiary" size="lg">Large</Button></td>
+								<td class="p-3 pr-4 text-center"><Button variant="tertiary" size="icon" title="Tertiary"><Star class="size-4" /></Button></td>
 							</tr>
 							<!-- Success (Emerald) -->
 							<tr class="hover:bg-muted/20">
@@ -357,9 +356,9 @@
 						<Sparkles class="size-4" />
 						<span>Acento Lima</span>
 					</Button>
-					<Button variant="yellow" class="gap-2">
+					<Button variant="tertiary" class="gap-2">
 						<Star class="size-4" />
-						<span>Atajo Amarillo</span>
+						<span>Atajo Terciario</span>
 					</Button>
 					<Button variant="outline" class="gap-2">
 						<SlidersHorizontal class="size-4" />
@@ -397,7 +396,7 @@
 						<Badge variant="default">Primary</Badge>
 						<Badge variant="secondary">Secondary</Badge>
 						<Badge variant="accent">Accent (Lima)</Badge>
-						<Badge variant="yellow">Yellow (Amarillo)</Badge>
+						<Badge variant="tertiary">Tertiary (Amarillo)</Badge>
 						<Badge variant="success">Success</Badge>
 						<Badge variant="warning">Warning</Badge>
 						<Badge variant="destructive">Destructive</Badge>

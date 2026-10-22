@@ -465,7 +465,7 @@
 		<Tag class="size-4" />
 		<span>Catálogo de Venta ({data.salesProducts.length})</span>
 	</Button>
-	<Button href="/orders/new" class="gap-1.5 font-bold shadow-sm">
+	<Button href="/orders/new" variant="secondary" class="gap-1.5 font-bold shadow-xs">
 		<Plus class="size-4" />
 		<span>Nueva Orden de Compra</span>
 	</Button>
@@ -941,7 +941,7 @@
 					<p class="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
 						Usa el botón "Nueva Orden de Compra" para registrar órdenes de mostrador u órdenes por encargo con fecha de entrega y señas.
 					</p>
-					<Button class="mt-4" href="/orders/new">
+					<Button variant="secondary" class="mt-4" href="/orders/new">
 						<Plus class="size-4" />
 						<span>Crear Primera Orden</span>
 					</Button>

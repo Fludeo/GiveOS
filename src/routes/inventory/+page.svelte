@@ -511,12 +511,12 @@
 
 {#snippet headerActions()}
 	{#if currentTab === 'products'}
-		<Button onclick={openNewSalesProductModal} class="gap-1.5 shadow-xs">
+		<Button variant="secondary" onclick={openNewSalesProductModal} class="gap-1.5 shadow-xs font-semibold">
 			<Plus class="size-4" />
 			<span>Nuevo Producto</span>
 		</Button>
 	{:else}
-		<Button onclick={() => openNewItemModal()} class="gap-1.5 shadow-xs">
+		<Button variant="secondary" onclick={() => openNewItemModal()} class="gap-1.5 shadow-xs font-semibold">
 			<Plus class="size-4" />
 			<span>Nuevo Ítem</span>
 		</Button>
@@ -1198,7 +1198,7 @@
 						<p class="mt-1 text-sm text-muted-foreground">
 							Registra insumos o productos para comenzar el control de stock.
 						</p>
-						<Button class="mt-4" onclick={() => openNewItemModal()}>
+						<Button variant="secondary" class="mt-4" onclick={() => openNewItemModal()}>
 							<Plus class="size-4" />
 							<span>Nuevo Ítem</span>
 						</Button>
@@ -1716,7 +1716,7 @@
 							</Button>
 						</div>
 
-						<Button onclick={openNewSalesProductModal} class="gap-1.5 font-semibold shadow-xs">
+						<Button variant="secondary" onclick={openNewSalesProductModal} class="gap-1.5 font-semibold shadow-xs">
 							<Plus class="size-4" />
 							<span>Nuevo Producto</span>
 						</Button>
@@ -2008,7 +2008,7 @@
 						<p class="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
 							Crea productos o combos comerciales para vender en el mostrador.
 						</p>
-						<Button class="mt-4" onclick={openNewSalesProductModal}>
+						<Button variant="secondary" class="mt-4" onclick={openNewSalesProductModal}>
 							<Plus class="size-4" />
 							<span>Nuevo Producto</span>
 						</Button>

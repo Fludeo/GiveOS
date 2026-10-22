@@ -206,13 +206,14 @@
 		<nav class="flex-1 space-y-1.5 overflow-y-auto {isCollapsed ? 'p-2' : 'p-4'}">
 			<div class="pb-2">
 				{#if !isCollapsed}
-					<Button href="/orders/new" class="w-full justify-center gap-2 shadow-xs">
+					<Button href="/orders/new" variant="secondary" class="w-full justify-center gap-2 shadow-xs font-semibold">
 						<Plus class="size-4" />
 						<span>Nueva Orden</span>
 					</Button>
 				{:else}
 					<Button
 						href="/orders/new"
+						variant="secondary"
 						size="icon"
 						class="w-full h-10 justify-center shadow-xs"
 						title="Nueva Orden de Compra"

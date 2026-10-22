@@ -19,9 +19,11 @@
 		--popover: #ffffff;
 		--popover-foreground: #09090b;
 
-		/* Secundarios, neutros y acentos (Zinc, Índigo y Lima Eléctrico) */
+		/* Secundarios, neutros y acentos (Zinc, Índigo, Terciario Amarillo y Lima) */
 		--secondary: #4f46e5;
 		--secondary-foreground: #ffffff;
+		--tertiary: #facc15;
+		--tertiary-foreground: #422006;
 		--muted: #f4f4f5;
 		--muted-foreground: #71717a;
 		--accent: #d9f99d;
@@ -51,9 +53,11 @@
 		--popover: #18181b;
 		--popover-foreground: #fafafa;
 
-		/* Secundarios, neutros y acentos (Lima en Modo Oscuro) */
+		/* Secundarios, neutros y acentos (Modo Oscuro) */
 		--secondary: #6366f1;
 		--secondary-foreground: #ffffff;
+		--tertiary: #facc15;
+		--tertiary-foreground: #422006;
 		--muted: #27272a;
 		--muted-foreground: #a1a1aa;
 		--accent: #1a2e05;
@@ -89,6 +93,8 @@
 	--color-primary-foreground: var(--primary-foreground);
 	--color-secondary: var(--secondary);
 	--color-secondary-foreground: var(--secondary-foreground);
+	--color-tertiary: var(--tertiary);
+	--color-tertiary-foreground: var(--tertiary-foreground);
 	--color-muted: var(--muted);
 	--color-muted-foreground: var(--muted-foreground);
 	--color-accent: var(--accent);
