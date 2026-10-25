@@ -93,11 +93,11 @@
 	description="Gestión de pedidos de mostrador, agenda de próximas entregas y previsión de demanda de insumos"
 >
 	<!-- Barra de Pestañas Unificada de Órdenes -->
-	<div class="flex flex-wrap items-center gap-1.5 rounded-2xl border border-border bg-card p-1.5 shadow-2xs">
+	<div class="flex items-center gap-1.5 overflow-x-auto rounded-2xl border border-border bg-card p-1.5 shadow-2xs">
 		<button
 			type="button"
 			onclick={() => switchTab('orders')}
-			class="inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-colors cursor-pointer {currentTab ===
+			class="inline-flex shrink-0 whitespace-nowrap items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-colors cursor-pointer {currentTab ===
 			'orders'
 				? 'bg-primary text-primary-foreground shadow-xs font-semibold'
 				: 'text-muted-foreground hover:text-foreground'}"
@@ -109,7 +109,7 @@
 		<button
 			type="button"
 			onclick={() => switchTab('upcoming')}
-			class="inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-colors cursor-pointer {currentTab ===
+			class="inline-flex shrink-0 whitespace-nowrap items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-colors cursor-pointer {currentTab ===
 			'upcoming'
 				? 'bg-primary text-primary-foreground shadow-xs font-semibold'
 				: 'text-muted-foreground hover:text-foreground'}"
@@ -131,7 +131,7 @@
 		<button
 			type="button"
 			onclick={() => switchTab('forecast')}
-			class="inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-colors cursor-pointer {currentTab ===
+			class="inline-flex shrink-0 whitespace-nowrap items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-colors cursor-pointer {currentTab ===
 			'forecast'
 				? 'bg-primary text-primary-foreground shadow-xs font-semibold'
 				: 'text-muted-foreground hover:text-foreground'}"

@@ -165,11 +165,11 @@
 	description="Stock de insumos, recetas y productos de venta"
 >
 	<!-- Barra de Pestañas Unificada -->
-	<div class="flex items-center gap-1 rounded-2xl border border-border bg-card p-1.5 shadow-2xs">
+	<div class="flex items-center gap-1 overflow-x-auto rounded-2xl border border-border bg-card p-1.5 shadow-2xs">
 		<button
 			type="button"
 			onclick={() => switchTab('stock')}
-			class="inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-colors cursor-pointer {currentTab ===
+			class="inline-flex shrink-0 whitespace-nowrap items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-colors cursor-pointer {currentTab ===
 			'stock'
 				? 'bg-primary text-primary-foreground shadow-xs font-semibold'
 				: 'text-muted-foreground hover:text-foreground'}"
@@ -181,7 +181,7 @@
 		<button
 			type="button"
 			onclick={() => switchTab('recipes')}
-			class="inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-colors cursor-pointer {currentTab ===
+			class="inline-flex shrink-0 whitespace-nowrap items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-colors cursor-pointer {currentTab ===
 			'recipes'
 				? 'bg-primary text-primary-foreground shadow-xs font-semibold'
 				: 'text-muted-foreground hover:text-foreground'}"
@@ -193,7 +193,7 @@
 		<button
 			type="button"
 			onclick={() => switchTab('products')}
-			class="inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-colors cursor-pointer {currentTab ===
+			class="inline-flex shrink-0 whitespace-nowrap items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-colors cursor-pointer {currentTab ===
 			'products'
 				? 'bg-primary text-primary-foreground shadow-xs font-semibold'
 				: 'text-muted-foreground hover:text-foreground'}"

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import { enhance } from '$app/forms';
+	import { page } from '$app/state';
 	import {
 		getBusinessOpenStatus,
 		parseWeeklySchedule,
@@ -69,33 +70,41 @@
 
 	const openStatus = $derived(getBusinessOpenStatus(activeBusiness.openingHours));
 	const parsedSchedule = $derived(parseWeeklySchedule(activeBusiness.openingHours));
+	const isNewOrderRoute = $derived(page.url.pathname.startsWith('/orders/new'));
 
 	const navItems = $derived([
 		{
 			id: 'dashboard' as const,
 			label: 'Dashboard',
+			mobileLabel: 'Inicio',
 			href: '/dashboard',
 			icon: LayoutDashboard
 		},
 		{
 			id: 'orders' as const,
 			label: 'Órdenes',
+			mobileLabel: 'Órdenes',
 			href: '/orders',
 			icon: ShoppingBag
 		},
 		{
 			id: 'inventory' as const,
 			label: 'Inventario y Recetas',
+			mobileLabel: 'Inventario',
 			href: '/inventory',
 			icon: Package
 		},
 		{
 			id: 'settings' as const,
 			label: 'Configuración',
+			mobileLabel: 'Ajustes',
 			href: '/settings',
 			icon: Settings
 		}
 	]);
+
+	const leftDockItems = $derived(navItems.slice(0, 2));
+	const rightDockItems = $derived(navItems.slice(2, 4));
 </script>
 
 <div class="flex h-screen h-dvh w-full overflow-hidden bg-muted/20">
@@ -296,23 +305,24 @@
 
 	<!-- Contenedor Derecho: Barra móvil + Encabezado de sección + Contenido -->
 	<div class="flex h-full min-w-0 flex-1 flex-col overflow-y-auto">
-		<!-- Navegación compacta para pantallas móviles (< lg) -->
+		<!-- Barra superior compacta para pantallas móviles (< lg) -->
 		<div
-			class="shrink-0 flex flex-wrap items-center justify-between gap-3 border-b border-border bg-background px-4 py-3 sm:px-6 lg:hidden"
+			class="shrink-0 flex items-center justify-between gap-2 border-b border-border bg-background px-4 py-2.5 sm:px-6 lg:hidden"
 		>
-			<div class="flex items-center gap-2">
+			<div class="flex min-w-0 items-center gap-2.5">
 				<div
-					class="flex size-9 items-center justify-center rounded-lg bg-secondary text-secondary-foreground"
+					class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-secondary text-secondary-foreground shadow-2xs"
 				>
-					<ScanFace class="size-5" />
+					<ScanFace class="size-4.5" />
 				</div>
-				<span class="font-bold text-sm text-foreground truncate max-w-[140px] sm:max-w-none">
+				<span class="truncate text-sm font-bold text-foreground max-w-[140px] sm:max-w-[240px]">
 					{activeBusiness.name}
 				</span>
 				<button
 					type="button"
 					onclick={() => (showScheduleModal = true)}
-					class="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[11px] font-medium"
+					class="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[11px] font-medium transition-colors hover:bg-muted"
+					title="Ver horarios de atención"
 				>
 					<span
 						class="size-2 rounded-full {openStatus.isOpen ? 'bg-emerald-500' : 'bg-red-500'}"
@@ -320,47 +330,143 @@
 					<span>{openStatus.isOpen ? 'Abierto' : 'Cerrado'}</span>
 				</button>
 			</div>
-			<div class="flex flex-wrap items-center gap-1">
+
+			<div class="flex shrink-0 items-center gap-1.5">
 				<ThemeToggle />
-				{#each navItems as item (item.id)}
-					<a
-						href={item.href}
-						class="rounded-lg px-2.5 py-1 text-xs font-medium {currentSection === item.id
-							? 'bg-primary text-primary-foreground'
-							: 'text-muted-foreground hover:bg-muted'}"
+				<div
+					class="flex size-7 items-center justify-center rounded-full bg-primary/10 text-[11px] font-bold text-primary"
+					title="{user.name} ({user.email})"
+				>
+					{user.name.charAt(0).toUpperCase()}
+				</div>
+				<form method="POST" action="/?/signOut" use:enhance>
+					<Button
+						type="submit"
+						variant="ghost"
+						size="icon"
+						class="size-8 text-muted-foreground hover:text-destructive"
+						title="Cerrar sesión"
 					>
-						{item.label}
-					</a>
-				{/each}
+						<LogOut class="size-4" />
+					</Button>
+				</form>
 			</div>
 		</div>
 
 		<!-- Encabezado superior de la sección activa -->
 		<header class="shrink-0 border-b border-border bg-background">
-			<div class="flex flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
+			<div class="flex flex-wrap items-center justify-between gap-3 px-4 py-3.5 sm:px-6 sm:py-4 lg:px-8">
 				<div class="space-y-1 min-w-0">
 					<div class="flex flex-wrap items-center gap-2">
-						<h1 class="text-xl sm:text-2xl font-bold tracking-tight text-foreground">{title}</h1>
-						<Badge variant="outline" class="text-xs">{activeBusiness.name}</Badge>
+						<h1 class="text-lg sm:text-2xl font-bold tracking-tight text-foreground">{title}</h1>
+						<Badge variant="outline" class="hidden text-xs lg:inline-flex">
+							{activeBusiness.name}
+						</Badge>
 					</div>
 					<p class="text-xs sm:text-sm text-muted-foreground">{description}</p>
 				</div>
 
-				<div class="flex items-center gap-2 sm:gap-3 shrink-0">
-					{#if headerActions}
+				{#if headerActions}
+					<div class="flex items-center gap-2 sm:gap-3 shrink-0">
 						{@render headerActions()}
-					{/if}
-					<div class="h-5 w-px bg-border"></div>
-					<ThemeToggle />
-				</div>
+						<div class="hidden h-5 w-px bg-border lg:block"></div>
+						<div class="hidden lg:block">
+							<ThemeToggle />
+						</div>
+					</div>
+				{:else}
+					<div class="hidden items-center gap-3 shrink-0 lg:flex">
+						<ThemeToggle />
+					</div>
+				{/if}
 			</div>
 		</header>
 
-		<!-- Contenido principal de la página (Fluido, espacioso y responsive) -->
-		<main class="w-full flex-1 space-y-6 px-4 py-5 sm:px-6 lg:px-8">
+		<!-- Contenido principal de la página (con espaciado inferior para el Bottom Dock en mobile) -->
+		<main class="w-full flex-1 space-y-6 px-4 pt-4 pb-28 sm:px-6 sm:pt-5 lg:px-8 lg:py-6">
 			{@render children()}
 		</main>
 	</div>
+
+	<!-- Bottom Dock de Navegación Mobile (< lg): 2 secciones + Botón Central + 2 secciones -->
+	<nav
+		aria-label="Navegación principal móvil"
+		class="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.08)] lg:hidden"
+	>
+		<div class="mx-auto grid h-16 max-w-lg grid-cols-5 items-center px-2">
+			<!-- 2 Ítems Izquierdos (Inicio, Órdenes) -->
+			{#each leftDockItems as item (item.id)}
+				{@const Icon = item.icon}
+				{@const active =
+					currentSection === item.id && !(item.id === 'orders' && isNewOrderRoute)}
+				<a
+					href={item.href}
+					class="group flex flex-col items-center justify-center gap-1 py-1.5 text-center transition-colors {active
+						? 'text-primary'
+						: 'text-muted-foreground hover:text-foreground'}"
+				>
+					<div
+						class="flex h-7 w-11 items-center justify-center rounded-full transition-colors {active
+							? 'bg-primary/12 text-primary'
+							: 'group-hover:bg-muted/60'}"
+					>
+						<Icon class="size-4.5 shrink-0" />
+					</div>
+					<span class="text-[10px] leading-none {active ? 'font-bold' : 'font-medium'}">
+						{item.mobileLabel}
+					</span>
+				</a>
+			{/each}
+
+			<!-- Botón Central Destacado: Nueva Orden (preparado para futura acción "Continuar Orden") -->
+			<div class="flex flex-col items-center justify-center">
+				<a
+					href="/orders/new"
+					aria-label="Nueva Orden"
+					title="Nueva Orden"
+					class="group relative -mt-6 flex flex-col items-center justify-center focus-visible:outline-none"
+				>
+					<div
+						class="flex size-13 items-center justify-center rounded-2xl shadow-lg ring-4 ring-background transition-all duration-150 group-active:scale-95 {isNewOrderRoute
+							? 'bg-primary text-primary-foreground shadow-primary/30'
+							: 'bg-tertiary text-tertiary-foreground hover:brightness-95'}"
+					>
+						<ShoppingCart class="size-5.5 stroke-[2.25]" />
+					</div>
+					<span
+						class="mt-1 text-[10px] leading-none font-bold tracking-tight {isNewOrderRoute
+							? 'text-primary'
+							: 'text-foreground'}"
+					>
+						Nueva Orden
+					</span>
+				</a>
+			</div>
+
+			<!-- 2 Ítems Derechos (Inventario, Ajustes) -->
+			{#each rightDockItems as item (item.id)}
+				{@const Icon = item.icon}
+				{@const active = currentSection === item.id}
+				<a
+					href={item.href}
+					class="group flex flex-col items-center justify-center gap-1 py-1.5 text-center transition-colors {active
+						? 'text-primary'
+						: 'text-muted-foreground hover:text-foreground'}"
+				>
+					<div
+						class="flex h-7 w-11 items-center justify-center rounded-full transition-colors {active
+							? 'bg-primary/12 text-primary'
+							: 'group-hover:bg-muted/60'}"
+					>
+						<Icon class="size-4.5 shrink-0" />
+					</div>
+					<span class="text-[10px] leading-none {active ? 'font-bold' : 'font-medium'}">
+						{item.mobileLabel}
+					</span>
+				</a>
+			{/each}
+		</div>
+	</nav>
 </div>
 
 <!-- Modal de Horarios de Atención -->

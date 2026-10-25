@@ -188,9 +188,9 @@
 				</form>
 			</div>
 
-			<!-- Versión Mobile: Barra Flotante Inferior de Carrito -->
+			<!-- Versión Mobile: Barra Flotante Inferior de Carrito (ubicada sobre el Bottom Dock) -->
 			{#if draftLines.length > 0}
-				<div class="fixed bottom-4 inset-x-4 z-40 lg:hidden">
+				<div class="fixed bottom-20 inset-x-4 z-30 lg:hidden">
 					<button
 						type="button"
 						onclick={() => (isMobileCartOpen = true)}
