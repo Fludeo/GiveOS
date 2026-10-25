@@ -10,7 +10,6 @@
 	import GraphHub from '@lucide/svelte/icons/graph-hub';
 	import Search from '@lucide/svelte/icons/search';
 	import Clock from '@lucide/svelte/icons/clock';
-	import ClockFading from '@lucide/svelte/icons/clock-fading';
 	import ChefHat from '@lucide/svelte/icons/chef-hat';
 	import Flame from '@lucide/svelte/icons/flame';
 	import CirclePile from '@lucide/svelte/icons/circle-pile';
@@ -18,8 +17,9 @@
 	import Calculator from '@lucide/svelte/icons/calculator';
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import Plus from '@lucide/svelte/icons/plus';
-	import Coins from '@lucide/svelte/icons/coins';
 	import Sparkles from '@lucide/svelte/icons/sparkles';
+	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
+	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import { formatCurrency } from '../utils';
 
 	interface Props {
@@ -59,6 +59,15 @@
 	let catalogPageSize = $state(8);
 	let recipeTablePage = $state(1);
 	let recipeTablePageSize = $state(8);
+
+	// Navegación en 2 pasos en mobile (< lg): false = Catálogo de elaboraciones, true = Detalle de receta
+	let mobileShowDetail = $state(Boolean(selectedItemId));
+
+	$effect(() => {
+		if (selectedItemId) {
+			mobileShowDetail = true;
+		}
+	});
 
 	const filteredRecipeCatalog = $derived(
 		items
@@ -116,6 +125,7 @@
 
 	function selectCatalogItem(itemId: string) {
 		selectedItemId = itemId;
+		mobileShowDetail = true;
 		const idx = filteredRecipeCatalog.findIndex((i) => i.id === itemId);
 		if (idx !== -1) {
 			catalogPage = Math.floor(idx / catalogPageSize) + 1;
@@ -124,8 +134,8 @@
 </script>
 
 <div class="grid grid-cols-1 gap-5 lg:grid-cols-12 items-start">
-	<!-- COLUMNA IZQUIERDA: CATÁLOGO DE ELABORACIONES -->
-	<div class="space-y-4 lg:col-span-3">
+	<!-- COLUMNA IZQUIERDA: CATÁLOGO DE ELABORACIONES (Paso 1 en Mobile) -->
+	<div class="space-y-4 lg:col-span-3 {mobileShowDetail ? 'hidden lg:block' : 'block'}">
 		<Card class="border-border shadow-xs">
 			<CardHeader class="p-3.5 sm:p-4 pb-2.5">
 				<div class="flex items-center justify-between gap-1.5">
@@ -138,7 +148,7 @@
 					</div>
 				</div>
 				<CardDescription class="text-[11px] mt-0.5 leading-snug">
-					Selecciona para ver o armar su receta
+					Selecciona una elaboración para abrir su receta y costos
 				</CardDescription>
 
 				<!-- Buscador -->
@@ -162,8 +172,8 @@
 							<button
 								type="button"
 								onclick={() => selectCatalogItem(item.id)}
-								class="w-full text-left rounded-xl border p-2.5 sm:p-3 transition-all cursor-pointer shadow-2xs {isSelected
-									? 'border-secondary bg-secondary/10 ring-2 ring-secondary/30'
+								class="w-full text-left rounded-xl border p-3 transition-all cursor-pointer shadow-2xs {isSelected
+									? 'border-secondary bg-secondary/10 lg:ring-2 lg:ring-secondary/30'
 									: 'border-border bg-card hover:border-secondary/40 hover:bg-muted/30'}"
 							>
 								<div class="flex items-center justify-between gap-1">
@@ -181,10 +191,11 @@
 												{summary.activeMinutes} min
 											</span>
 										{/if}
+										<ChevronRight class="size-4 text-muted-foreground lg:hidden" />
 									</div>
 								</div>
 
-								<h4 class="mt-1.5 text-xs sm:text-sm font-bold text-foreground line-clamp-1">
+								<h4 class="mt-1.5 text-sm font-bold text-foreground line-clamp-1">
 									{item.name}
 								</h4>
 
@@ -221,7 +232,7 @@
 							No hay elaboraciones
 						</p>
 						<p class="mt-0.5 text-[11px] text-muted-foreground">
-							Puedes registrar elaboraciones desde la pestaña Inventario.
+							Puedes registrar elaboraciones desde la pestaña Stock.
 						</p>
 					</div>
 				{/if}
@@ -229,8 +240,27 @@
 		</Card>
 	</div>
 
-	<!-- COLUMNA DERECHA: RECETA Y DETALLES DE LA ELABORACIÓN SELECCIONADA -->
-	<div class="lg:col-span-9 space-y-6">
+	<!-- COLUMNA DERECHA: RECETA Y DETALLES DE LA ELABORACIÓN SELECCIONADA (Paso 2 en Mobile) -->
+	<div class="lg:col-span-9 space-y-4 {mobileShowDetail ? 'block' : 'hidden lg:block'}">
+		<!-- Barra de retorno al catálogo en mobile (< lg) -->
+		<div class="flex items-center justify-between gap-2 lg:hidden">
+			<Button
+				type="button"
+				variant="outline"
+				size="sm"
+				class="gap-1.5 shadow-2xs"
+				onclick={() => (mobileShowDetail = false)}
+			>
+				<ArrowLeft class="size-4" />
+				<span>Cambiar receta ({filteredRecipeCatalog.length})</span>
+			</Button>
+			{#if selectedRoot}
+				<span class="text-xs font-mono font-semibold text-muted-foreground truncate">
+					{selectedRoot.code}
+				</span>
+			{/if}
+		</div>
+
 		{#if selectedTree && selectedRoot}
 			{@const tree = selectedTree}
 			{@const paginatedRecipeNodes = tree.nodes.slice(
@@ -239,7 +269,7 @@
 			)}
 
 			<Card class="border-border shadow-xs">
-				<CardHeader class="border-b border-border/60 p-5 sm:p-6 pb-4">
+				<CardHeader class="border-b border-border/60 p-4 sm:p-6 pb-4">
 					<div class="flex flex-wrap items-center justify-between gap-4">
 						<div class="space-y-1">
 							<div class="flex items-center gap-2">
@@ -262,43 +292,43 @@
 									<Pencil class="size-3.5" />
 								</Button>
 							</div>
-							<CardTitle class="text-2xl leading-tight font-bold">{selectedRoot.name}</CardTitle>
+							<CardTitle class="text-xl sm:text-2xl leading-tight font-bold">{selectedRoot.name}</CardTitle>
 							{#if selectedRoot.notes}
 								<CardDescription class="text-xs">{selectedRoot.notes}</CardDescription>
 							{/if}
 						</div>
 					</div>
 
-					<!-- TARJETAS RENDIMIENTO, TIEMPO Y COSTO SEGÚN /ui-design -->
-					<div class="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+					<!-- TARJETAS RENDIMIENTO, TIEMPO Y COSTO (Compactas 2x2 en mobile) -->
+					<div class="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3.5">
 						<!-- Tarjeta 1: Rendimiento (Secondary) -->
-						<div class="rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-xs space-y-2">
-							<span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+						<div class="rounded-2xl border border-border bg-card p-3 sm:p-5 shadow-xs space-y-1.5 sm:space-y-2">
+							<span class="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground block truncate">
 								Rendimiento
 							</span>
-							<div class="flex items-center gap-3 pt-0.5">
-								<div class="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-secondary/15 text-secondary">
-									<CirclePile class="size-6" />
+							<div class="flex items-center gap-2 sm:gap-3 pt-0.5">
+								<div class="flex size-8 sm:size-11 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl bg-secondary/15 text-secondary">
+									<CirclePile class="size-4 sm:size-6" />
 								</div>
-								<div class="flex items-baseline gap-1.5 font-mono">
-									<span class="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+								<div class="flex items-baseline gap-1 font-mono">
+									<span class="text-lg sm:text-3xl font-bold tracking-tight text-foreground">
 										{selectedRoot.yieldQuantity}
 									</span>
-									<span class="text-sm font-semibold text-muted-foreground uppercase">
+									<span class="text-xs sm:text-sm font-semibold text-muted-foreground uppercase">
 										{selectedRoot.baseUnit === 'unit' ? 'un' : selectedRoot.baseUnit}
 									</span>
 								</div>
 							</div>
-							<p class="text-xs text-muted-foreground">
-								Tamaño del lote producido por tanda
+							<p class="text-[11px] sm:text-xs text-muted-foreground truncate">
+								Lote por tanda
 							</p>
 						</div>
 
 						<!-- Tarjeta 2: Tiempo de Elaboración (Activo + Pasivo) -->
-						<div class="rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-xs space-y-2">
+						<div class="rounded-2xl border border-border bg-card p-3 sm:p-5 shadow-xs space-y-1.5 sm:space-y-2">
 							<div class="flex items-center justify-between">
-								<span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
-									Tiempo Estimado
+								<span class="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground block truncate">
+									Tiempo Est.
 								</span>
 								{#if onEditCosts}
 									<Button
@@ -312,38 +342,36 @@
 									</Button>
 								{/if}
 							</div>
-							<div class="flex items-center gap-3 pt-0.5">
-								<div class="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-amber-500/15 text-amber-600 dark:text-amber-400">
-									<Clock class="size-6" />
+							<div class="flex items-center gap-2 sm:gap-3 pt-0.5">
+								<div class="flex size-8 sm:size-11 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl bg-amber-500/15 text-amber-600 dark:text-amber-400">
+									<Clock class="size-4 sm:size-6" />
 								</div>
-								<div class="flex flex-col">
-									<div class="flex items-baseline gap-1.5 font-mono">
-										<span class="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-											{(tree.activeMinutes || 0) + (tree.passiveMinutes || 0)}
-										</span>
-										<span class="text-sm font-semibold text-muted-foreground">
-											min total
-										</span>
-									</div>
+								<div class="flex items-baseline gap-1 font-mono">
+									<span class="text-lg sm:text-3xl font-bold tracking-tight text-foreground">
+										{(tree.activeMinutes || 0) + (tree.passiveMinutes || 0)}
+									</span>
+									<span class="text-xs sm:text-sm font-semibold text-muted-foreground">
+										min
+									</span>
 								</div>
 							</div>
-							<div class="flex items-center gap-2 pt-0.5 text-[11px] font-mono text-muted-foreground">
-								<span class="inline-flex items-center gap-1 text-secondary font-medium">
+							<div class="flex items-center gap-1.5 pt-0.5 text-[10px] sm:text-[11px] font-mono text-muted-foreground truncate">
+								<span class="inline-flex items-center gap-0.5 text-secondary font-medium">
 									<ChefHat class="size-3" />
-									{tree.activeMinutes || 0}m activo
+									{tree.activeMinutes || 0}m
 								</span>
 								<span>•</span>
-								<span class="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400 font-medium">
+								<span class="inline-flex items-center gap-0.5 text-amber-600 dark:text-amber-400 font-medium">
 									<Flame class="size-3" />
-									{tree.passiveMinutes || 0}m pasivo
+									{tree.passiveMinutes || 0}m
 								</span>
 							</div>
 						</div>
 
 						<!-- Tarjeta 3: Costo Estimado (Primary) -->
-						<div class="rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-xs space-y-2">
+						<div class="col-span-2 sm:col-span-1 rounded-2xl border border-border bg-card p-3 sm:p-5 shadow-xs space-y-1.5 sm:space-y-2">
 							<div class="flex items-center justify-between">
-								<span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+								<span class="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground block truncate">
 									Costo Estimado
 								</span>
 								{#if onEditCosts}
@@ -358,12 +386,12 @@
 									</Button>
 								{/if}
 							</div>
-							<div class="flex items-center gap-3 pt-0.5">
-								<div class="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-									<Calculator class="size-6" />
+							<div class="flex items-center gap-2 sm:gap-3 pt-0.5">
+								<div class="flex size-8 sm:size-11 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl bg-primary/10 text-primary">
+									<Calculator class="size-4 sm:size-6" />
 								</div>
 								<div class="flex items-baseline gap-1.5 font-mono">
-									<span class="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+									<span class="text-lg sm:text-3xl font-bold tracking-tight text-foreground">
 										{formatCurrency(tree.estimatedUnitCost)}
 									</span>
 									<span class="text-xs font-semibold text-muted-foreground">
@@ -387,8 +415,8 @@
 					</div>
 				</CardHeader>
 
-				<CardContent class="space-y-6 p-5 sm:p-6">
-					<div class="flex flex-wrap items-center justify-between gap-4">
+				<CardContent class="space-y-6 p-4 sm:p-6">
+					<div class="flex flex-wrap items-center justify-between gap-3">
 						<div>
 							<h4 class="text-base font-semibold text-foreground">
 								Ingredientes y Sub-recetas
@@ -398,7 +426,7 @@
 							</p>
 						</div>
 
-						<div class="flex items-center gap-2">
+						<div class="flex flex-wrap items-center gap-2">
 							{#if onEditCosts}
 								<Button
 									type="button"
@@ -523,7 +551,7 @@
 					<GraphHub class="mx-auto size-12 text-muted-foreground/40" />
 					<h3 class="mt-4 text-lg font-bold text-foreground">Selecciona una Elaboración</h3>
 					<p class="mt-1 text-sm text-muted-foreground max-w-md mx-auto">
-						Elige una elaboración de la columna izquierda para ver su receta, modificar sus rendimientos o agregar ingredientes.
+						Elige una elaboración de la lista para ver su receta, modificar sus rendimientos o agregar ingredientes.
 					</p>
 				</CardContent>
 			</Card>

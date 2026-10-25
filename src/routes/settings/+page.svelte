@@ -5,11 +5,12 @@
 		createDefaultWeeklySchedule,
 		parseWeeklySchedule,
 		type DaySchedule,
-		type OperationalCostResource,
-		type OperationalCostType
+		type OperationalCostResource
 	} from '#lib/features/businesses/domain/business.entity';
 	import { v7 as uuidv7 } from 'uuid';
 	import Clock from '@lucide/svelte/icons/clock';
+	import Store from '@lucide/svelte/icons/store';
+	import Coins from '@lucide/svelte/icons/coins';
 	import AppShell from '#lib/components/layout/app-shell.svelte';
 	import { Button } from '#lib/components/ui/button';
 	import { Input } from '#lib/components/ui/input';
@@ -26,10 +27,61 @@
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import Copy from '@lucide/svelte/icons/copy';
 	import ExternalLink from '@lucide/svelte/icons/external-link';
+	import Smartphone from '@lucide/svelte/icons/smartphone';
+	import Download from '@lucide/svelte/icons/download';
 	import { toast } from '#lib/components/ui/toast/toast.svelte';
+
+	interface BeforeInstallPromptEvent extends Event {
+		prompt: () => Promise<void>;
+		userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+	}
 
 	let { data }: PageProps = $props();
 
+	let currentTab = $state<'general' | 'costs' | 'schedule'>('general');
+	let deferredInstallPrompt = $state<BeforeInstallPromptEvent | null>(null);
+	let isStandalonePwa = $state(false);
+
+	$effect(() => {
+		if (typeof window === 'undefined') return;
+		isStandalonePwa =
+			window.matchMedia('(display-mode: standalone)').matches ||
+			(window.navigator as Navigator & { standalone?: boolean }).standalone === true;
+
+		function handleBeforeInstallPrompt(e: Event) {
+			e.preventDefault();
+			deferredInstallPrompt = e as BeforeInstallPromptEvent;
+		}
+
+		function handleAppInstalled() {
+			deferredInstallPrompt = null;
+			isStandalonePwa = true;
+			toast.success('¡GiveOS instalada!', 'Ya puedes abrir la aplicación desde tu pantalla de inicio.');
+		}
+
+		window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+		window.addEventListener('appinstalled', handleAppInstalled);
+
+		return () => {
+			window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+			window.removeEventListener('appinstalled', handleAppInstalled);
+		};
+	});
+
+	async function installPwa() {
+		if (!deferredInstallPrompt) {
+			toast.info(
+				'Cómo instalar GiveOS',
+				'En iPhone/iPad toca "Compartir" → "Agregar a Inicio". En Android/Chrome usa el menú del navegador → "Instalar aplicación".'
+			);
+			return;
+		}
+		await deferredInstallPrompt.prompt();
+		const { outcome } = await deferredInstallPrompt.userChoice;
+		if (outcome === 'accepted') {
+			deferredInstallPrompt = null;
+		}
+	}
 	let weeklySchedule = $state<DaySchedule[]>(createDefaultWeeklySchedule());
 
 	// Sincronizar horario cuando cambia el negocio activo
@@ -72,7 +124,6 @@
 			operationalCosts
 		})
 	);
-
 
 	function toggleDay(dayIndex: number) {
 		const target = weeklySchedule[dayIndex];
@@ -125,25 +176,82 @@
 	businesses={data.businesses}
 	currentSection="settings"
 	title="Configuración del Negocio"
-	description="Administra la identidad, WhatsApp y bloques horarios por día de tu negocio"
+	description="Administra la identidad, costos operativos y bloques horarios por día de tu negocio"
 >
-	<div class="max-w-4xl">
+	<div class="max-w-4xl space-y-6">
+		<!-- Barra de Pestañas Unificada de Configuración (Segmented Control 3 columnas en mobile) -->
+		<div class="sticky top-2 z-20 grid grid-cols-3 gap-1 rounded-2xl border border-border bg-card/95 p-1.5 shadow-xs backdrop-blur-md sm:inline-flex sm:w-auto sm:gap-1.5">
+			<button
+				type="button"
+				onclick={() => (currentTab = 'general')}
+				class="inline-flex items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-xs sm:px-3.5 sm:text-sm font-medium transition-colors cursor-pointer {currentTab ===
+				'general'
+					? 'bg-primary text-primary-foreground shadow-xs font-semibold'
+					: 'text-muted-foreground hover:text-foreground'}"
+			>
+				<Store class="size-3.5 sm:size-4 shrink-0" />
+				<span class="truncate sm:hidden">General</span>
+				<span class="hidden sm:inline">Datos Generales</span>
+			</button>
+
+			<button
+				type="button"
+				onclick={() => (currentTab = 'costs')}
+				class="inline-flex items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-xs sm:px-3.5 sm:text-sm font-medium transition-colors cursor-pointer {currentTab ===
+				'costs'
+					? 'bg-primary text-primary-foreground shadow-xs font-semibold'
+					: 'text-muted-foreground hover:text-foreground'}"
+			>
+				<Coins class="size-3.5 sm:size-4 shrink-0" />
+				<span class="truncate sm:hidden">Costos</span>
+				<span class="hidden sm:inline">Costos Operativos</span>
+			</button>
+
+			<button
+				type="button"
+				onclick={() => (currentTab = 'schedule')}
+				class="inline-flex items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-xs sm:px-3.5 sm:text-sm font-medium transition-colors cursor-pointer {currentTab ===
+				'schedule'
+					? 'bg-primary text-primary-foreground shadow-xs font-semibold'
+					: 'text-muted-foreground hover:text-foreground'}"
+			>
+				<Clock class="size-3.5 sm:size-4 shrink-0" />
+				<span class="truncate sm:hidden">Horarios</span>
+				<span class="hidden sm:inline">Horarios de Atención</span>
+			</button>
+		</div>
+
 		<Card>
-			<CardHeader class="space-y-2 p-6 sm:p-8 sm:pb-4">
-				<CardTitle class="text-xl">Datos Generales y Horarios de Atención</CardTitle>
+			<CardHeader class="space-y-1.5 p-5 sm:p-8 sm:pb-4">
+				<CardTitle class="text-lg sm:text-xl">
+					{#if currentTab === 'general'}
+						Datos Generales del Negocio
+					{:else if currentTab === 'costs'}
+						Costos y Tarifas Operativas
+					{:else}
+						Horarios de Atención por Día
+					{/if}
+				</CardTitle>
 				<CardDescription>
-					Actualiza la información pública y los bloques de atención de {data.activeBusiness.name}.
+					{#if currentTab === 'general'}
+						Actualiza la información pública, WhatsApp y descripción de {data.activeBusiness.name}.
+					{:else if currentTab === 'costs'}
+						Define recursos como mano de obra, gas o electricidad para valorizar tiempos de recetas automáticamente.
+					{:else}
+						Configura uno o más bloques horarios de apertura y cierre para cada día de la semana.
+					{/if}
 				</CardDescription>
 			</CardHeader>
 
-			<CardContent class="p-6 pt-2 sm:p-8 sm:pt-4">
-				<form method="POST" action="?/updateBusiness" use:enhance class="space-y-8">
+			<CardContent class="p-5 pt-2 sm:p-8 sm:pt-4">
+				<form method="POST" action="?/updateBusiness" use:enhance class="space-y-6">
 					<input type="hidden" name="businessId" value={data.activeBusiness.id} />
 					<input type="hidden" name="openingHours" value={serializedOpeningHours} />
 					<input type="hidden" name="settings" value={serializedSettings} />
 
-					<div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
-						<div class="space-y-2.5">
+					<!-- PESTAÑA 1: DATOS GENERALES -->
+					<div class={currentTab === 'general' ? 'grid grid-cols-1 gap-5 sm:grid-cols-2' : 'hidden'}>
+						<div class="space-y-2">
 							<Label for="set-name">Nombre del negocio</Label>
 							<Input
 								id="set-name"
@@ -154,7 +262,7 @@
 							/>
 						</div>
 
-						<div class="space-y-2.5">
+						<div class="space-y-2">
 							<Label for="set-whatsapp">WhatsApp de contacto</Label>
 							<Input
 								id="set-whatsapp"
@@ -165,7 +273,7 @@
 							/>
 						</div>
 
-						<div class="space-y-2.5 sm:col-span-2">
+						<div class="space-y-2 sm:col-span-2">
 							<Label for="set-description">Descripción</Label>
 							<textarea
 								id="set-description"
@@ -177,18 +285,12 @@
 						</div>
 					</div>
 
-					<!-- Recursos y Tarifas Operativas (Mano de Obra y Servicios) -->
-					<div class="space-y-4 rounded-xl border border-border bg-card/40 p-4 sm:p-5">
+					<!-- PESTAÑA 2: COSTOS Y TARIFAS OPERATIVAS -->
+					<div class={currentTab === 'costs' ? 'space-y-4' : 'hidden'}>
 						<div class="flex flex-wrap items-center justify-between gap-3">
-							<div class="space-y-0.5">
-								<h3 class="text-base font-semibold text-foreground flex items-center gap-2">
-									<Clock class="size-4 text-primary" />
-									<span>Costos y Tarifas Operativas</span>
-								</h3>
-								<p class="text-xs text-muted-foreground">
-									Define recursos como mano de obra, gas o electricidad para valorizar tiempos de recetas y pedidos automáticamente.
-								</p>
-							</div>
+							<p class="text-xs text-muted-foreground">
+								Recursos activos (mano de obra) y pasivos (horno/máquina) utilizados en tus elaboraciones.
+							</p>
 							<Button
 								type="button"
 								variant="outline"
@@ -208,13 +310,13 @@
 						{:else}
 							<div class="space-y-2.5">
 								{#each operationalCosts as cost, idx (cost.id || idx)}
-									<div class="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-center rounded-lg border border-border bg-background p-3">
+									<div class="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-center rounded-xl border border-border bg-muted/20 p-3">
 										<div class="sm:col-span-5 space-y-1">
 											<Label class="text-xs text-muted-foreground">Nombre del recurso</Label>
 											<Input
 												bind:value={cost.name}
 												placeholder="Ej: Mano de Obra, Gas Horno, Luz"
-												class="h-9 text-sm"
+												class="h-9 text-sm bg-background"
 												required
 											/>
 										</div>
@@ -222,7 +324,7 @@
 											<Label class="text-xs text-muted-foreground">Naturaleza del tiempo</Label>
 											<select
 												bind:value={cost.type}
-												class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-[color,box-shadow] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+												class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs transition-[color,box-shadow] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
 											>
 												<option value="active">Activo (Mano de obra)</option>
 												<option value="passive">Pasivo (Horno / Máquina)</option>
@@ -237,12 +339,12 @@
 													step="0.01"
 													min="0"
 													bind:value={cost.ratePerHour}
-													class="h-9 pl-7 text-sm"
+													class="h-9 pl-7 text-sm bg-background"
 													required
 												/>
 											</div>
 										</div>
-										<div class="sm:col-span-1 flex justify-end pt-5 sm:pt-4">
+										<div class="sm:col-span-1 flex justify-end pt-2 sm:pt-4">
 											<Button
 												type="button"
 												variant="ghost"
@@ -260,17 +362,12 @@
 						{/if}
 					</div>
 
-					<!-- Bloques Horarios por Día -->
-					<div class="space-y-4">
+					<!-- PESTAÑA 3: BLOQUES HORARIOS POR DÍA -->
+					<div class={currentTab === 'schedule' ? 'space-y-4' : 'hidden'}>
 						<div class="flex flex-wrap items-center justify-between gap-3">
-							<div>
-								<h3 class="text-base font-semibold text-foreground">
-									Horarios de atención por bloque y día
-								</h3>
-								<p class="text-xs text-muted-foreground">
-									Configura uno o más bloques horarios para cada día de la semana.
-								</p>
-							</div>
+							<p class="text-xs text-muted-foreground">
+								Habilita los días de atención y define tus turnos de apertura y cierre.
+							</p>
 							<Button
 								type="button"
 								variant="outline"
@@ -284,27 +381,33 @@
 
 						<div class="divide-y divide-border rounded-xl border border-border bg-background">
 							{#each weeklySchedule as dayItem, dayIdx (dayItem.day)}
-								<div class="flex flex-col gap-3 p-4 sm:flex-row sm:items-start sm:justify-between">
+								<div class="flex flex-col gap-3 p-3.5 sm:p-4 sm:flex-row sm:items-start sm:justify-between">
 									<div class="flex items-center justify-between gap-3 sm:w-44 sm:justify-start sm:pt-1.5">
-										<button
-											type="button"
-											role="switch"
-											aria-label="Alternar atención el día {dayItem.label}"
-											aria-checked={dayItem.enabled}
-											onclick={() => toggleDay(dayIdx)}
-											class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors {dayItem.enabled
-												? 'bg-primary'
-												: 'bg-muted-foreground/30'}"
-										>
-											<span
-												class="inline-block size-3.5 transform rounded-full bg-background transition-transform {dayItem.enabled
-													? 'translate-x-4'
-													: 'translate-x-1'}"
-											></span>
-										</button>
-										<span class="text-sm font-medium {dayItem.enabled ? 'text-foreground' : 'text-muted-foreground'}">
-											{dayItem.label}
-										</span>
+										<div class="flex items-center gap-2.5">
+											<button
+												type="button"
+												role="switch"
+												aria-label="Alternar atención el día {dayItem.label}"
+												aria-checked={dayItem.enabled}
+												onclick={() => toggleDay(dayIdx)}
+												class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors {dayItem.enabled
+													? 'bg-primary'
+													: 'bg-muted-foreground/30'}"
+											>
+												<span
+													class="inline-block size-3.5 transform rounded-full bg-background transition-transform {dayItem.enabled
+														? 'translate-x-4'
+														: 'translate-x-1'}"
+												></span>
+											</button>
+											<span class="text-sm font-medium {dayItem.enabled ? 'text-foreground' : 'text-muted-foreground'}">
+												{dayItem.label}
+											</span>
+										</div>
+
+										{#if !dayItem.enabled}
+											<span class="text-xs italic text-muted-foreground sm:hidden">Cerrado</span>
+										{/if}
 									</div>
 
 									{#if dayItem.enabled}
@@ -315,14 +418,14 @@
 														type="time"
 														aria-label="{dayItem.label} bloque {blockIdx + 1} apertura"
 														bind:value={block.open}
-														class="flex h-9 rounded-md border border-input bg-background px-3 py-1 font-mono text-xs shadow-xs"
+														class="flex h-9 rounded-md border border-input bg-background px-2.5 py-1 font-mono text-xs shadow-xs"
 													/>
 													<span class="text-xs text-muted-foreground">a</span>
 													<input
 														type="time"
 														aria-label="{dayItem.label} bloque {blockIdx + 1} cierre"
 														bind:value={block.close}
-														class="flex h-9 rounded-md border border-input bg-background px-3 py-1 font-mono text-xs shadow-xs"
+														class="flex h-9 rounded-md border border-input bg-background px-2.5 py-1 font-mono text-xs shadow-xs"
 													/>
 
 													<Button
@@ -351,7 +454,7 @@
 											{/each}
 										</div>
 									{:else}
-										<div class="flex flex-1 items-center justify-between pt-1">
+										<div class="hidden sm:flex flex-1 items-center justify-between pt-1">
 											<span class="text-xs italic text-muted-foreground">Cerrado</span>
 											<Button
 												type="button"
@@ -370,8 +473,8 @@
 						</div>
 					</div>
 
-					<div class="flex justify-end border-t border-border pt-6">
-						<Button type="submit">
+					<div class="flex justify-end border-t border-border pt-5">
+						<Button type="submit" class="w-full sm:w-auto">
 							<Check class="size-4" />
 							<span>Guardar Configuración</span>
 						</Button>
@@ -380,18 +483,57 @@
 			</CardContent>
 		</Card>
 
-		<!-- Acceso al Sistema de Diseño UI -->
-		<div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-dashed border-border bg-card/60 p-5">
-			<div class="space-y-0.5">
-				<h4 class="text-sm font-bold text-foreground">Catálogo del Sistema de Diseño UI</h4>
-				<p class="text-xs text-muted-foreground">
-					Vista centralizada con todos los componentes disponibles, tokens de color, tablas y estados interactivos.
-				</p>
+		<!-- Instalación de Aplicación Móvil (PWA) y Acceso al Sistema de Diseño UI -->
+		{#if currentTab === 'general'}
+			<div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-5 shadow-2xs">
+				<div class="flex items-start gap-3">
+					<div class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-secondary/15 text-secondary">
+						<Smartphone class="size-5" />
+					</div>
+					<div class="space-y-0.5">
+						<div class="flex items-center gap-2">
+							<h4 class="text-sm font-bold text-foreground">Aplicación Móvil y Escritorio (PWA)</h4>
+							{#if isStandalonePwa}
+								<span class="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-400">
+									Instalada
+								</span>
+							{/if}
+						</div>
+						<p class="text-xs text-muted-foreground">
+							{#if isStandalonePwa}
+								Estás ejecutando GiveOS como aplicación nativa a pantalla completa.
+							{:else}
+								Instala GiveOS en tu celular o tablet para usarla a pantalla completa con accesos directos a Nueva Orden.
+							{/if}
+						</p>
+					</div>
+				</div>
+				{#if !isStandalonePwa}
+					<Button
+						type="button"
+						variant={deferredInstallPrompt ? 'default' : 'outline'}
+						size="sm"
+						onclick={installPwa}
+						class="gap-1.5 shadow-2xs w-full sm:w-auto"
+					>
+						<Download class="size-3.5" />
+						<span>{deferredInstallPrompt ? 'Instalar GiveOS' : 'Cómo instalar'}</span>
+					</Button>
+				{/if}
 			</div>
-			<Button variant="outline" size="sm" href="/ui-design" class="gap-1.5 shadow-2xs">
-				<span>Explorar /ui-design</span>
-				<ExternalLink class="size-3.5" />
-			</Button>
-		</div>
+
+			<div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-dashed border-border bg-card/60 p-5">
+				<div class="space-y-0.5">
+					<h4 class="text-sm font-bold text-foreground">Catálogo del Sistema de Diseño UI</h4>
+					<p class="text-xs text-muted-foreground">
+						Vista centralizada con todos los componentes disponibles, tokens de color, tablas y estados interactivos.
+					</p>
+				</div>
+				<Button variant="outline" size="sm" href="/ui-design" class="gap-1.5 shadow-2xs">
+					<span>Explorar /ui-design</span>
+					<ExternalLink class="size-3.5" />
+				</Button>
+			</div>
+		{/if}
 	</div>
 </AppShell>

@@ -1,0 +1,49 @@
+{
+	"name": "GiveOS — Gestión Gastronómica y POS",
+	"short_name": "GiveOS",
+	"description": "Terminal de órdenes, control de stock, recetas y costos operativos para negocios gastronómicos.",
+	"lang": "es-AR",
+	"start_url": "/dashboard",
+	"scope": "/",
+	"display": "standalone",
+	"orientation": "portrait",
+	"background_color": "#09090b",
+	"theme_color": "#2563eb",
+	"icons": [
+		{
+			"src": "/icon.svg",
+			"sizes": "192x192 512x512",
+			"type": "image/svg+xml",
+			"purpose": "any"
+		},
+		{
+			"src": "/icon-maskable.svg",
+			"sizes": "192x192 512x512",
+			"type": "image/svg+xml",
+			"purpose": "maskable"
+		}
+	],
+	"shortcuts": [
+		{
+			"name": "Nueva Orden",
+			"short_name": "Nueva Orden",
+			"description": "Abrir terminal POS para registrar una nueva orden",
+			"url": "/orders/new",
+			"icons": [{ "src": "/icon.svg", "sizes": "192x192", "type": "image/svg+xml" }]
+		},
+		{
+			"name": "Órdenes y Agenda",
+			"short_name": "Órdenes",
+			"description": "Ver pedidos en curso y próximas entregas",
+			"url": "/orders",
+			"icons": [{ "src": "/icon.svg", "sizes": "192x192", "type": "image/svg+xml" }]
+		},
+		{
+			"name": "Inventario y Recetas",
+			"short_name": "Inventario",
+			"description": "Consultar stock de insumos y recetas",
+			"url": "/inventory",
+			"icons": [{ "src": "/icon.svg", "sizes": "192x192", "type": "image/svg+xml" }]
+		}
+	]
+}

@@ -92,33 +92,35 @@
 	title="Órdenes de Compra"
 	description="Gestión de pedidos de mostrador, agenda de próximas entregas y previsión de demanda de insumos"
 >
-	<!-- Barra de Pestañas Unificada de Órdenes -->
-	<div class="flex items-center gap-1.5 overflow-x-auto rounded-2xl border border-border bg-card p-1.5 shadow-2xs">
+	<!-- Barra de Pestañas Unificada de Órdenes (Segmented Control 3 columnas en mobile) -->
+	<div class="sticky top-2 z-20 grid grid-cols-3 gap-1 rounded-2xl border border-border bg-card/95 p-1.5 shadow-xs backdrop-blur-md sm:inline-flex sm:w-auto sm:gap-1.5">
 		<button
 			type="button"
 			onclick={() => switchTab('orders')}
-			class="inline-flex shrink-0 whitespace-nowrap items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-colors cursor-pointer {currentTab ===
+			class="inline-flex items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-xs sm:px-3.5 sm:text-sm font-medium transition-colors cursor-pointer {currentTab ===
 			'orders'
 				? 'bg-primary text-primary-foreground shadow-xs font-semibold'
 				: 'text-muted-foreground hover:text-foreground'}"
 		>
-			<ShoppingBag class="size-4" />
-			<span>Órdenes de Compra</span>
+			<ShoppingBag class="size-3.5 sm:size-4 shrink-0" />
+			<span class="truncate sm:hidden">Pedidos</span>
+			<span class="hidden sm:inline">Órdenes de Compra</span>
 		</button>
 
 		<button
 			type="button"
 			onclick={() => switchTab('upcoming')}
-			class="inline-flex shrink-0 whitespace-nowrap items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-colors cursor-pointer {currentTab ===
+			class="inline-flex items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-xs sm:px-3.5 sm:text-sm font-medium transition-colors cursor-pointer {currentTab ===
 			'upcoming'
 				? 'bg-primary text-primary-foreground shadow-xs font-semibold'
 				: 'text-muted-foreground hover:text-foreground'}"
 		>
-			<CalendarClock class="size-4" />
-			<span>Próximos Pedidos</span>
+			<CalendarClock class="size-3.5 sm:size-4 shrink-0" />
+			<span class="truncate sm:hidden">Agenda</span>
+			<span class="hidden sm:inline">Próximos Pedidos</span>
 			{#if data.preorderForecast.pendingOrdersCount > 0}
 				<span
-					class="ml-1 rounded-full px-1.5 py-0.2 text-[10px] font-bold {currentTab ===
+					class="rounded-full px-1.5 py-0.2 text-[10px] font-bold shrink-0 {currentTab ===
 					'upcoming'
 						? 'bg-primary-foreground/20 text-primary-foreground'
 						: 'bg-amber-500/15 text-amber-700 dark:text-amber-400'}"
@@ -131,16 +133,21 @@
 		<button
 			type="button"
 			onclick={() => switchTab('forecast')}
-			class="inline-flex shrink-0 whitespace-nowrap items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-colors cursor-pointer {currentTab ===
+			class="inline-flex items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-xs sm:px-3.5 sm:text-sm font-medium transition-colors cursor-pointer {currentTab ===
 			'forecast'
 				? 'bg-primary text-primary-foreground shadow-xs font-semibold'
 				: 'text-muted-foreground hover:text-foreground'}"
 		>
-			<Boxes class="size-4" />
-			<span>Demanda de Insumos & Ensambles</span>
+			<Boxes class="size-3.5 sm:size-4 shrink-0" />
+			<span class="truncate sm:hidden">Demanda</span>
+			<span class="hidden sm:inline">Demanda de Insumos & Ensambles</span>
 			{#if data.preorderForecast.subAssemblyForecast.some((i) => i.isShortage) || data.preorderForecast.rawMaterialForecast.some((i) => i.isShortage)}
 				<span
-					class="ml-1 rounded-full px-1.5 py-0.2 text-[10px] font-bold {currentTab ===
+					class="size-2 rounded-full bg-red-500 shrink-0 sm:hidden"
+					title="Hay faltantes de insumos o ensambles"
+				></span>
+				<span
+					class="hidden sm:inline ml-1 rounded-full px-1.5 py-0.2 text-[10px] font-bold {currentTab ===
 					'forecast'
 						? 'bg-primary-foreground/20 text-primary-foreground'
 						: 'bg-red-500/15 text-red-700 dark:text-red-400'}"

@@ -323,23 +323,23 @@
 </script>
 
 <div class="space-y-6">
-	<!-- 1. Tarjetas Superiores de Métricas y Tiempo de Elaboración -->
-	<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+	<!-- 1. Tarjetas Superiores de Métricas y Tiempo de Elaboración (Grilla 2x2 en mobile) -->
+	<div class="grid grid-cols-2 gap-2.5 sm:gap-4 lg:grid-cols-4">
 		<!-- KPI 1: Pedidos en Demanda -->
-		<div class="rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-xs space-y-2">
-			<span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+		<div class="rounded-2xl border border-border bg-card p-3 sm:p-5 shadow-xs space-y-1.5 sm:space-y-2">
+			<span class="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground block truncate">
 				Pedidos Confirmados
 			</span>
-			<div class="flex items-center gap-3 pt-0.5">
-				<div class="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-					<ShoppingBag class="size-6" />
+			<div class="flex items-center gap-2 sm:gap-3 pt-0.5">
+				<div class="flex size-8 sm:size-11 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl bg-primary/10 text-primary">
+					<ShoppingBag class="size-4 sm:size-6" />
 				</div>
-				<div class="font-mono text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+				<div class="font-mono text-lg sm:text-3xl font-bold tracking-tight text-foreground">
 					{forecast.pendingOrdersCount}
 				</div>
 			</div>
-			<p class="text-xs text-muted-foreground">
-				{forecast.pendingPreorderLinesCount} ítems comprometidos en agenda
+			<p class="text-[11px] sm:text-xs text-muted-foreground truncate">
+				{forecast.pendingPreorderLinesCount} ítems en agenda
 			</p>
 		</div>
 
@@ -347,49 +347,49 @@
 		<div
 			class="rounded-2xl border {totalLaborDeficit > 0
 				? 'border-amber-500/30 bg-amber-500/5'
-				: 'border-emerald-500/30 bg-emerald-500/5'} p-4 sm:p-5 shadow-xs space-y-2.5"
+				: 'border-emerald-500/30 bg-emerald-500/5'} p-3 sm:p-5 shadow-xs space-y-1.5 sm:space-y-2.5"
 		>
-			<div class="flex items-center justify-between">
-				<span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
-					Tiempo Real Estimado
+			<div class="flex items-center justify-between gap-1">
+				<span class="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground block truncate">
+					Tiempo Estimado
 				</span>
 				{#if (forecast.totalPassiveMinutesForDeficit ?? 0) > 0}
-					<span class="inline-flex items-center gap-1 rounded bg-amber-500/20 px-1.5 py-0.2 font-mono text-[10px] font-bold text-amber-700 dark:text-amber-300">
+					<span class="hidden sm:inline-flex items-center gap-1 rounded bg-amber-500/20 px-1.5 py-0.2 font-mono text-[10px] font-bold text-amber-700 dark:text-amber-300">
 						En paralelo
 					</span>
 				{/if}
 			</div>
-			<div class="flex items-center gap-3 pt-0.5">
+			<div class="flex items-center gap-2 sm:gap-3 pt-0.5">
 				<div
-					class="flex size-11 shrink-0 items-center justify-center rounded-2xl {totalLaborDeficit > 0
+					class="flex size-8 sm:size-11 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl {totalLaborDeficit > 0
 						? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
 						: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'}"
 				>
-					<CalendarClock class="size-6" />
+					<CalendarClock class="size-4 sm:size-6" />
 				</div>
-				<div>
+				<div class="min-w-0">
 					<div
-						class="font-mono text-xl sm:text-2xl font-bold tracking-tight {totalLaborDeficit > 0
+						class="font-mono text-base sm:text-2xl font-bold tracking-tight truncate {totalLaborDeficit > 0
 							? 'text-amber-600 dark:text-amber-400'
 							: 'text-emerald-600 dark:text-emerald-400'}"
 					>
 						{formatHoursAndMinutes(forecast.criticalPathMinutesForDeficit ?? totalLaborDeficit)}
 					</div>
 					{#if (forecast.totalPassiveMinutesForDeficit ?? 0) > 0}
-						<span class="text-[10px] text-muted-foreground block">
+						<span class="hidden sm:block text-[10px] text-muted-foreground">
 							(Horas-hombre totales: {formatHoursAndMinutes(totalLaborDeficit)})
 						</span>
 					{/if}
 				</div>
 			</div>
-			<div class="flex items-center justify-between text-[11px] text-muted-foreground pt-0.5 border-t border-border/40 font-mono">
-				<div class="flex items-center gap-3">
+			<div class="flex items-center justify-between text-[10px] sm:text-[11px] text-muted-foreground pt-0.5 border-t border-border/40 font-mono truncate">
+				<div class="flex items-center gap-2 sm:gap-3 truncate">
 					<span class="inline-flex items-center gap-1" title="Mano de obra directa (amasar, batir, armar)">
-						<ChefHat class="size-3 text-secondary" />
+						<ChefHat class="size-3 text-secondary shrink-0" />
 						<span>{formatHoursAndMinutes(forecast.totalActiveMinutesForDeficit ?? totalLaborDeficit)}</span>
 					</span>
 					{#if (forecast.totalPassiveMinutesForDeficit ?? 0) > 0}
-						<span class="inline-flex items-center gap-1" title="Tiempo pasivo / máquina / espera en paralelo">
+						<span class="hidden sm:inline-flex items-center gap-1" title="Tiempo pasivo / máquina / espera en paralelo">
 							<Flame class="size-3 text-amber-500" />
 							<span>{formatHoursAndMinutes(forecast.totalPassiveMinutesForDeficit)} pasivo</span>
 						</span>
@@ -407,29 +407,29 @@
 		<div
 			class="rounded-2xl border {overallCoverageRate < 100
 				? 'border-amber-500/30 bg-amber-500/5'
-				: 'border-emerald-500/30 bg-emerald-500/5'} p-4 sm:p-5 shadow-xs space-y-2"
+				: 'border-emerald-500/30 bg-emerald-500/5'} p-3 sm:p-5 shadow-xs space-y-1.5 sm:space-y-2"
 		>
-			<span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
-				Cobertura de Demanda
+			<span class="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground block truncate">
+				Cobertura Demanda
 			</span>
-			<div class="flex items-center gap-3 pt-0.5">
+			<div class="flex items-center gap-2 sm:gap-3 pt-0.5">
 				<div
-					class="flex size-11 shrink-0 items-center justify-center rounded-2xl {overallCoverageRate < 100
+					class="flex size-8 sm:size-11 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl {overallCoverageRate < 100
 						? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
 						: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'}"
 				>
-					<Boxes class="size-6" />
+					<Boxes class="size-4 sm:size-6" />
 				</div>
 				<div
-					class="font-mono text-2xl sm:text-3xl font-bold tracking-tight {overallCoverageRate < 100
+					class="font-mono text-lg sm:text-3xl font-bold tracking-tight {overallCoverageRate < 100
 						? 'text-amber-600 dark:text-amber-400'
 						: 'text-emerald-600 dark:text-emerald-400'}"
 				>
 					{overallCoverageRate}%
 				</div>
 			</div>
-			<p class="text-xs text-muted-foreground">
-				{totalCoveredCount} de {allDisplayItems.length} ítems cubiertos en almacén
+			<p class="text-[11px] sm:text-xs text-muted-foreground truncate">
+				{totalCoveredCount} de {allDisplayItems.length} cubiertos
 			</p>
 		</div>
 
@@ -437,29 +437,29 @@
 		<div
 			class="rounded-2xl border {totalShortagesCount > 0
 				? 'border-red-500/30 bg-red-500/5'
-				: 'border-border bg-card'} p-4 sm:p-5 shadow-xs space-y-2"
+				: 'border-border bg-card'} p-3 sm:p-5 shadow-xs space-y-1.5 sm:space-y-2"
 		>
-			<span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+			<span class="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground block truncate">
 				Faltantes a Cubrir
 			</span>
-			<div class="flex items-center gap-3 pt-0.5">
+			<div class="flex items-center gap-2 sm:gap-3 pt-0.5">
 				<div
-					class="flex size-11 shrink-0 items-center justify-center rounded-2xl {totalShortagesCount > 0
+					class="flex size-8 sm:size-11 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl {totalShortagesCount > 0
 						? 'bg-red-500/15 text-red-600 dark:text-red-400'
 						: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'}"
 				>
-					<AlertTriangle class="size-6" />
+					<AlertTriangle class="size-4 sm:size-6" />
 				</div>
 				<div
-					class="font-mono text-2xl sm:text-3xl font-bold tracking-tight {totalShortagesCount > 0
+					class="font-mono text-lg sm:text-3xl font-bold tracking-tight {totalShortagesCount > 0
 						? 'text-red-600 dark:text-red-400'
 						: 'text-emerald-600 dark:text-emerald-400'}"
 				>
 					{totalShortagesCount}
 				</div>
 			</div>
-			<p class="text-xs text-muted-foreground">
-				{subAssemblyShortages.length + productShortages.length} por fabricar • {rawMaterialShortages.length} por comprar
+			<p class="text-[11px] sm:text-xs text-muted-foreground truncate">
+				{subAssemblyShortages.length + productShortages.length} fabricar • {rawMaterialShortages.length} comprar
 			</p>
 		</div>
 	</div>
@@ -545,11 +545,11 @@
 				</div>
 			</div>
 
-			<div class="flex flex-wrap items-center gap-1.5 pt-2 border-t border-border/60">
+			<div class="flex items-center gap-1.5 overflow-x-auto pb-1 pt-2 border-t border-border/60 sm:flex-wrap sm:pb-0">
 				<button
 					type="button"
 					onclick={() => (selectedCategory = 'all')}
-					class="rounded-xl px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer {selectedCategory ===
+					class="shrink-0 whitespace-nowrap rounded-xl px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer {selectedCategory ===
 					'all'
 						? 'bg-primary text-primary-foreground shadow-2xs'
 						: 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted'}"
@@ -560,7 +560,7 @@
 				<button
 					type="button"
 					onclick={() => (selectedCategory = 'subassemblies')}
-					class="inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer {selectedCategory ===
+					class="inline-flex shrink-0 whitespace-nowrap items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer {selectedCategory ===
 					'subassemblies'
 						? 'bg-secondary text-secondary-foreground shadow-2xs'
 						: 'bg-secondary/10 text-secondary border border-secondary/30 hover:bg-secondary/20'}"
@@ -577,7 +577,7 @@
 				<button
 					type="button"
 					onclick={() => (selectedCategory = 'rawmaterials')}
-					class="inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer {selectedCategory ===
+					class="inline-flex shrink-0 whitespace-nowrap items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer {selectedCategory ===
 					'rawmaterials'
 						? 'bg-tertiary text-yellow-950 shadow-2xs font-bold'
 						: 'bg-tertiary/20 text-yellow-900 dark:text-yellow-300 border border-tertiary/40 hover:bg-tertiary/30'}"
@@ -594,7 +594,7 @@
 				<button
 					type="button"
 					onclick={() => (selectedCategory = 'products')}
-					class="inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer {selectedCategory ===
+					class="inline-flex shrink-0 whitespace-nowrap items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer {selectedCategory ===
 					'products'
 						? 'bg-primary text-primary-foreground shadow-2xs'
 						: 'bg-muted/60 text-muted-foreground border border-border hover:text-foreground hover:bg-muted'}"

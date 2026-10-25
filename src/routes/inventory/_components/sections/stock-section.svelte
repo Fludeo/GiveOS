@@ -127,70 +127,73 @@
 	);
 </script>
 
-<div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+<div class="grid grid-cols-2 gap-2.5 sm:gap-4 sm:grid-cols-3">
 	<!-- KPI 1: Catálogo (Primary / Blue) -->
-	<div class="rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-xs space-y-2">
-		<span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+	<div class="rounded-2xl border border-border bg-card p-3 sm:p-5 shadow-xs space-y-1.5 sm:space-y-2">
+		<span class="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground block truncate">
 			Catálogo
 		</span>
-		<div class="flex items-center gap-3 pt-0.5">
-			<div class="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-				<Package class="size-6" />
+		<div class="flex items-center gap-2 sm:gap-3 pt-0.5">
+			<div class="flex size-8 sm:size-11 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl bg-primary/10 text-primary">
+				<Package class="size-4 sm:size-6" />
 			</div>
-			<div class="font-mono text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-				{items.length} <span class="text-sm font-semibold text-muted-foreground font-sans">ítems</span>
+			<div class="font-mono text-lg sm:text-3xl font-bold tracking-tight text-foreground truncate">
+				{items.length} <span class="text-xs sm:text-sm font-semibold text-muted-foreground font-sans">ítems</span>
 			</div>
 		</div>
-		<p class="text-xs text-muted-foreground">
-			{items.filter((i) => i.type === 'raw_material').length} insumos ·
-			{items.filter((i) => i.type === 'prepared').length} elaboraciones
+		<p class="text-[11px] sm:text-xs text-muted-foreground truncate">
+			{items.filter((i) => i.type === 'raw_material').length} ins. ·
+			{items.filter((i) => i.type === 'prepared').length} elab.
 		</p>
 	</div>
 
 	<!-- KPI 2: Stock Bajo (Destructive / Warning) -->
-	<div class="rounded-2xl border {lowStockCount > 0 ? 'border-destructive/30 bg-destructive/5' : 'border-border bg-card'} p-4 sm:p-5 shadow-xs space-y-2">
-		<span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+	<div class="rounded-2xl border {lowStockCount > 0 ? 'border-destructive/30 bg-destructive/5' : 'border-border bg-card'} p-3 sm:p-5 shadow-xs space-y-1.5 sm:space-y-2">
+		<span class="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground block truncate">
 			Stock Bajo
 		</span>
-		<div class="flex items-center gap-3 pt-0.5">
+		<div class="flex items-center gap-2 sm:gap-3 pt-0.5">
 			<div
-				class="flex size-11 shrink-0 items-center justify-center rounded-2xl {lowStockCount > 0
+				class="flex size-8 sm:size-11 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl {lowStockCount > 0
 					? 'bg-destructive/15 text-destructive'
 					: 'bg-muted text-muted-foreground'}"
 			>
-				<AlertTriangle class="size-6" />
+				<AlertTriangle class="size-4 sm:size-6" />
 			</div>
-			<div class="font-mono text-2xl sm:text-3xl font-bold tracking-tight {lowStockCount > 0 ? 'text-destructive' : 'text-foreground'}">
+			<div class="font-mono text-lg sm:text-3xl font-bold tracking-tight {lowStockCount > 0 ? 'text-destructive' : 'text-foreground'}">
 				{lowStockCount}
 			</div>
 		</div>
-		<p class="text-xs text-muted-foreground">
-			{lowStockCount > 0 ? 'Bajo el punto de alerta de reposición' : 'Todas las existencias sobre el mínimo'}
+		<p class="text-[11px] sm:text-xs text-muted-foreground truncate">
+			{lowStockCount > 0 ? 'Bajo mínimo de alerta' : 'Sobre el mínimo'}
 		</p>
 	</div>
 
 	<!-- KPI 3: Valor en Stock (Secondary / Indigo) -->
-	<div class="rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-xs space-y-2">
-		<span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+	<div class="col-span-2 sm:col-span-1 rounded-2xl border border-border bg-card p-3 sm:p-5 shadow-xs space-y-1.5 sm:space-y-2">
+		<span class="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground block truncate">
 			Valor en Stock
 		</span>
-		<div class="flex items-center gap-3 pt-0.5">
-			<div class="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-secondary/15 text-secondary">
-				<Boxes class="size-6" />
+		<div class="flex items-center gap-2 sm:gap-3 pt-0.5">
+			<div class="flex size-8 sm:size-11 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl bg-secondary/15 text-secondary">
+				<Boxes class="size-4 sm:size-6" />
 			</div>
-			<div class="font-mono text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+			<div class="font-mono text-lg sm:text-3xl font-bold tracking-tight text-foreground truncate">
 				{formatCurrency(totalInventoryValue)}
 			</div>
+			<span class="text-[11px] text-muted-foreground sm:hidden ml-auto">
+				Costo valorizado
+			</span>
 		</div>
-		<p class="text-xs text-muted-foreground">
+		<p class="hidden sm:block text-xs text-muted-foreground">
 			Costo valorizado total de existencias
 		</p>
 	</div>
 </div>
 
 <Card>
-	<CardHeader class="space-y-4 p-6 sm:p-8 sm:pb-4">
-		<div class="flex flex-wrap items-center justify-between gap-4">
+	<CardHeader class="space-y-4 p-4 sm:p-8 sm:pb-4">
+		<div class="flex flex-wrap items-center justify-between gap-3 sm:gap-4">
 			<div class="relative w-full max-w-sm">
 				<Search class="pointer-events-none absolute top-3 left-3 size-4 text-muted-foreground" />
 				<Input
@@ -201,9 +204,10 @@
 				/>
 			</div>
 
-			<div class="flex flex-wrap items-center gap-2">
+			<div class="flex w-full sm:w-auto items-center gap-1.5 overflow-x-auto pb-1 sm:flex-wrap sm:pb-0">
 				<Button
 					size="sm"
+					class="shrink-0 whitespace-nowrap"
 					variant={filterType === 'all' ? 'default' : 'outline'}
 					onclick={() => (filterType = 'all')}
 				>
@@ -212,7 +216,7 @@
 				<Button
 					size="sm"
 					variant={filterType === 'raw_material' ? 'default' : 'outline'}
-					class="gap-1.5"
+					class="shrink-0 whitespace-nowrap gap-1.5"
 					onclick={() => (filterType = 'raw_material')}
 				>
 					<Wheat class="size-3.5 {filterType === 'raw_material' ? 'text-primary-foreground' : 'text-yellow-600 dark:text-yellow-400'}" />
@@ -221,7 +225,7 @@
 				<Button
 					size="sm"
 					variant={filterType === 'prepared' ? 'default' : 'outline'}
-					class="gap-1.5"
+					class="shrink-0 whitespace-nowrap gap-1.5"
 					onclick={() => (filterType = 'prepared')}
 				>
 					<GraphHub class="size-3.5 {filterType === 'prepared' ? 'text-primary-foreground' : 'text-secondary'}" />
@@ -230,7 +234,7 @@
 				<Button
 					size="sm"
 					variant={onlyLowStock ? 'destructive' : 'outline'}
-					class="gap-1.5"
+					class="shrink-0 whitespace-nowrap gap-1.5"
 					onclick={() => (onlyLowStock = !onlyLowStock)}
 				>
 					<AlertTriangle class="size-3.5 {onlyLowStock ? 'text-destructive-foreground' : 'text-destructive'}" />

@@ -120,9 +120,10 @@
 				/>
 			</div>
 
-			<div class="flex flex-wrap items-center gap-2">
+			<div class="flex w-full sm:w-auto items-center gap-1.5 overflow-x-auto pb-1 sm:flex-wrap sm:pb-0">
 				<Button
 					size="sm"
+					class="shrink-0 whitespace-nowrap"
 					variant={filterStatus === 'all' ? 'default' : 'outline'}
 					onclick={() => (filterStatus = 'all')}
 				>
@@ -131,15 +132,16 @@
 				<Button
 					size="sm"
 					variant={filterStatus === 'unconfirmed' ? 'default' : 'outline'}
-					class={filterStatus !== 'unconfirmed' && unconfirmedOrdersCount > 0
+					class="shrink-0 whitespace-nowrap {filterStatus !== 'unconfirmed' && unconfirmedOrdersCount > 0
 						? 'border-secondary/40 text-secondary bg-secondary/10'
-						: ''}
+						: ''}"
 					onclick={() => (filterStatus = 'unconfirmed')}
 				>
 					Por Confirmar ({unconfirmedOrdersCount})
 				</Button>
 				<Button
 					size="sm"
+					class="shrink-0 whitespace-nowrap"
 					variant={filterStatus === 'pending' ? 'default' : 'outline'}
 					onclick={() => (filterStatus = 'pending')}
 				>
@@ -147,6 +149,7 @@
 				</Button>
 				<Button
 					size="sm"
+					class="shrink-0 whitespace-nowrap"
 					variant={filterStatus === 'completed' ? 'default' : 'outline'}
 					onclick={() => (filterStatus = 'completed')}
 				>
@@ -154,6 +157,7 @@
 				</Button>
 				<Button
 					size="sm"
+					class="shrink-0 whitespace-nowrap"
 					variant={filterStatus === 'cancelled' ? 'default' : 'outline'}
 					onclick={() => (filterStatus = 'cancelled')}
 				>
@@ -166,12 +170,12 @@
 		<div
 			class="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-3 text-xs"
 		>
-			<div class="flex flex-wrap items-center gap-2">
-				<span class="font-medium text-muted-foreground">Estado de Pago:</span>
+			<div class="flex w-full sm:w-auto items-center gap-1.5 overflow-x-auto pb-1 sm:flex-wrap sm:pb-0">
+				<span class="shrink-0 font-medium text-muted-foreground">Pago:</span>
 				<button
 					type="button"
 					onclick={() => (filterPayment = 'all')}
-					class="rounded-lg px-2.5 py-1 font-medium transition-colors {filterPayment === 'all'
+					class="shrink-0 whitespace-nowrap rounded-lg px-2.5 py-1 font-medium transition-colors {filterPayment === 'all'
 						? 'bg-primary/10 text-primary'
 						: 'text-muted-foreground hover:bg-muted'}"
 				>
@@ -180,7 +184,7 @@
 				<button
 					type="button"
 					onclick={() => (filterPayment = 'pending')}
-					class="rounded-lg px-2.5 py-1 font-medium transition-colors {filterPayment === 'pending'
+					class="shrink-0 whitespace-nowrap rounded-lg px-2.5 py-1 font-medium transition-colors {filterPayment === 'pending'
 						? 'bg-red-500/15 text-red-700'
 						: 'text-muted-foreground hover:bg-muted'}"
 				>
@@ -189,7 +193,7 @@
 				<button
 					type="button"
 					onclick={() => (filterPayment = 'partially_paid')}
-					class="rounded-lg px-2.5 py-1 font-medium transition-colors {filterPayment ===
+					class="shrink-0 whitespace-nowrap rounded-lg px-2.5 py-1 font-medium transition-colors {filterPayment ===
 					'partially_paid'
 						? 'bg-amber-500/15 text-amber-700'
 						: 'text-muted-foreground hover:bg-muted'}"
@@ -199,7 +203,7 @@
 				<button
 					type="button"
 					onclick={() => (filterPayment = 'paid')}
-					class="rounded-lg px-2.5 py-1 font-medium transition-colors {filterPayment === 'paid'
+					class="shrink-0 whitespace-nowrap rounded-lg px-2.5 py-1 font-medium transition-colors {filterPayment === 'paid'
 						? 'bg-emerald-500/15 text-emerald-700'
 						: 'text-muted-foreground hover:bg-muted'}"
 				>

@@ -288,59 +288,62 @@
 </script>
 
 <div class="space-y-4">
-	<!-- Tarjetas de Resumen Rápido de la Agenda -->
-	<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-		<div class="rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-xs space-y-2">
-			<span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+	<!-- Tarjetas de Resumen Rápido de la Agenda (Compactas en mobile) -->
+	<div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-4">
+		<div class="rounded-2xl border border-border bg-card p-3 sm:p-5 shadow-xs space-y-1.5 sm:space-y-2">
+			<span class="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground block truncate">
 				Para Hoy
 			</span>
-			<div class="flex items-center gap-3 pt-0.5">
+			<div class="flex items-center gap-2 sm:gap-3 pt-0.5">
 				<div
-					class="flex size-10 shrink-0 items-center justify-center rounded-2xl {days[0].pendingCount > 0
+					class="flex size-8 sm:size-10 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl {days[0].pendingCount > 0
 						? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
 						: 'bg-muted text-muted-foreground'}"
 				>
-					<Clock class="size-5" />
+					<Clock class="size-4 sm:size-5" />
 				</div>
-				<div class="font-mono text-2xl font-bold tracking-tight text-foreground">
+				<div class="font-mono text-lg sm:text-2xl font-bold tracking-tight text-foreground">
 					{days[0].pendingCount}
 				</div>
 			</div>
-			<p class="text-xs text-muted-foreground">
-				{days[0].pendingCount > 0 ? 'Entregas a despachar hoy' : 'Sin entregas pendientes para hoy'}
+			<p class="text-[11px] sm:text-xs text-muted-foreground truncate">
+				{days[0].pendingCount > 0 ? 'Entregas hoy' : 'Sin entregas hoy'}
 			</p>
 		</div>
 
-		<div class="rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-xs space-y-2">
-			<span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+		<div class="rounded-2xl border border-border bg-card p-3 sm:p-5 shadow-xs space-y-1.5 sm:space-y-2">
+			<span class="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground block truncate">
 				Próximos 7 Días
 			</span>
-			<div class="flex items-center gap-3 pt-0.5">
-				<div class="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-					<CalendarDays class="size-5" />
+			<div class="flex items-center gap-2 sm:gap-3 pt-0.5">
+				<div class="flex size-8 sm:size-10 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl bg-primary/10 text-primary">
+					<CalendarDays class="size-4 sm:size-5" />
 				</div>
-				<div class="font-mono text-2xl font-bold tracking-tight text-foreground">
+				<div class="font-mono text-lg sm:text-2xl font-bold tracking-tight text-foreground">
 					{totalWeekPending}
 				</div>
 			</div>
-			<p class="text-xs text-muted-foreground">
-				Comprometidos para esta semana
+			<p class="text-[11px] sm:text-xs text-muted-foreground truncate">
+				Esta semana
 			</p>
 		</div>
 
-		<div class="rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-xs space-y-2">
-			<span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+		<div class="col-span-2 sm:col-span-1 rounded-2xl border border-border bg-card p-3 sm:p-5 shadow-xs space-y-1.5 sm:space-y-2">
+			<span class="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground block truncate">
 				Total Pedidos Pendientes
 			</span>
-			<div class="flex items-center gap-3 pt-0.5">
-				<div class="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-sky-500/15 text-sky-700 dark:text-sky-300">
-					<CalendarClock class="size-5" />
+			<div class="flex items-center gap-2 sm:gap-3 pt-0.5">
+				<div class="flex size-8 sm:size-10 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl bg-sky-500/15 text-sky-700 dark:text-sky-300">
+					<CalendarClock class="size-4 sm:size-5" />
 				</div>
-				<div class="font-mono text-2xl font-bold tracking-tight text-foreground">
+				<div class="font-mono text-lg sm:text-2xl font-bold tracking-tight text-foreground">
 					{totalPendingOverall}
 				</div>
+				<span class="text-[11px] text-muted-foreground sm:hidden ml-auto">
+					{beyondPendingCount > 0 ? `${beyondPendingCount} a +7 días` : 'Todo en 7 días'}
+				</span>
 			</div>
-			<p class="text-xs text-muted-foreground">
+			<p class="hidden sm:block text-xs text-muted-foreground">
 				{beyondPendingCount > 0 ? `${beyondPendingCount} a más de 7 días` : 'Todo dentro de los 7 días'}
 			</p>
 		</div>

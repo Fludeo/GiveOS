@@ -164,42 +164,44 @@
 	title="Inventario"
 	description="Stock de insumos, recetas y productos de venta"
 >
-	<!-- Barra de Pestañas Unificada -->
-	<div class="flex items-center gap-1 overflow-x-auto rounded-2xl border border-border bg-card p-1.5 shadow-2xs">
+	<!-- Barra de Pestañas Unificada (Segmented Control 3 columnas en mobile) -->
+	<div class="sticky top-2 z-20 grid grid-cols-3 gap-1 rounded-2xl border border-border bg-card/95 p-1.5 shadow-xs backdrop-blur-md sm:inline-flex sm:w-auto sm:gap-1.5">
 		<button
 			type="button"
 			onclick={() => switchTab('stock')}
-			class="inline-flex shrink-0 whitespace-nowrap items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-colors cursor-pointer {currentTab ===
+			class="inline-flex items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-xs sm:px-3.5 sm:text-sm font-medium transition-colors cursor-pointer {currentTab ===
 			'stock'
 				? 'bg-primary text-primary-foreground shadow-xs font-semibold'
 				: 'text-muted-foreground hover:text-foreground'}"
 		>
-			<Package class="size-4" />
-			<span>Inventario</span>
+			<Package class="size-3.5 sm:size-4 shrink-0" />
+			<span class="truncate sm:hidden">Stock</span>
+			<span class="hidden sm:inline">Inventario</span>
 		</button>
 
 		<button
 			type="button"
 			onclick={() => switchTab('recipes')}
-			class="inline-flex shrink-0 whitespace-nowrap items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-colors cursor-pointer {currentTab ===
+			class="inline-flex items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-xs sm:px-3.5 sm:text-sm font-medium transition-colors cursor-pointer {currentTab ===
 			'recipes'
 				? 'bg-primary text-primary-foreground shadow-xs font-semibold'
 				: 'text-muted-foreground hover:text-foreground'}"
 		>
-			<GraphHub class="size-4" />
-			<span>Recetas</span>
+			<GraphHub class="size-3.5 sm:size-4 shrink-0" />
+			<span class="truncate">Recetas</span>
 		</button>
 
 		<button
 			type="button"
 			onclick={() => switchTab('products')}
-			class="inline-flex shrink-0 whitespace-nowrap items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-colors cursor-pointer {currentTab ===
+			class="inline-flex items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-xs sm:px-3.5 sm:text-sm font-medium transition-colors cursor-pointer {currentTab ===
 			'products'
 				? 'bg-primary text-primary-foreground shadow-xs font-semibold'
 				: 'text-muted-foreground hover:text-foreground'}"
 		>
-			<Tag class="size-4" />
-			<span>Productos de Venta</span>
+			<Tag class="size-3.5 sm:size-4 shrink-0" />
+			<span class="truncate sm:hidden">Productos</span>
+			<span class="hidden sm:inline">Productos de Venta</span>
 		</button>
 	</div>
 
