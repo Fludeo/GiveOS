@@ -690,7 +690,7 @@
 						<div
 							class="relative flex size-56 items-center justify-center rounded-2xl border-2 border-dashed border-border bg-card p-3 shadow-inner"
 						>
-							{#if qrCodeData}
+							{#if qrCodeData && typeof qrCodeData === 'string' && qrCodeData.startsWith('data:')}
 								<img
 									src={qrCodeData}
 									alt="Código QR de WhatsApp"

@@ -41,8 +41,9 @@ sw.addEventListener('fetch', (event) => {
 	// Solo manejar peticiones del mismo origen con protocolo http/https
 	if (url.origin !== sw.location.origin || !url.protocol.startsWith('http')) return;
 
-	// Evitar cachear rutas de autenticación o health-check
+	// Evitar cachear rutas de autenticación, APIs dinámicas / SSE, o health-check
 	if (
+		url.pathname.startsWith('/api/') ||
 		url.pathname.startsWith('/login') ||
 		url.pathname.startsWith('/register') ||
 		url.pathname.startsWith('/health-check')
