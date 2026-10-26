@@ -7,3 +7,5 @@ export { cancelOrderAction as cancelOrder } from './cancel-order.action';
 export { toggleShortcutAction as toggleShortcut } from './toggle-shortcut.action';
 export { produceOrdersBatchAction as produceOrdersBatch } from './produce-orders-batch.action';
 export { produceForecastItemAction as produceForecastItem } from './produce-forecast-item.action';
+export { addStockBatchAction as addStockBatch } from '../../inventory/_actions/add-stock-batch.action';
+export { deleteStockBatchAction as deleteStockBatch } from '../../inventory/_actions/delete-stock-batch.action';

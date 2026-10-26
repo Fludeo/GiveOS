@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
 	import { goto } from '$app/navigation';
+	import type { Item } from '#lib/features/items/domain/item.entity';
 	import {
 		isOrderReadyToDeliver,
 		type ForecastHorizon,
@@ -12,55 +12,64 @@
 	import Zap from '@lucide/svelte/icons/zap';
 	import Wheat from '@lucide/svelte/icons/wheat';
 	import ChefHat from '@lucide/svelte/icons/chef-hat';
+	import Package from '@lucide/svelte/icons/package';
+	import PackagePlus from '@lucide/svelte/icons/package-plus';
 	import PackageCheck from '@lucide/svelte/icons/package-check';
 	import CheckCircle2 from '@lucide/svelte/icons/check-circle-2';
 	import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
-	import DollarSign from '@lucide/svelte/icons/dollar-sign';
 	import Check from '@lucide/svelte/icons/check';
 	import Store from '@lucide/svelte/icons/store';
-	import ArrowRight from '@lucide/svelte/icons/arrow-right';
 	import Eye from '@lucide/svelte/icons/eye';
 	import Clock from '@lucide/svelte/icons/clock';
-	import { toast } from '#lib/components/ui/toast';
+	import List from '@lucide/svelte/icons/list';
+	import Crosshair from '@lucide/svelte/icons/crosshair';
+	import Layers from '@lucide/svelte/icons/layers';
+	import ShoppingBag from '@lucide/svelte/icons/shopping-bag';
 	import { formatCurrency } from '../utils';
 
 	interface Props {
+		items: Item[];
 		orders: OrderWithItems[];
 		forecast: PreorderForecastSummary;
 		forecastHorizon: ForecastHorizon;
 		preserveDisplayStock: boolean;
-		businessId: string;
 		onViewOrder: (order: OrderWithItems) => void;
-		onPayOrder: (order: OrderWithItems) => void;
 		onDeliverOrder: (order: OrderWithItems) => void;
 		onConfirmOrder: (order: OrderWithItems) => void;
 		onProduceOrders: (orders: OrderWithItems[], periodLabel: string) => void;
+		onOpenAddStockModal: (item: Item, suggestedQty?: number) => void;
 		onSwitchToDetailedTabs: () => void;
 	}
 
 	let {
+		items = [],
 		orders,
 		forecast,
 		forecastHorizon = 'all',
 		preserveDisplayStock = false,
-		businessId,
 		onViewOrder,
-		onPayOrder,
 		onDeliverOrder,
 		onConfirmOrder,
 		onProduceOrders,
+		onOpenAddStockModal,
 		onSwitchToDetailedTabs
 	}: Props = $props();
 
-	const HORIZON_OPTIONS: Array<{ id: ForecastHorizon; label: string; desc: string }> = [
-		{ id: 'today', label: 'Hoy', desc: 'Operación del día' },
-		{ id: '3d', label: 'Próx. 3 Días', desc: 'Ventana de 72 hs' },
-		{ id: '7d', label: '1 Semana', desc: 'Próximos 7 días' },
-		{ id: 'all', label: 'Todo', desc: 'Todos los pedidos activos' }
+	// Paso activo en mobile (1 = Insumos, 2 = Producción, 3 = Entregas)
+	let mobileStep = $state<1 | 2 | 3>(2);
+
+	// Multiplicadores personalizados por ítem elaborado (en unidades de tanda: 1x, 2x, 3x...)
+	let customMultipliers = $state<Record<string, number>>({});
+
+	const HORIZON_OPTIONS: Array<{ id: ForecastHorizon; label: string }> = [
+		{ id: 'today', label: 'Hoy' },
+		{ id: '3d', label: '3d' },
+		{ id: '7d', label: '7d' },
+		{ id: 'all', label: 'Todo' }
 	];
 
-	const activeHorizonMeta = $derived(
-		HORIZON_OPTIONS.find((h) => h.id === forecastHorizon) ?? HORIZON_OPTIONS[3]
+	const activeHorizonLabel = $derived(
+		HORIZON_OPTIONS.find((h) => h.id === forecastHorizon)?.label ?? 'Todo'
 	);
 
 	function setHorizon(horizon: ForecastHorizon) {
@@ -86,6 +95,8 @@
 		}
 		goto(`${url.pathname}${url.search}`);
 	}
+
+	const itemsById = $derived(new Map(items.map((i) => [i.id, i])));
 
 	// Filtrar órdenes según el mismo horizonte seleccionado
 	const ordersInHorizon = $derived.by(() => {
@@ -115,14 +126,21 @@
 			});
 	});
 
-	// Paso 1: Insumos que faltan comprar
-	const missingRawMaterials = $derived(
-		(forecast.rawMaterialForecast ?? []).filter(
-			(r) => (r.deficitQuantity ?? 0) > 0 || r.isBelowMinStock
-		)
+	// Paso 1: Materias primas del período (faltantes primero, luego el resto)
+	const rawMaterialLines = $derived.by(() => {
+		const lines = [...(forecast.rawMaterialForecast ?? [])];
+		return lines.sort((a, b) => {
+			const aShort = (a.deficitQuantity ?? 0) > 0 ? 2 : a.isBelowMinStock ? 1 : 0;
+			const bShort = (b.deficitQuantity ?? 0) > 0 ? 2 : b.isBelowMinStock ? 1 : 0;
+			return bShort - aShort;
+		});
+	});
+
+	const missingRawCount = $derived(
+		rawMaterialLines.filter((r) => (r.deficitQuantity ?? 0) > 0 || r.isBelowMinStock).length
 	);
 
-	// Paso 2: Pedidos pendientes de producir + Elaboraciones / Productos en demanda
+	// Paso 2: Pedidos por armar y elaboraciones con múltiplos de receta
 	const producibleOrders = $derived(
 		ordersInHorizon.filter(
 			(o) => o.status === 'pending' && o.items.some((i) => i.status === 'pending_delivery')
@@ -140,7 +158,8 @@
 			currentStock: number;
 			requiredQty: number;
 			deficitQty: number;
-			defaultProduceQty: number;
+			yieldQty: number;
+			defaultBatches: number;
 			isMakeToOrder: boolean;
 		}> = [];
 
@@ -148,6 +167,15 @@
 			const req = sub.requiredQuantity ?? 0;
 			const def = sub.deficitQuantity ?? 0;
 			if (req <= 0 && def <= 0) continue;
+			const fullItem = itemsById.get(sub.itemId);
+			const yieldQty =
+				fullItem?.yieldQuantity && fullItem.yieldQuantity > 0
+					? fullItem.yieldQuantity
+					: sub.yieldQuantity && sub.yieldQuantity > 0
+						? sub.yieldQuantity
+						: 1;
+			const baseTarget = def > 0 ? def : req;
+			const defaultBatches = Math.max(1, Math.ceil(baseTarget / yieldQty));
 			list.push({
 				id: sub.itemId,
 				code: sub.code,
@@ -156,7 +184,8 @@
 				currentStock: sub.currentStock ?? 0,
 				requiredQty: req,
 				deficitQty: def,
-				defaultProduceQty: Number((def > 0 ? def : req).toFixed(2)),
+				yieldQty,
+				defaultBatches,
 				isMakeToOrder: Boolean(sub.isMakeToOrder)
 			});
 		}
@@ -166,6 +195,15 @@
 			const def = prod.deficitQuantity ?? 0;
 			if (req <= 0 && def <= 0) continue;
 			if (list.some((x) => x.id === prod.itemId)) continue;
+			const fullItem = itemsById.get(prod.itemId);
+			const yieldQty =
+				fullItem?.yieldQuantity && fullItem.yieldQuantity > 0
+					? fullItem.yieldQuantity
+					: prod.yieldQuantity && prod.yieldQuantity > 0
+						? prod.yieldQuantity
+						: 1;
+			const baseTarget = def > 0 ? def : req;
+			const defaultBatches = Math.max(1, Math.ceil(baseTarget / yieldQty));
 			list.push({
 				id: prod.itemId,
 				code: prod.code,
@@ -174,13 +212,42 @@
 				currentStock: prod.currentProductStock ?? 0,
 				requiredQty: req,
 				deficitQty: def,
-				defaultProduceQty: Number((def > 0 ? def : req).toFixed(2)),
+				yieldQty,
+				defaultBatches,
 				isMakeToOrder: Boolean(prod.isMakeToOrder)
 			});
 		}
 
-		return list;
+		return list.filter((i) => !i.isMakeToOrder);
 	});
+
+	function getBatches(itemId: string, defaultBatches: number): number {
+		const custom = customMultipliers[itemId];
+		if (custom === undefined || Number.isNaN(custom) || custom < 1) {
+			return defaultBatches;
+		}
+		return custom;
+	}
+
+	function setBatches(itemId: string, nextBatches: number) {
+		customMultipliers = {
+			...customMultipliers,
+			[itemId]: Math.max(1, Math.round(nextBatches))
+		};
+	}
+
+	function handleOpenRawStockModal(itemId: string, deficitQty: number, requiredQty: number) {
+		const found = itemsById.get(itemId);
+		if (!found) return;
+		const suggested = deficitQty > 0 ? deficitQty : requiredQty > 0 ? requiredQty : undefined;
+		onOpenAddStockModal(found, suggested);
+	}
+
+	function handleOpenPreparedStockModal(itemId: string, totalQtyToProduce: number) {
+		const found = itemsById.get(itemId);
+		if (!found) return;
+		onOpenAddStockModal(found, totalQtyToProduce);
+	}
 
 	function formatNum(n: number): string {
 		if (!Number.isFinite(n)) return '0';
@@ -193,7 +260,7 @@
 	}
 
 	function formatDeliveryShort(dateVal: Date | string | null): string {
-		if (!dateVal) return 'Sin horario';
+		if (!dateVal) return 'Inmediata';
 		const d = new Date(dateVal);
 		const today = new Date();
 		const isToday =
@@ -207,380 +274,438 @@
 	}
 </script>
 
-<div class="space-y-5">
-	<!-- Cabecera del Modo Loop + Selector de Ventana -->
-	<div class="rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-xs">
-		<div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-			<div class="flex items-start gap-3">
-				<div class="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-xs">
-					<Zap class="size-5" />
-				</div>
-				<div class="space-y-0.5">
-					<div class="flex flex-wrap items-center gap-2">
-						<h2 class="text-base sm:text-lg font-bold text-foreground">
-							Modo Loop Operativo
-						</h2>
-						<Badge variant="outline" class="border-primary/30 bg-primary/10 text-primary text-xs">
-							{activeHorizonMeta.label} · {ordersInHorizon.length} {ordersInHorizon.length === 1 ? 'pedido activo' : 'pedidos activos'}
-						</Badge>
-					</div>
-					<p class="text-xs text-muted-foreground">
-						Sigue los 3 pasos de izquierda a derecha para cubrir el período elegido sin navegar por tablas complejas.
-					</p>
-				</div>
+<div class="space-y-4 pb-20 lg:pb-4">
+	<!-- Barra Superior Compacta del Modo Loop -->
+	<div class="flex flex-wrap items-center justify-between gap-2.5 rounded-2xl border border-border bg-card px-4 py-3 shadow-xs">
+		<div class="flex items-center gap-2.5">
+			<div class="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-2xs">
+				<Zap class="size-4.5" />
+			</div>
+			<div class="flex items-center gap-2">
+				<h2 class="text-sm sm:text-base font-bold text-foreground">Loop</h2>
+				<Badge variant="outline" class="border-primary/30 bg-primary/10 text-primary font-mono text-xs px-2 py-0.5" title="Pedidos activos en la ventana seleccionada">
+					<ShoppingBag class="size-3 mr-1" />
+					{ordersInHorizon.length}
+				</Badge>
+			</div>
+		</div>
+
+		<div class="flex items-center gap-1.5">
+			<!-- Selector de Ventana Temporal -->
+			<div class="inline-flex items-center rounded-xl border border-border bg-muted/40 p-0.5">
+				{#each HORIZON_OPTIONS as h (h.id)}
+					<button
+						type="button"
+						onclick={() => setHorizon(h.id)}
+						class="rounded-lg px-2.5 py-1 text-xs font-semibold transition-all cursor-pointer {forecastHorizon ===
+						h.id
+							? 'bg-primary text-primary-foreground shadow-2xs'
+							: 'text-muted-foreground hover:text-foreground'}"
+					>
+						{h.label}
+					</button>
+				{/each}
 			</div>
 
-			<div class="flex flex-wrap items-center gap-2">
-				<!-- Selector de Ventana Temporal -->
-				<div class="inline-flex items-center rounded-xl border border-border bg-muted/40 p-1">
-					{#each HORIZON_OPTIONS as h (h.id)}
-						<button
-							type="button"
-							onclick={() => setHorizon(h.id)}
-							class="rounded-lg px-3 py-1.5 text-xs font-semibold transition-all cursor-pointer {forecastHorizon ===
-							h.id
-								? 'bg-primary text-primary-foreground shadow-xs'
-								: 'text-muted-foreground hover:text-foreground'}"
-						>
-							{h.label}
-						</button>
-					{/each}
-				</div>
+			<!-- Botón Icono: Proteger Stock de Vidriera -->
+			<button
+				type="button"
+				onclick={togglePreserveDisplay}
+				class="inline-flex size-8 items-center justify-center rounded-xl border transition-colors cursor-pointer {preserveDisplayStock
+					? 'border-secondary bg-secondary/15 text-secondary'
+					: 'border-border bg-background text-muted-foreground hover:text-foreground'}"
+				title={preserveDisplayStock
+					? 'Proteger stock de vidriera: ACTIVO (no descuenta tu stock actual)'
+					: 'Proteger stock de vidriera: INACTIVO (usa tu stock disponible)'}
+			>
+				<Store class="size-4" />
+			</button>
 
-				<!-- Switch Proteger Vidriera -->
-				<button
-					type="button"
-					onclick={togglePreserveDisplay}
-					class="inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold transition-colors cursor-pointer {preserveDisplayStock
-						? 'border-secondary bg-secondary/15 text-secondary'
-						: 'border-border bg-background text-muted-foreground hover:text-foreground'}"
-					title="Si está activo, no usa tu stock actual y te pide producir el 100% de los pedidos"
-				>
-					<Store class="size-3.5" />
-					<span>Proteger Stock: {preserveDisplayStock ? 'SÍ' : 'NO'}</span>
-				</button>
-
-				<Button
-					type="button"
-					variant="ghost"
-					size="sm"
-					class="text-xs text-muted-foreground hover:text-foreground"
-					onclick={onSwitchToDetailedTabs}
-				>
-					Ver tablas detalladas
-				</Button>
-			</div>
+			<!-- Botón Icono: Ir a Vista de Tablas Detalladas -->
+			<button
+				type="button"
+				onclick={onSwitchToDetailedTabs}
+				class="inline-flex size-8 items-center justify-center rounded-xl border border-border bg-background text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+				title="Ver tablas detalladas"
+			>
+				<List class="size-4" />
+			</button>
 		</div>
 	</div>
 
-	<!-- Los 3 Pasos del Business Loop -->
+	<!-- Las 3 Columnas del Loop (En mobile se muestra la sección activa seleccionada abajo a la derecha) -->
 	<div class="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
 		<!-- ========================================================= -->
-		<!-- PASO 1: ABASTECER (INSUMOS)                               -->
+		<!-- SECCIÓN 1: INSUMOS (ABASTECER)                            -->
 		<!-- ========================================================= -->
-		<div class="rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-xs space-y-4">
-			<div class="flex items-center justify-between gap-2 border-b border-border/60 pb-3">
+		<div
+			class="rounded-2xl border border-border bg-card p-4 shadow-xs space-y-3 {mobileStep === 1
+				? 'block'
+				: 'hidden lg:block'}"
+		>
+			<div class="flex items-center justify-between gap-2 border-b border-border/60 pb-2.5">
 				<div class="flex items-center gap-2">
-					<span class="flex size-6 items-center justify-center rounded-full bg-amber-500/15 font-mono text-xs font-bold text-amber-600 dark:text-amber-400">
+					<span class="flex size-6 items-center justify-center rounded-lg bg-amber-500/15 font-mono text-xs font-bold text-amber-600 dark:text-amber-400">
 						1
 					</span>
-					<div>
-						<h3 class="text-sm font-bold text-foreground">Abastecer Insumos</h3>
-						<p class="text-[11px] text-muted-foreground">Materias primas para {activeHorizonMeta.label.toLowerCase()}</p>
-					</div>
+					<Wheat class="size-4 text-amber-500" />
+					<h3 class="text-sm font-bold text-foreground">Insumos</h3>
 				</div>
-				{#if missingRawMaterials.length === 0}
-					<Badge variant="outline" class="border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[11px]">
-						Cubierto
-					</Badge>
+
+				{#if missingRawCount === 0}
+					<span
+						class="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 font-mono text-xs font-bold text-emerald-600 dark:text-emerald-400"
+						title="Todos los insumos cubiertos"
+					>
+						<CheckCircle2 class="size-3.5" />
+					</span>
 				{:else}
-					<Badge variant="outline" class="border-red-500/30 bg-red-500/10 text-red-600 dark:text-red-400 text-[11px]">
-						{missingRawMaterials.length} {missingRawMaterials.length === 1 ? 'faltante' : 'faltantes'}
-					</Badge>
+					<span
+						class="inline-flex items-center gap-1 rounded-full bg-red-500/15 px-2 py-0.5 font-mono text-xs font-bold text-red-600 dark:text-red-400"
+						title="{missingRawCount} insumos en falta"
+					>
+						<AlertTriangle class="size-3.5" />
+						{missingRawCount}
+					</span>
 				{/if}
 			</div>
 
-			{#if missingRawMaterials.length === 0}
-				<div class="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-4 text-center space-y-1.5">
-					<CheckCircle2 class="size-7 text-emerald-500 mx-auto" />
-					<p class="text-xs font-bold text-foreground">¡Insumos listos!</p>
-					<p class="text-[11px] text-muted-foreground">
-						Tienes suficiente materia prima en stock para cubrir todos los pedidos de este período.
-					</p>
+			{#if rawMaterialLines.length === 0}
+				<div class="flex items-center justify-center gap-2 rounded-xl border border-emerald-500/25 bg-emerald-500/5 py-6 px-3 text-emerald-600 dark:text-emerald-400">
+					<CheckCircle2 class="size-5 shrink-0" />
+					<span class="text-xs font-bold">Stock cubierto</span>
 				</div>
 			{:else}
-				<div class="space-y-2 max-h-80 overflow-y-auto pr-1">
-					{#each missingRawMaterials as raw (raw.itemId)}
-						<div class="flex items-center justify-between gap-2 rounded-xl border border-red-500/25 bg-red-500/5 px-3 py-2.5 text-xs">
-							<div class="min-w-0">
-								<p class="font-bold text-foreground truncate">{raw.name}</p>
-								<p class="text-[11px] text-muted-foreground font-mono">
-									En stock: {formatNum(raw.currentStock)} {formatUnit(raw.baseUnit)} · Req: {formatNum(raw.requiredQuantity)} {formatUnit(raw.baseUnit)}
-								</p>
+				<div class="space-y-2 max-h-[420px] overflow-y-auto pr-0.5">
+					{#each rawMaterialLines as raw (raw.itemId)}
+						{@const isShort = (raw.deficitQuantity ?? 0) > 0}
+						{@const isLow = !isShort && raw.isBelowMinStock}
+						<div
+							class="flex items-center justify-between gap-2 rounded-xl border px-3 py-2 text-xs transition-colors {isShort
+								? 'border-red-500/30 bg-red-500/5'
+								: isLow
+									? 'border-amber-500/30 bg-amber-500/5'
+									: 'border-border bg-background'}"
+						>
+							<div class="min-w-0 space-y-1">
+								<div class="flex items-center gap-1.5">
+									<span
+										class="size-2 shrink-0 rounded-full {isShort
+											? 'bg-red-500 animate-pulse'
+											: isLow
+												? 'bg-amber-500'
+												: 'bg-emerald-500'}"
+									></span>
+									<span class="font-bold text-foreground truncate" title={raw.name}>
+										{raw.name}
+									</span>
+								</div>
+
+								<!-- Indicadores por Iconos (Stock · Demanda · Falta) -->
+								<div class="flex flex-wrap items-center gap-2 font-mono text-[11px]">
+									<span class="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400 font-semibold" title="Stock disponible">
+										<Package class="size-3" />
+										{formatNum(raw.currentStock)} {formatUnit(raw.baseUnit)}
+									</span>
+									<span class="inline-flex items-center gap-1 text-muted-foreground" title="Demanda requerida">
+										<Crosshair class="size-3" />
+										{formatNum(raw.requiredQuantity)} {formatUnit(raw.baseUnit)}
+									</span>
+									{#if isShort}
+										<span class="inline-flex items-center gap-0.5 text-red-600 dark:text-red-400 font-bold" title="Cantidad faltante">
+											<AlertTriangle class="size-3" />
+											-{formatNum(raw.deficitQuantity)}
+										</span>
+									{/if}
+								</div>
 							</div>
-							<div class="text-right shrink-0">
-								{#if (raw.deficitQuantity ?? 0) > 0}
-									<span class="inline-flex items-center gap-1 rounded-md bg-red-500/15 px-2 py-0.5 font-mono text-[11px] font-bold text-red-600 dark:text-red-400">
-										<AlertTriangle class="size-3" />
-										Falta {formatNum(raw.deficitQuantity)} {formatUnit(raw.baseUnit)}
+
+							<Button
+								type="button"
+								size="sm"
+								variant={isShort ? 'default' : 'outline'}
+								class="h-8 px-2.5 gap-1 text-xs font-semibold shrink-0 cursor-pointer"
+								title="Cargar lote de compra en esta pantalla"
+								onclick={() =>
+									handleOpenRawStockModal(
+										raw.itemId,
+										raw.deficitQuantity ?? 0,
+										raw.requiredQuantity ?? 0
+									)}
+							>
+								<PackagePlus class="size-3.5" />
+								<span>Lote</span>
+							</Button>
+						</div>
+					{/each}
+				</div>
+			{/if}
+		</div>
+
+		<!-- ========================================================= -->
+		<!-- SECCIÓN 2: PRODUCCIÓN (MÚLTIPLOS DE RECETA + MODAL)       -->
+		<!-- ========================================================= -->
+		<div
+			class="rounded-2xl border border-border bg-card p-4 shadow-xs space-y-3 {mobileStep === 2
+				? 'block'
+				: 'hidden lg:block'}"
+		>
+			<div class="flex items-center justify-between gap-2 border-b border-border/60 pb-2.5">
+				<div class="flex items-center gap-2">
+					<span class="flex size-6 items-center justify-center rounded-lg bg-primary/15 font-mono text-xs font-bold text-primary">
+						2
+					</span>
+					<ChefHat class="size-4 text-primary" />
+					<h3 class="text-sm font-bold text-foreground">Producción</h3>
+				</div>
+
+				{#if producibleOrders.length > 0 || fabricableItems.some((f) => f.deficitQty > 0)}
+					<span
+						class="inline-flex items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 font-mono text-xs font-bold text-primary"
+						title="Pedidos pendientes de producir"
+					>
+						<ChefHat class="size-3.5" />
+						{producibleOrders.length}
+					</span>
+				{:else}
+					<span
+						class="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 font-mono text-xs font-bold text-emerald-600 dark:text-emerald-400"
+						title="Producción al día"
+					>
+						<CheckCircle2 class="size-3.5" />
+					</span>
+				{/if}
+			</div>
+
+			<!-- Acción de Lote de Pedidos -->
+			{#if producibleOrders.length > 0}
+				<Button
+					type="button"
+					size="sm"
+					class="w-full h-9 justify-between px-3 font-semibold shadow-2xs cursor-pointer"
+					onclick={() => onProduceOrders(producibleOrders, activeHorizonLabel)}
+					title="Abrir Hoja de Producción para marcar pedidos como Listos"
+				>
+					<span class="inline-flex items-center gap-1.5">
+						<ChefHat class="size-4" />
+						<span>Hoja de Producción</span>
+					</span>
+					<span class="rounded-md bg-primary-foreground/20 px-2 py-0.5 font-mono text-xs font-bold">
+						{producibleOrders.length} {producibleOrders.length === 1 ? 'pedido' : 'pedidos'}
+					</span>
+				</Button>
+			{/if}
+
+			<!-- Lista de Elaboraciones con Stepper por Múltiplos de Receta y Modal de Carga -->
+			{#if fabricableItems.length === 0 && producibleOrders.length === 0}
+				<div class="flex items-center justify-center gap-2 rounded-xl border border-emerald-500/25 bg-emerald-500/5 py-6 px-3 text-emerald-600 dark:text-emerald-400">
+					<CheckCircle2 class="size-5 shrink-0" />
+					<span class="text-xs font-bold">Sin pendientes</span>
+				</div>
+			{:else if fabricableItems.length > 0}
+				<div class="space-y-2 max-h-[380px] overflow-y-auto pr-0.5">
+					{#each fabricableItems as item (item.id)}
+						{@const batches = getBatches(item.id, item.defaultBatches)}
+						{@const totalProduceQty = Number((batches * item.yieldQty).toFixed(2))}
+						{@const isShort = item.deficitQty > 0}
+
+						<div
+							class="rounded-xl border p-2.5 space-y-2 text-xs transition-colors {isShort
+								? 'border-red-500/30 bg-red-500/5'
+								: 'border-border bg-background'}"
+						>
+							<div class="flex items-center justify-between gap-2">
+								<div class="flex items-center gap-1.5 min-w-0">
+									<span
+										class="size-2 shrink-0 rounded-full {isShort
+											? 'bg-red-500 animate-pulse'
+											: 'bg-emerald-500'}"
+									></span>
+									<span class="font-bold text-foreground truncate" title={item.name}>
+										{item.name}
 									</span>
-								{:else}
-									<span class="inline-flex items-center gap-1 rounded-md bg-amber-500/15 px-2 py-0.5 font-mono text-[11px] font-bold text-amber-600 dark:text-amber-400">
-										Bajo mín.
+								</div>
+
+								<!-- Badge de capacidad de receta (1 tanda = yieldQty) -->
+								<span
+									class="inline-flex items-center gap-1 rounded-md bg-secondary/15 px-1.5 py-0.5 font-mono text-[10px] font-bold text-secondary shrink-0"
+									title="Capacidad por receta (1 tanda = {formatNum(item.yieldQty)} {formatUnit(item.baseUnit)})"
+								>
+									<Layers class="size-2.5" />
+									1x = {formatNum(item.yieldQty)} {formatUnit(item.baseUnit)}
+								</span>
+							</div>
+
+							<div class="flex flex-wrap items-center justify-between gap-2">
+								<!-- Estado en Iconos: Stock · Demanda · Falta -->
+								<div class="flex items-center gap-2 font-mono text-[11px]">
+									<span class="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400 font-semibold" title="Stock actual">
+										<Package class="size-3" />
+										{formatNum(item.currentStock)}
 									</span>
-								{/if}
+									<span class="inline-flex items-center gap-1 text-muted-foreground" title="Demanda del período">
+										<Crosshair class="size-3" />
+										{formatNum(item.requiredQty)}
+									</span>
+									{#if isShort}
+										<span class="inline-flex items-center gap-0.5 text-red-600 dark:text-red-400 font-bold" title="Faltante">
+											<AlertTriangle class="size-3" />
+											-{formatNum(item.deficitQty)}
+										</span>
+									{/if}
+								</div>
+
+								<!-- Selector de Múltiplos de Receta + Botón que abre el Modal de Carga -->
+								<div class="flex items-center gap-1.5">
+									<div
+										class="inline-flex items-center rounded-lg border border-border bg-card"
+										title="Cambiar entre múltiplos de la receta ({batches} {batches === 1 ? 'tanda' : 'tandas'} = {totalProduceQty} {formatUnit(item.baseUnit)})"
+									>
+										<button
+											type="button"
+											onclick={() => setBatches(item.id, batches - 1)}
+											disabled={batches <= 1}
+											class="px-2 py-1 font-mono text-xs font-bold text-muted-foreground hover:text-foreground disabled:opacity-35 cursor-pointer"
+										>
+											-
+										</button>
+										<span class="px-1.5 py-1 font-mono text-xs font-bold text-foreground min-w-[3.2rem] text-center">
+											{totalProduceQty}
+											<span class="text-[10px] font-normal text-muted-foreground">({batches}x)</span>
+										</span>
+										<button
+											type="button"
+											onclick={() => setBatches(item.id, batches + 1)}
+											class="px-2 py-1 font-mono text-xs font-bold text-muted-foreground hover:text-foreground cursor-pointer"
+										>
+											+
+										</button>
+									</div>
+
+									<Button
+										type="button"
+										size="sm"
+										class="h-7 px-2.5 gap-1 text-xs font-semibold cursor-pointer"
+										title="Abrir modal de producción con {totalProduceQty} {formatUnit(item.baseUnit)} ({batches}x receta)"
+										onclick={() => handleOpenPreparedStockModal(item.id, totalProduceQty)}
+									>
+										<ChefHat class="size-3.5" />
+										<span>Producir</span>
+									</Button>
+								</div>
 							</div>
 						</div>
 					{/each}
 				</div>
-
-				<Button href="/inventory" variant="outline" size="sm" class="w-full justify-between text-xs font-semibold">
-					<span class="inline-flex items-center gap-1.5">
-						<Wheat class="size-3.5" />
-						Ir a Cargar Lote de Compra
-					</span>
-					<ArrowRight class="size-3.5" />
-				</Button>
 			{/if}
 		</div>
 
 		<!-- ========================================================= -->
-		<!-- PASO 2: PRODUCIR EN LOTE (BASES Y PEDIDOS)                -->
+		<!-- SECCIÓN 3: ENTREGAS (AL ENTREGAR SE ASUME PAGADA)         -->
 		<!-- ========================================================= -->
-		<div class="rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-xs space-y-4">
-			<div class="flex items-center justify-between gap-2 border-b border-border/60 pb-3">
+		<div
+			class="rounded-2xl border border-border bg-card p-4 shadow-xs space-y-3 {mobileStep === 3
+				? 'block'
+				: 'hidden lg:block'}"
+		>
+			<div class="flex items-center justify-between gap-2 border-b border-border/60 pb-2.5">
 				<div class="flex items-center gap-2">
-					<span class="flex size-6 items-center justify-center rounded-full bg-primary/15 font-mono text-xs font-bold text-primary">
-						2
-					</span>
-					<div>
-						<h3 class="text-sm font-bold text-foreground">Producir Tanda</h3>
-						<p class="text-[11px] text-muted-foreground">De base sugiere lo que falta; cámbialo si hiciste más</p>
-					</div>
-				</div>
-				{#if producibleOrders.length > 0}
-					<Badge variant="outline" class="border-primary/30 bg-primary/10 text-primary text-[11px]">
-						{producibleOrders.length} {producibleOrders.length === 1 ? 'pedido' : 'pedidos'} por armar
-					</Badge>
-				{:else}
-					<Badge variant="outline" class="border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[11px]">
-						Al día
-					</Badge>
-				{/if}
-			</div>
-
-			<!-- Botón Principal: Hoja de Producción de todos los pedidos del período -->
-			{#if producibleOrders.length > 0}
-				<div class="rounded-xl border border-primary/30 bg-primary/5 p-3.5 space-y-2.5">
-					<div class="flex items-center justify-between gap-2">
-						<span class="text-xs font-bold text-foreground">
-							Pedidos en preparación ({producibleOrders.length})
-						</span>
-						<span class="font-mono text-[11px] text-primary font-semibold">
-							{activeHorizonMeta.label}
-						</span>
-					</div>
-					<p class="text-[11px] text-muted-foreground leading-relaxed">
-						Marca los pedidos como <strong>Listos p/ retirar</strong> y descuenta sus insumos. Si cocinaste unidades de más, podrás sumarlas al stock ahí mismo.
-					</p>
-					<Button
-						type="button"
-						size="sm"
-						class="w-full gap-1.5 font-semibold shadow-xs"
-						onclick={() => onProduceOrders(producibleOrders, activeHorizonMeta.label)}
-					>
-						<ChefHat class="size-4" />
-						<span>Abrir Hoja de Producción ({producibleOrders.length})</span>
-					</Button>
-				</div>
-			{:else}
-				<div class="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3.5 text-center space-y-1">
-					<CheckCircle2 class="size-6 text-emerald-500 mx-auto" />
-					<p class="text-xs font-bold text-foreground">Todos los pedidos del período están producidos</p>
-					<p class="text-[11px] text-muted-foreground">
-						No quedan pedidos pendientes de elaborar en esta ventana.
-					</p>
-				</div>
-			{/if}
-
-			<!-- Lista rápida de Elaboraciones / Bases para producir directo a stock -->
-			{#if fabricableItems.length > 0}
-				<div class="space-y-2 pt-1">
-					<span class="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground block">
-						Elaboraciones / Bases para Stock:
-					</span>
-					<div class="space-y-2 max-h-64 overflow-y-auto pr-1">
-						{#each fabricableItems as item (item.id)}
-							{#if !item.isMakeToOrder}
-								<div class="flex items-center justify-between gap-2 rounded-xl border border-border bg-muted/20 px-3 py-2 text-xs">
-									<div class="min-w-0">
-										<p class="font-bold text-foreground truncate" title={item.name}>{item.name}</p>
-										<p class="text-[10px] font-mono text-muted-foreground">
-											Stock: <strong class="text-blue-600 dark:text-blue-400">{formatNum(item.currentStock)}</strong> · Demanda: <strong class="text-red-600 dark:text-red-400">{formatNum(item.requiredQty)} {formatUnit(item.baseUnit)}</strong>
-											{#if item.deficitQty > 0}
-												<span class="text-red-600 dark:text-red-400 font-bold"> (Faltan {formatNum(item.deficitQty)})</span>
-											{/if}
-										</p>
-									</div>
-
-									<form
-										method="POST"
-										action="?/produceForecastItem"
-										class="inline-flex items-center gap-1 shrink-0"
-										use:enhance={() => {
-											return async ({ result, update }) => {
-												await update();
-												if (result.type === 'success') {
-													const msg = (result.data as { message?: string })?.message ?? 'Lote producido.';
-													toast.success('¡Stock producido!', msg);
-												} else if (result.type === 'failure') {
-													const err = (result.data as { error?: string })?.error ?? 'Error al producir.';
-													toast.error('Error', err);
-												}
-											};
-										}}
-									>
-										<input type="hidden" name="businessId" value={businessId} />
-										<input type="hidden" name="itemId" value={item.id} />
-										<input
-											type="number"
-											name="quantity"
-											min="0.01"
-											step="any"
-											value={item.defaultProduceQty}
-											class="w-14 rounded-lg border border-border bg-background px-1.5 py-1 text-center font-mono text-xs font-bold text-foreground focus:border-primary focus:outline-none"
-											title="Cantidad a producir (puedes cambiarla para producir más)"
-										/>
-										<button
-											type="submit"
-											class="inline-flex items-center gap-1 rounded-lg bg-primary px-2.5 py-1.5 text-[11px] font-semibold text-primary-foreground shadow-2xs hover:bg-primary/90 cursor-pointer"
-										>
-											<ChefHat class="size-3" />
-											<span>Producir</span>
-										</button>
-									</form>
-								</div>
-							{/if}
-						{/each}
-					</div>
-				</div>
-			{/if}
-		</div>
-
-		<!-- ========================================================= -->
-		<!-- PASO 3: ENTREGAR Y COBRAR                                 -->
-		<!-- ========================================================= -->
-		<div class="rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-xs space-y-4">
-			<div class="flex items-center justify-between gap-2 border-b border-border/60 pb-3">
-				<div class="flex items-center gap-2">
-					<span class="flex size-6 items-center justify-center rounded-full bg-emerald-500/15 font-mono text-xs font-bold text-emerald-600 dark:text-emerald-400">
+					<span class="flex size-6 items-center justify-center rounded-lg bg-emerald-500/15 font-mono text-xs font-bold text-emerald-600 dark:text-emerald-400">
 						3
 					</span>
-					<div>
-						<h3 class="text-sm font-bold text-foreground">Entregar y Cobrar</h3>
-						<p class="text-[11px] text-muted-foreground">
-							{readyOrders.length} {readyOrders.length === 1 ? 'listo' : 'listos'} p/ retirar · {ordersInHorizon.length} en total
-						</p>
-					</div>
+					<PackageCheck class="size-4 text-emerald-500" />
+					<h3 class="text-sm font-bold text-foreground">Entregas</h3>
 				</div>
+
+				<span
+					class="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 font-mono text-xs font-bold text-emerald-600 dark:text-emerald-400"
+					title="{readyOrders.length} listos de {ordersInHorizon.length} pedidos"
+				>
+					<PackageCheck class="size-3.5" />
+					{readyOrders.length}/{ordersInHorizon.length}
+				</span>
 			</div>
 
 			{#if ordersInHorizon.length === 0}
-				<div class="rounded-xl border border-dashed border-border p-6 text-center space-y-1.5">
-					<CheckCircle2 class="size-7 text-emerald-500 mx-auto" />
-					<p class="text-xs font-bold text-foreground">No hay entregas pendientes en este período</p>
-					<p class="text-[11px] text-muted-foreground">
-						Todos los pedidos de esta ventana ya fueron entregados.
-					</p>
+				<div class="flex items-center justify-center gap-2 rounded-xl border border-dashed border-border py-6 px-3 text-muted-foreground">
+					<CheckCircle2 class="size-5 text-emerald-500 shrink-0" />
+					<span class="text-xs font-bold text-foreground">Sin entregas pendientes</span>
 				</div>
 			{:else}
-				<div class="space-y-2.5 max-h-[420px] overflow-y-auto pr-1">
+				<div class="space-y-2 max-h-[420px] overflow-y-auto pr-0.5">
 					{#each ordersInHorizon as order (order.id)}
 						{@const isReady = isOrderReadyToDeliver(order)}
-						{@const pendingDebt = Math.max(0, order.totalAmount - order.paidAmount)}
 						{@const canProduceSingle =
 							order.status === 'pending' && order.items.some((i) => i.status === 'pending_delivery')}
 
 						<div
-							class="rounded-xl border p-3 space-y-2.5 transition-all {isReady
+							class="rounded-xl border p-3 space-y-2 transition-all {isReady
 								? 'border-emerald-500/40 bg-emerald-500/5'
 								: 'border-border bg-background'}"
 						>
-							<div class="flex items-start justify-between gap-2">
-								<div class="min-w-0">
-									<div class="flex items-center gap-1.5 flex-wrap">
-										<button
-											type="button"
-											onclick={() => onViewOrder(order)}
-											class="font-mono text-xs font-bold text-foreground hover:underline cursor-pointer"
+							<div class="flex items-center justify-between gap-2">
+								<div class="flex items-center gap-1.5 min-w-0">
+									<!-- Icono de Estado -->
+									{#if isReady}
+										<span
+											class="inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
+											title="Listo para retirar"
 										>
-											{order.orderNumber}
-										</button>
-										<span class="font-bold text-xs text-foreground truncate">
-											· {order.customerName}
-										</span>
-										{#if isReady}
-											<span class="inline-flex items-center gap-0.5 rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
-												<PackageCheck class="size-3" /> Listo p/ retirar
-											</span>
-										{:else if order.status === 'unconfirmed'}
-											<span class="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-300">
-												Por confirmar
-											</span>
-										{/if}
-									</div>
-									<p class="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
-										<Clock class="size-3" />
-										<span>{formatDeliveryShort(order.deliveryDate)}</span>
-										<span>·</span>
-										<span>{order.items.map((i) => `${i.quantity}x ${i.productName}`).join(', ')}</span>
-									</p>
-								</div>
-
-								<button
-									type="button"
-									onclick={() => onViewOrder(order)}
-									class="text-muted-foreground hover:text-foreground p-1 cursor-pointer"
-									title="Ver detalle"
-								>
-									<Eye class="size-3.5" />
-								</button>
-							</div>
-
-							<!-- Botones directos de acción en 1 clic -->
-							<div class="flex flex-wrap items-center justify-between gap-1.5 pt-1 border-t border-border/50">
-								<div class="text-[11px] font-mono">
-									{#if pendingDebt > 0}
-										<span class="text-amber-600 dark:text-amber-400 font-bold">
-											Falta cobrar: {formatCurrency(pendingDebt)}
+											<PackageCheck class="size-3.5" />
 										</span>
 									{:else}
-										<span class="text-emerald-600 dark:text-emerald-400 font-semibold">
-											✓ Pagado ({formatCurrency(order.totalAmount)})
+										<span
+											class="inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400"
+											title="En preparación"
+										>
+											<Clock class="size-3" />
 										</span>
 									{/if}
+
+									<button
+										type="button"
+										onclick={() => onViewOrder(order)}
+										class="font-mono text-xs font-bold text-foreground hover:underline shrink-0 cursor-pointer"
+									>
+										{order.orderNumber}
+									</button>
+									<span class="font-bold text-xs text-foreground truncate" title={order.customerName}>
+										{order.customerName}
+									</span>
 								</div>
 
-								<div class="flex items-center gap-1.5">
-									{#if pendingDebt > 0}
-										<Button
-											type="button"
-											size="sm"
-											variant="outline"
-											class="h-7 px-2.5 text-xs font-semibold border-amber-500/40 text-amber-700 dark:text-amber-300 hover:bg-amber-500/10"
-											onclick={() => onPayOrder(order)}
-										>
-											<DollarSign class="size-3 mr-0.5" />
-											Cobrar
-										</Button>
-									{/if}
+								<div class="flex items-center gap-1.5 shrink-0">
+									<span class="font-mono text-xs font-bold text-foreground">
+										{formatCurrency(order.totalAmount)}
+									</span>
+									<button
+										type="button"
+										onclick={() => onViewOrder(order)}
+										class="text-muted-foreground hover:text-foreground p-1 cursor-pointer"
+										title="Ver detalle"
+									>
+										<Eye class="size-3.5" />
+									</button>
+								</div>
+							</div>
 
+							<div class="flex items-center justify-between gap-2 pt-1 border-t border-border/50">
+								<div class="flex items-center gap-1.5 text-[11px] text-muted-foreground min-w-0 truncate">
+									<Clock class="size-3 shrink-0" />
+									<span class="font-mono shrink-0">{formatDeliveryShort(order.deliveryDate)}</span>
+									<span>·</span>
+									<span class="truncate" title={order.items.map((i) => `${i.quantity}x ${i.productName}`).join(', ')}>
+										{order.items.map((i) => `${i.quantity}x ${i.productName}`).join(', ')}
+									</span>
+								</div>
+
+								<div class="flex items-center gap-1 shrink-0">
 									{#if order.status === 'unconfirmed'}
 										<Button
 											type="button"
 											size="sm"
 											variant="secondary"
-											class="h-7 px-2.5 text-xs font-semibold"
+											class="h-7 px-2.5 text-xs font-semibold cursor-pointer"
 											onclick={() => onConfirmOrder(order)}
 										>
 											Confirmar
@@ -591,23 +716,23 @@
 												type="button"
 												size="sm"
 												variant="outline"
-												class="h-7 px-2 text-xs border-primary/30 text-primary hover:bg-primary/10"
+												class="h-7 px-2 text-xs border-primary/30 text-primary hover:bg-primary/10 cursor-pointer"
 												onclick={() => onProduceOrders([order], order.orderNumber)}
 												title="Producir este pedido ahora"
 											>
-												<ChefHat class="size-3 mr-1" />
-												Listo
+												<ChefHat class="size-3.5" />
 											</Button>
 										{/if}
 										<Button
 											type="button"
 											size="sm"
 											variant="default"
-											class="h-7 px-2.5 text-xs font-semibold gap-1"
+											class="h-7 px-2.5 text-xs font-semibold gap-1 cursor-pointer"
 											onclick={() => onDeliverOrder(order)}
+											title="Entregar orden (se registra entregada y cobrada)"
 										>
-											<Check class="size-3" />
-											Entregar
+											<Check class="size-3.5" />
+											<span>Entregar</span>
 										</Button>
 									{/if}
 								</div>
@@ -617,5 +742,58 @@
 				</div>
 			{/if}
 		</div>
+	</div>
+
+	<!-- Botonera Flotante Mobile (Abajo a la derecha) para cambiar entre las 3 secciones -->
+	<div
+		class="fixed bottom-20 right-4 z-30 flex items-center gap-1.5 rounded-2xl border border-border bg-card/95 p-1.5 shadow-xl backdrop-blur-md lg:hidden"
+	>
+		<button
+			type="button"
+			onclick={() => (mobileStep = 1)}
+			class="relative inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold transition-all cursor-pointer {mobileStep ===
+			1
+				? 'bg-primary text-primary-foreground shadow-xs'
+				: 'text-muted-foreground hover:text-foreground'}"
+			title="1. Insumos"
+		>
+			<Wheat class="size-4" />
+			<span>1</span>
+			{#if missingRawCount > 0}
+				<span class="size-2 rounded-full bg-red-500"></span>
+			{/if}
+		</button>
+
+		<button
+			type="button"
+			onclick={() => (mobileStep = 2)}
+			class="relative inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold transition-all cursor-pointer {mobileStep ===
+			2
+				? 'bg-primary text-primary-foreground shadow-xs'
+				: 'text-muted-foreground hover:text-foreground'}"
+			title="2. Producción"
+		>
+			<ChefHat class="size-4" />
+			<span>2</span>
+			{#if producibleOrders.length > 0}
+				<span class="size-2 rounded-full bg-amber-500"></span>
+			{/if}
+		</button>
+
+		<button
+			type="button"
+			onclick={() => (mobileStep = 3)}
+			class="relative inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold transition-all cursor-pointer {mobileStep ===
+			3
+				? 'bg-primary text-primary-foreground shadow-xs'
+				: 'text-muted-foreground hover:text-foreground'}"
+			title="3. Entregas"
+		>
+			<PackageCheck class="size-4" />
+			<span>3</span>
+			{#if ordersInHorizon.length > 0}
+				<span class="font-mono text-[10px] opacity-85">({ordersInHorizon.length})</span>
+			{/if}
+		</button>
 	</div>
 </div>

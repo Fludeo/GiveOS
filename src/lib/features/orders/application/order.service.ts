@@ -545,7 +545,10 @@ export class OrderService {
 		const nextOrderStatus = computeOrderStatusFromItems(updatedItems);
 
 		await this.orderRepo.updateOrder(order.id, businessId, {
-			status: nextOrderStatus
+			status: nextOrderStatus,
+			...(nextOrderStatus === 'completed'
+				? { paymentStatus: 'paid', paidAmount: order.totalAmount }
+				: {})
 		});
 
 		return (await this.orderRepo.findOrderById(order.id, businessId))!;

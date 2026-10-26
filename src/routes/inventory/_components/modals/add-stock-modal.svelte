@@ -48,6 +48,7 @@
 			}
 		>;
 		estimatedUnitCost?: number;
+		initialQty?: number | '';
 		onClose: () => void;
 		onOpenRecipeStructure?: (itemId: string) => void;
 	}
@@ -60,6 +61,7 @@
 		recipeSummary,
 		recipeSummaries = {},
 		estimatedUnitCost = 0,
+		initialQty = '',
 		onClose,
 		onOpenRecipeStructure
 	}: Props = $props();
@@ -72,9 +74,28 @@
 	let batchToDelete = $state<ItemStockBatch | null>(null);
 	let isDeletingBatch = $state(false);
 
+	// Líneas directas de receta si es elaboración
+	const recipeNodes = $derived(item?.type === 'prepared' ? (recipeSummary?.nodes ?? []) : []);
+	const hasRecipe = $derived(recipeNodes.length > 0);
+	const yieldQuantity = $derived(
+		item?.yieldQuantity && item.yieldQuantity > 0 ? item.yieldQuantity : 1
+	);
+
 	$effect(() => {
 		if (open) {
-			stockIntakeQty = '';
+			if (initialQty !== '' && Number(initialQty) > 0) {
+				if (item?.type === 'prepared') {
+					const y = item.yieldQuantity && item.yieldQuantity > 0 ? item.yieldQuantity : 1;
+					stockIntakeQty = Number((Math.max(y, Math.ceil(Number(initialQty) / y) * y)).toFixed(2));
+				} else {
+					stockIntakeQty = Number(Number(initialQty).toFixed(2));
+				}
+			} else if (item?.type === 'prepared') {
+				const y = item.yieldQuantity && item.yieldQuantity > 0 ? item.yieldQuantity : 1;
+				stockIntakeQty = y;
+			} else {
+				stockIntakeQty = '';
+			}
 			stockIntakeTotalCost = '';
 			stockIntakeSupplier = '';
 			stockIntakeNotes = '';
@@ -98,20 +119,16 @@
 		return 0;
 	});
 
-	// Paso inteligente para el stepper según la unidad de medida
+	// Paso inteligente: para elaborados usa múltiplos del rendimiento de la receta (yieldQuantity)
 	const stepperStep = $derived.by(() => {
 		if (!item) return 1;
+		if (item.type === 'prepared') {
+			return yieldQuantity;
+		}
 		if (item.baseUnit === 'g' || item.baseUnit === 'ml') return 50;
 		if (item.baseUnit === 'kg' || item.baseUnit === 'l') return 1;
 		return 1;
 	});
-
-	// Líneas directas de receta si es elaboración
-	const recipeNodes = $derived(item?.type === 'prepared' ? (recipeSummary?.nodes ?? []) : []);
-	const hasRecipe = $derived(recipeNodes.length > 0);
-	const yieldQuantity = $derived(
-		item?.yieldQuantity && item.yieldQuantity > 0 ? item.yieldQuantity : 1
-	);
 
 	interface SubRecipeImpact {
 		node: RecipeTreeNode;
@@ -479,6 +496,26 @@
 									required
 									inputClass="w-20"
 								/>
+
+								{#if item.type === 'prepared'}
+									<!-- Botones rápidos de múltiplos de receta (1x, 2x, 3x, 4x) -->
+									<div class="inline-flex items-center gap-1 rounded-lg border border-border bg-muted/30 p-0.5">
+										{#each [1, 2, 3, 4] as mult (mult)}
+											{@const multQty = Number((yieldQuantity * mult).toFixed(2))}
+											{@const isSelected = Number(stockIntakeQty) === multQty}
+											<button
+												type="button"
+												onclick={() => (stockIntakeQty = multQty)}
+												class="rounded-md px-2 py-1 font-mono text-[11px] font-bold transition-colors cursor-pointer {isSelected
+													? 'bg-primary text-primary-foreground shadow-2xs'
+													: 'text-muted-foreground hover:text-foreground hover:bg-background'}"
+												title="{mult} {mult === 1 ? 'tanda' : 'tandas'} de receta ({multQty} {item.baseUnit})"
+											>
+												{mult}x ({multQty})
+											</button>
+										{/each}
+									</div>
+								{/if}
 
 								<!-- A la derecha del input la info de máximo disponible con símbolo de caja (Package) -->
 								{#if item.type === 'prepared' && maxProducible !== null}

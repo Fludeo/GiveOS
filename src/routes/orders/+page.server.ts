@@ -15,7 +15,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		requestedBusinessId
 	);
 
-	const { orderService, recipeService } = getServices();
+	const { itemService, orderService, recipeService } = getServices();
 
 	const preserveDisplayStock = url.searchParams.get('preserveDisplay') === '1';
 	const horizonParam = url.searchParams.get('horizon');
@@ -24,7 +24,8 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			? horizonParam
 			: 'all';
 
-	const [orders, salesProducts, preorderForecast, recipeSummaries] = await Promise.all([
+	const [items, orders, salesProducts, preorderForecast, recipeSummaries] = await Promise.all([
+		itemService.listItems(activeBusiness.id),
 		orderService.listOrders(activeBusiness.id),
 		orderService.listSalesProducts(activeBusiness.id),
 		orderService.getPreorderForecast(activeBusiness.id, preserveDisplayStock, forecastHorizon),
@@ -41,6 +42,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		user: locals.user,
 		activeBusiness,
 		businesses: memberships.map((m) => ({ ...m.business, role: m.role })),
+		items,
 		orders,
 		salesProducts: salesProducts.filter((p) => p.isActive),
 		allSalesProducts: salesProducts,

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { replaceState } from '$app/navigation';
 	import type { PageProps } from './$types';
+	import type { Item } from '#lib/features/items/domain/item.entity';
 	import type { OrderWithItems } from '#lib/features/orders/domain/order.entity';
 	import AppShell from '#lib/components/layout/app-shell.svelte';
 	import { Button } from '#lib/components/ui/button';
@@ -22,6 +23,7 @@
 	import DeliverOrderModal from './_components/modals/deliver-order-modal.svelte';
 	import ConfirmOrderModal from './_components/modals/confirm-order-modal.svelte';
 	import ProduceOrdersModal from './_components/modals/produce-orders-modal.svelte';
+	import AddStockModal from '../inventory/_components/modals/add-stock-modal.svelte';
 
 	let { data }: PageProps = $props();
 
@@ -69,6 +71,19 @@
 	let confirmingOrderId = $state<string | null>(null);
 	let producingOrders = $state<OrderWithItems[]>([]);
 	let producingPeriodLabel = $state<string>('Seleccionados');
+	let showAddStockModal = $state(false);
+	let selectedStockItemId = $state<string | null>(null);
+	let selectedStockSuggestedQty = $state<number | ''>('');
+
+	const selectedStockItem = $derived(
+		selectedStockItemId ? (data.items?.find((i) => i.id === selectedStockItemId) ?? null) : null
+	);
+
+	function openAddStockForItem(item: Item, suggestedQty?: number) {
+		selectedStockItemId = item.id;
+		selectedStockSuggestedQty = suggestedQty !== undefined && suggestedQty > 0 ? suggestedQty : '';
+		showAddStockModal = true;
+	}
 
 	const viewingOrder = $derived(
 		viewingOrderId ? (data.orders.find((o) => o.id === viewingOrderId) ?? null) : null
@@ -169,19 +184,19 @@
 
 	{#if currentTab === 'loop'}
 		<OrdersCommerceLoop
+			items={data.items ?? []}
 			orders={data.orders}
 			forecast={data.preorderForecast}
 			forecastHorizon={data.forecastHorizon}
 			preserveDisplayStock={data.preserveDisplayStock}
-			businessId={data.activeBusiness.id}
 			onViewOrder={(order: OrderWithItems) => (viewingOrderId = order.id)}
-			onPayOrder={(order: OrderWithItems) => (payingOrderId = order.id)}
 			onDeliverOrder={(order: OrderWithItems) => (deliveringOrderId = order.id)}
 			onConfirmOrder={(order: OrderWithItems) => (confirmingOrderId = order.id)}
 			onProduceOrders={(ordersToProduce: OrderWithItems[], periodLabel: string) => {
 				producingOrders = ordersToProduce;
 				producingPeriodLabel = periodLabel;
 			}}
+			onOpenAddStockModal={openAddStockForItem}
 			onSwitchToDetailedTabs={() => switchTab('orders')}
 		/>
 	{:else if currentTab === 'orders'}
@@ -267,5 +282,21 @@
 		businessId={data.activeBusiness.id}
 		periodLabel={producingPeriodLabel}
 		onClose={() => (producingOrders = [])}
+	/>
+
+	<AddStockModal
+		bind:open={showAddStockModal}
+		item={selectedStockItem}
+		businessId={data.activeBusiness.id}
+		allItems={data.items ?? []}
+		recipeSummary={selectedStockItem ? data.recipeSummaries?.[selectedStockItem.id] : undefined}
+		recipeSummaries={data.recipeSummaries}
+		estimatedUnitCost={selectedStockItem ? (data.recipeSummaries?.[selectedStockItem.id]?.estimatedUnitCost ?? 0) : 0}
+		initialQty={selectedStockSuggestedQty}
+		onClose={() => {
+			showAddStockModal = false;
+			selectedStockItemId = null;
+			selectedStockSuggestedQty = '';
+		}}
 	/>
 </AppShell>

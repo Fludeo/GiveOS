@@ -73,6 +73,7 @@
 				availableDisplayStock: number | null;
 				itemId: string | null;
 				componentMultiplier: number;
+				recipeStep: number;
 			}
 		>();
 
@@ -90,6 +91,7 @@
 					let displayStock: number | null = null;
 					let itemId: string | null = null;
 					let componentMultiplier = 1;
+					let recipeStep = 1;
 					if (sp && sp.components.length === 1 && sp.components[0].item) {
 						const comp = sp.components[0];
 						const compItem = comp.item!;
@@ -99,6 +101,8 @@
 						);
 						if (compItem.type === 'prepared') {
 							itemId = compItem.id;
+							const rawYield = compItem.yieldQuantity && compItem.yieldQuantity > 0 ? compItem.yieldQuantity : 1;
+							recipeStep = Math.max(1, Number((rawYield / componentMultiplier).toFixed(2)));
 						}
 					}
 					map.set(line.salesProductId, {
@@ -108,7 +112,8 @@
 						ordersCount: 1,
 						availableDisplayStock: displayStock,
 						itemId,
-						componentMultiplier
+						componentMultiplier,
+						recipeStep
 					});
 				}
 			}
@@ -117,10 +122,15 @@
 		return Array.from(map.values());
 	});
 
-	function getProducedQty(salesProductId: string, minQty: number): number {
+	function getDefaultMultipliedQty(minQty: number, step: number): number {
+		if (step <= 1) return minQty;
+		return Math.max(step, Math.ceil(minQty / step) * step);
+	}
+
+	function getProducedQty(salesProductId: string, minQty: number, step: number = 1): number {
 		const custom = customProducedByProduct[salesProductId];
 		if (custom === undefined || Number.isNaN(custom) || custom < minQty) {
-			return minQty;
+			return getDefaultMultipliedQty(minQty, step);
 		}
 		return custom;
 	}
@@ -137,7 +147,7 @@
 		const extra: Record<string, number> = {};
 		for (const prod of consolidatedProducts) {
 			if (!prod.itemId) continue;
-			const actual = getProducedQty(prod.salesProductId, prod.totalQty);
+			const actual = getProducedQty(prod.salesProductId, prod.totalQty, prod.recipeStep);
 			const diff = actual - prod.totalQty;
 			if (diff > 0) {
 				extra[prod.itemId] = (extra[prod.itemId] ?? 0) + diff * prod.componentMultiplier;
@@ -254,8 +264,8 @@
 					{:else}
 						<div class="divide-y divide-border/60 rounded-xl border border-border bg-card">
 							{#each consolidatedProducts as prod (prod.salesProductId)}
-								{@const actualQty = getProducedQty(prod.salesProductId, prod.totalQty)}
-								{@const extraQty = actualQty - prod.totalQty}
+								{@const actualQty = getProducedQty(prod.salesProductId, prod.totalQty, prod.recipeStep)}
+								{@const extraQty = Number((actualQty - prod.totalQty).toFixed(2))}
 								<div class="flex flex-wrap items-center justify-between gap-3 px-3.5 py-2.5 text-xs">
 									<div class="flex items-center gap-2 min-w-0">
 										<span class="rounded bg-primary/10 px-2 py-0.5 font-mono font-bold text-primary shrink-0" title="Cantidad requerida por los pedidos seleccionados">
@@ -264,6 +274,11 @@
 										<span class="font-semibold text-foreground truncate">
 											{prod.productName}
 										</span>
+										{#if prod.recipeStep > 1}
+											<span class="rounded bg-secondary/10 px-1.5 py-0.5 font-mono text-[10px] text-secondary shrink-0" title="Rendimiento por tanda de receta">
+												1x = {prod.recipeStep}
+											</span>
+										{/if}
 										{#if prod.availableDisplayStock !== null && prod.availableDisplayStock > 0}
 											<span class="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground shrink-0">
 												Vidriera: {prod.availableDisplayStock}
@@ -282,16 +297,17 @@
 											<div class="inline-flex items-center rounded-lg border border-border bg-background">
 												<button
 													type="button"
-													onclick={() => setProducedQty(prod.salesProductId, prod.totalQty, actualQty - 1)}
+													onclick={() => setProducedQty(prod.salesProductId, prod.totalQty, actualQty - prod.recipeStep)}
 													disabled={actualQty <= prod.totalQty}
 													class="px-2 py-1 text-xs font-bold text-muted-foreground hover:text-foreground disabled:opacity-40 cursor-pointer"
+													title="Restar 1 tanda ({prod.recipeStep})"
 												>
 													-
 												</button>
 												<input
 													type="number"
 													min={prod.totalQty}
-													step="1"
+													step={prod.recipeStep}
 													value={actualQty}
 													oninput={(e) =>
 														setProducedQty(
@@ -303,8 +319,9 @@
 												/>
 												<button
 													type="button"
-													onclick={() => setProducedQty(prod.salesProductId, prod.totalQty, actualQty + 1)}
+													onclick={() => setProducedQty(prod.salesProductId, prod.totalQty, actualQty + prod.recipeStep)}
 													class="px-2 py-1 text-xs font-bold text-muted-foreground hover:text-foreground cursor-pointer"
+													title="Sumar 1 tanda (+{prod.recipeStep})"
 												>
 													+
 												</button>
