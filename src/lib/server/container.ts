@@ -13,6 +13,7 @@ import { DrizzleBusinessRepository } from '#lib/features/businesses/infrastructu
 import { BusinessService } from '#lib/features/businesses/application/business.service';
 import { DrizzleOrderRepository } from '#lib/features/orders/infrastructure/drizzle-order.repository';
 import { OrderService } from '#lib/features/orders/application/order.service';
+import { getWhatsAppSessionManager } from '#lib/features/integrations/whatsapp/application/whatsapp-session-manager';
 
 /**
  * Punto único de ensamblado de dependencias (Composición Hexagonal / Vertical Slice).
@@ -48,6 +49,7 @@ export function getServices() {
 		authService,
 		businessService,
 		orderService,
+		whatsAppSessionManager: getWhatsAppSessionManager(),
 		betterAuth: globalForServices._betterAuth
 	};
 }

@@ -25,3 +25,4 @@ vite.config.ts.timestamp-*
 *.db
 .pglite_data/
 .pglite_data*/
+storage/
