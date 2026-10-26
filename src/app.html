@@ -10,7 +10,7 @@
 		<meta name="apple-mobile-web-app-status-bar-style" content="default" />
 		<meta name="apple-mobile-web-app-title" content="GiveOS" />
 		<link rel="manifest" href="/manifest.webmanifest" />
-		<link rel="apple-touch-icon" href="/icon.svg" />
+		<link rel="apple-touch-icon" href="/icon-192.png" />
 		<script>
 			try {
 				const theme = localStorage.getItem('theme');
@@ -20,6 +20,12 @@
 					document.documentElement.classList.remove('dark');
 				}
 			} catch (_) {}
+
+			window.__deferredPwaPrompt = null;
+			window.addEventListener('beforeinstallprompt', function (e) {
+				e.preventDefault();
+				window.__deferredPwaPrompt = e;
+			});
 		</script>
 		%sveltekit.head%
 	</head>

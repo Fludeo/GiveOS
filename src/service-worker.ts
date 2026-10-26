@@ -14,7 +14,7 @@ const ASSETS = [...immutable, ...assets];
 sw.addEventListener('install', (event) => {
 	async function addFilesToCache() {
 		const cache = await caches.open(CACHE_NAME);
-		await cache.addAll(ASSETS);
+		await Promise.allSettled(ASSETS.map((asset) => cache.add(asset)));
 	}
 
 	event.waitUntil(addFilesToCache().then(() => sw.skipWaiting()));

@@ -29,59 +29,14 @@
 	import ExternalLink from '@lucide/svelte/icons/external-link';
 	import Smartphone from '@lucide/svelte/icons/smartphone';
 	import Download from '@lucide/svelte/icons/download';
+	import Share from '@lucide/svelte/icons/share';
+	import X from '@lucide/svelte/icons/x';
+	import { pwaStore } from '#lib/pwa.svelte';
 	import { toast } from '#lib/components/ui/toast/toast.svelte';
-
-	interface BeforeInstallPromptEvent extends Event {
-		prompt: () => Promise<void>;
-		userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
-	}
 
 	let { data }: PageProps = $props();
 
 	let currentTab = $state<'general' | 'costs' | 'schedule'>('general');
-	let deferredInstallPrompt = $state<BeforeInstallPromptEvent | null>(null);
-	let isStandalonePwa = $state(false);
-
-	$effect(() => {
-		if (typeof window === 'undefined') return;
-		isStandalonePwa =
-			window.matchMedia('(display-mode: standalone)').matches ||
-			(window.navigator as Navigator & { standalone?: boolean }).standalone === true;
-
-		function handleBeforeInstallPrompt(e: Event) {
-			e.preventDefault();
-			deferredInstallPrompt = e as BeforeInstallPromptEvent;
-		}
-
-		function handleAppInstalled() {
-			deferredInstallPrompt = null;
-			isStandalonePwa = true;
-			toast.success('¡GiveOS instalada!', 'Ya puedes abrir la aplicación desde tu pantalla de inicio.');
-		}
-
-		window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-		window.addEventListener('appinstalled', handleAppInstalled);
-
-		return () => {
-			window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-			window.removeEventListener('appinstalled', handleAppInstalled);
-		};
-	});
-
-	async function installPwa() {
-		if (!deferredInstallPrompt) {
-			toast.info(
-				'Cómo instalar GiveOS',
-				'En iPhone/iPad toca "Compartir" → "Agregar a Inicio". En Android/Chrome usa el menú del navegador → "Instalar aplicación".'
-			);
-			return;
-		}
-		await deferredInstallPrompt.prompt();
-		const { outcome } = await deferredInstallPrompt.userChoice;
-		if (outcome === 'accepted') {
-			deferredInstallPrompt = null;
-		}
-	}
 	let weeklySchedule = $state<DaySchedule[]>(createDefaultWeeklySchedule());
 
 	// Sincronizar horario cuando cambia el negocio activo
@@ -493,31 +448,31 @@
 					<div class="space-y-0.5">
 						<div class="flex items-center gap-2">
 							<h4 class="text-sm font-bold text-foreground">Aplicación Móvil y Escritorio (PWA)</h4>
-							{#if isStandalonePwa}
+							{#if pwaStore.isStandalone}
 								<span class="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-400">
 									Instalada
 								</span>
 							{/if}
 						</div>
 						<p class="text-xs text-muted-foreground">
-							{#if isStandalonePwa}
+							{#if pwaStore.isStandalone}
 								Estás ejecutando GiveOS como aplicación nativa a pantalla completa.
 							{:else}
-								Instala GiveOS en tu celular o tablet para usarla a pantalla completa con accesos directos a Nueva Orden.
+								Instala GiveOS en tu celular, tablet o PC para abrirla desde tu inicio a pantalla completa.
 							{/if}
 						</p>
 					</div>
 				</div>
-				{#if !isStandalonePwa}
+				{#if !pwaStore.isStandalone}
 					<Button
 						type="button"
-						variant={deferredInstallPrompt ? 'default' : 'outline'}
+						variant="default"
 						size="sm"
-						onclick={installPwa}
+						onclick={() => pwaStore.triggerInstall()}
 						class="gap-1.5 shadow-2xs w-full sm:w-auto"
 					>
 						<Download class="size-3.5" />
-						<span>{deferredInstallPrompt ? 'Instalar GiveOS' : 'Cómo instalar'}</span>
+						<span>Instalar GiveOS</span>
 					</Button>
 				{/if}
 			</div>
@@ -536,4 +491,77 @@
 			</div>
 		{/if}
 	</div>
+
+	{#if pwaStore.showManualInstructionsModal}
+		<div
+			class="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4 backdrop-blur-[1px]"
+			role="dialog"
+			aria-modal="true"
+			aria-labelledby="pwa-modal-title"
+		>
+			<div class="w-full max-w-md overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
+				<div class="flex items-start justify-between gap-4 border-b border-border p-5">
+					<div class="flex items-center gap-3">
+						<div class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-secondary/15 text-secondary">
+							<Smartphone class="size-5" />
+						</div>
+						<div>
+							<h2 id="pwa-modal-title" class="text-base font-bold text-foreground">
+								Instalar GiveOS en tu dispositivo
+							</h2>
+							<p class="text-xs text-muted-foreground">
+								Tu navegador requiere confirmar desde su menú nativo
+							</p>
+						</div>
+					</div>
+					<Button
+						type="button"
+						size="icon"
+						variant="ghost"
+						class="size-8 text-muted-foreground hover:text-foreground"
+						onclick={() => (pwaStore.showManualInstructionsModal = false)}
+					>
+						<X class="size-4" />
+					</Button>
+				</div>
+
+				<div class="space-y-3 p-5 text-xs text-foreground">
+					{#if pwaStore.isIos}
+						<div class="rounded-xl border border-border bg-muted/30 p-3.5 space-y-2">
+							<p class="font-bold text-sm flex items-center gap-2">
+								<Share class="size-4 text-primary" />
+								<span>En iPhone / iPad (Safari):</span>
+							</p>
+							<ol class="list-decimal pl-5 space-y-1.5 text-muted-foreground">
+								<li>Toca el botón <strong class="text-foreground">Compartir</strong> en la barra de Safari.</li>
+								<li>Selecciona <strong class="text-foreground">"Agregar a Inicio"</strong>.</li>
+								<li>Toca <strong class="text-foreground">"Agregar"</strong> arriba a la derecha.</li>
+							</ol>
+						</div>
+					{:else}
+						<div class="rounded-xl border border-border bg-muted/30 p-3.5 space-y-2">
+							<p class="font-bold text-sm flex items-center gap-2">
+								<Download class="size-4 text-primary" />
+								<span>En Chrome / Edge / Android:</span>
+							</p>
+							<ol class="list-decimal pl-5 space-y-1.5 text-muted-foreground">
+								<li>Si ya está instalada, búscala en tu escritorio o cajón de apps como <strong class="text-foreground">GiveOS</strong>.</li>
+								<li>O haz clic en el ícono de <strong class="text-foreground">Instalar</strong> en el extremo derecho de la barra de direcciones (o en el menú <strong class="text-foreground">⋮ → Instalar GiveOS</strong>).</li>
+							</ol>
+						</div>
+					{/if}
+				</div>
+
+				<div class="flex justify-end border-t border-border bg-muted/20 px-5 py-3">
+					<Button
+						type="button"
+						size="sm"
+						onclick={() => (pwaStore.showManualInstructionsModal = false)}
+					>
+						Entendido
+					</Button>
+				</div>
+			</div>
+		</div>
+	{/if}
 </AppShell>
