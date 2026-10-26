@@ -14,6 +14,7 @@
 	import OrdersListSection from './_components/sections/orders-list-section.svelte';
 	import OrdersDeliveriesWidget from './_components/sections/orders-deliveries-widget.svelte';
 	import OrdersForecastSection from './_components/sections/orders-forecast-section.svelte';
+	import OrdersCommerceLoop from './_components/sections/orders-commerce-loop.svelte';
 	import NewOrderModal from './_components/modals/new-order-modal.svelte';
 	import ViewOrderModal from './_components/modals/view-order-modal.svelte';
 	import PayOrderModal from './_components/modals/pay-order-modal.svelte';
@@ -24,13 +25,16 @@
 
 	let { data }: PageProps = $props();
 
-	// Pestaña activa: 'orders' | 'upcoming' | 'forecast'
-	let activeTab = $state<'orders' | 'upcoming' | 'forecast' | null>(null);
-	const currentTab = $derived<'orders' | 'upcoming' | 'forecast'>(
+	// Pestaña activa: 'orders' | 'upcoming' | 'forecast' | 'loop'
+	let activeTab = $state<'orders' | 'upcoming' | 'forecast' | 'loop' | null>(null);
+	$effect(() => {
+		activeTab = data.initialTab;
+	});
+	const currentTab = $derived<'orders' | 'upcoming' | 'forecast' | 'loop'>(
 		activeTab ?? data.initialTab ?? 'orders'
 	);
 
-	function switchTab(tab: 'orders' | 'upcoming' | 'forecast') {
+	function switchTab(tab: 'orders' | 'upcoming' | 'forecast' | 'loop') {
 		activeTab = tab;
 		if (typeof window !== 'undefined') {
 			const url = new URL(window.location.href);
@@ -95,73 +99,92 @@
 	title="Órdenes de Compra"
 	description="Gestión de pedidos de mostrador, agenda de próximas entregas y previsión de demanda de insumos"
 >
-	<!-- Barra de Pestañas Unificada de Órdenes (Segmented Control 3 columnas en mobile) -->
-	<div class="sticky top-2 z-20 grid grid-cols-3 gap-1 rounded-2xl border border-border bg-card/95 p-1.5 shadow-xs backdrop-blur-md sm:inline-flex sm:w-auto sm:gap-1.5">
-		<button
-			type="button"
-			onclick={() => switchTab('orders')}
-			class="inline-flex items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-xs sm:px-3.5 sm:text-sm font-medium transition-colors cursor-pointer {currentTab ===
-			'orders'
-				? 'bg-primary text-primary-foreground shadow-xs font-semibold'
-				: 'text-muted-foreground hover:text-foreground'}"
-		>
-			<ShoppingBag class="size-3.5 sm:size-4 shrink-0" />
-			<span class="truncate sm:hidden">Pedidos</span>
-			<span class="hidden sm:inline">Órdenes de Compra</span>
-		</button>
+	{#if currentTab !== 'loop'}
+		<!-- Barra de Pestañas Unificada de Órdenes (Segmented Control 3 columnas en mobile) -->
+		<div class="sticky top-2 z-20 grid grid-cols-3 gap-1 rounded-2xl border border-border bg-card/95 p-1.5 shadow-xs backdrop-blur-md sm:inline-flex sm:w-auto sm:gap-1.5">
+			<button
+				type="button"
+				onclick={() => switchTab('orders')}
+				class="inline-flex items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-xs sm:px-3.5 sm:text-sm font-medium transition-colors cursor-pointer {currentTab ===
+				'orders'
+					? 'bg-primary text-primary-foreground shadow-xs font-semibold'
+					: 'text-muted-foreground hover:text-foreground'}"
+			>
+				<ShoppingBag class="size-3.5 sm:size-4 shrink-0" />
+				<span class="truncate sm:hidden">Pedidos</span>
+				<span class="hidden sm:inline">Órdenes de Compra</span>
+			</button>
 
-		<button
-			type="button"
-			onclick={() => switchTab('upcoming')}
-			class="inline-flex items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-xs sm:px-3.5 sm:text-sm font-medium transition-colors cursor-pointer {currentTab ===
-			'upcoming'
-				? 'bg-primary text-primary-foreground shadow-xs font-semibold'
-				: 'text-muted-foreground hover:text-foreground'}"
-		>
-			<CalendarClock class="size-3.5 sm:size-4 shrink-0" />
-			<span class="truncate sm:hidden">Agenda</span>
-			<span class="hidden sm:inline">Próximos Pedidos</span>
-			{#if data.preorderForecast.pendingOrdersCount > 0}
-				<span
-					class="rounded-full px-1.5 py-0.2 text-[10px] font-bold shrink-0 {currentTab ===
-					'upcoming'
-						? 'bg-primary-foreground/20 text-primary-foreground'
-						: 'bg-amber-500/15 text-amber-700 dark:text-amber-400'}"
-				>
-					{data.preorderForecast.pendingOrdersCount}
-				</span>
-			{/if}
-		</button>
+			<button
+				type="button"
+				onclick={() => switchTab('upcoming')}
+				class="inline-flex items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-xs sm:px-3.5 sm:text-sm font-medium transition-colors cursor-pointer {currentTab ===
+				'upcoming'
+					? 'bg-primary text-primary-foreground shadow-xs font-semibold'
+					: 'text-muted-foreground hover:text-foreground'}"
+			>
+				<CalendarClock class="size-3.5 sm:size-4 shrink-0" />
+				<span class="truncate sm:hidden">Agenda</span>
+				<span class="hidden sm:inline">Próximos Pedidos</span>
+				{#if data.preorderForecast.pendingOrdersCount > 0}
+					<span
+						class="rounded-full px-1.5 py-0.2 text-[10px] font-bold shrink-0 {currentTab ===
+						'upcoming'
+							? 'bg-primary-foreground/20 text-primary-foreground'
+							: 'bg-amber-500/15 text-amber-700 dark:text-amber-400'}"
+					>
+						{data.preorderForecast.pendingOrdersCount}
+					</span>
+				{/if}
+			</button>
 
-		<button
-			type="button"
-			onclick={() => switchTab('forecast')}
-			class="inline-flex items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-xs sm:px-3.5 sm:text-sm font-medium transition-colors cursor-pointer {currentTab ===
-			'forecast'
-				? 'bg-primary text-primary-foreground shadow-xs font-semibold'
-				: 'text-muted-foreground hover:text-foreground'}"
-		>
-			<Boxes class="size-3.5 sm:size-4 shrink-0" />
-			<span class="truncate sm:hidden">Demanda</span>
-			<span class="hidden sm:inline">Demanda de Insumos & Ensambles</span>
-			{#if data.preorderForecast.subAssemblyForecast.some((i) => i.isShortage) || data.preorderForecast.rawMaterialForecast.some((i) => i.isShortage)}
-				<span
-					class="size-2 rounded-full bg-red-500 shrink-0 sm:hidden"
-					title="Hay faltantes de insumos o ensambles"
-				></span>
-				<span
-					class="hidden sm:inline ml-1 rounded-full px-1.5 py-0.2 text-[10px] font-bold {currentTab ===
-					'forecast'
-						? 'bg-primary-foreground/20 text-primary-foreground'
-						: 'bg-red-500/15 text-red-700 dark:text-red-400'}"
-				>
-					Faltantes
-				</span>
-			{/if}
-		</button>
-	</div>
+			<button
+				type="button"
+				onclick={() => switchTab('forecast')}
+				class="inline-flex items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-xs sm:px-3.5 sm:text-sm font-medium transition-colors cursor-pointer {currentTab ===
+				'forecast'
+					? 'bg-primary text-primary-foreground shadow-xs font-semibold'
+					: 'text-muted-foreground hover:text-foreground'}"
+			>
+				<Boxes class="size-3.5 sm:size-4 shrink-0" />
+				<span class="truncate sm:hidden">Demanda</span>
+				<span class="hidden sm:inline">Demanda de Insumos & Ensambles</span>
+				{#if data.preorderForecast.subAssemblyForecast.some((i) => i.isShortage) || data.preorderForecast.rawMaterialForecast.some((i) => i.isShortage)}
+					<span
+						class="size-2 rounded-full bg-red-500 shrink-0 sm:hidden"
+						title="Hay faltantes de insumos o ensambles"
+					></span>
+					<span
+						class="hidden sm:inline ml-1 rounded-full px-1.5 py-0.2 text-[10px] font-bold {currentTab ===
+						'forecast'
+							? 'bg-primary-foreground/20 text-primary-foreground'
+							: 'bg-red-500/15 text-red-700 dark:text-red-400'}"
+					>
+						Faltantes
+					</span>
+				{/if}
+			</button>
+		</div>
+	{/if}
 
-	{#if currentTab === 'orders'}
+	{#if currentTab === 'loop'}
+		<OrdersCommerceLoop
+			orders={data.orders}
+			forecast={data.preorderForecast}
+			forecastHorizon={data.forecastHorizon}
+			preserveDisplayStock={data.preserveDisplayStock}
+			businessId={data.activeBusiness.id}
+			onViewOrder={(order: OrderWithItems) => (viewingOrderId = order.id)}
+			onPayOrder={(order: OrderWithItems) => (payingOrderId = order.id)}
+			onDeliverOrder={(order: OrderWithItems) => (deliveringOrderId = order.id)}
+			onConfirmOrder={(order: OrderWithItems) => (confirmingOrderId = order.id)}
+			onProduceOrders={(ordersToProduce: OrderWithItems[], periodLabel: string) => {
+				producingOrders = ordersToProduce;
+				producingPeriodLabel = periodLabel;
+			}}
+			onSwitchToDetailedTabs={() => switchTab('orders')}
+		/>
+	{:else if currentTab === 'orders'}
 		<!-- 1. Tarjetas de Resumen y KPIs -->
 		<OrdersSummaryCards
 			orders={data.orders}

@@ -848,7 +848,7 @@
 									</span>
 								{/if}
 
-								{#if isFabricable && item.deficitQuantity > 0 && !item.isMakeToOrder && businessId}
+								{#if isFabricable && !item.isMakeToOrder && businessId}
 									<form
 										method="POST"
 										action="?/produceForecastItem"
@@ -873,9 +873,9 @@
 											name="quantity"
 											min="0.01"
 											step="any"
-											value={Number(item.deficitQuantity.toFixed(2))}
+											value={Number((item.deficitQuantity > 0 ? item.deficitQuantity : item.requiredQuantity || 1).toFixed(2))}
 											class="w-16 rounded-lg border border-border bg-background px-1.5 py-1 text-center font-mono text-[11px] font-bold text-foreground focus:border-primary focus:outline-none"
-											title="Cantidad a producir (por defecto lo que falta, puedes cambiarlo para producir más)"
+											title="Cantidad a producir (por defecto lo que falta o la demanda; puedes cambiarlo para producir más)"
 										/>
 										<button
 											type="submit"
@@ -1033,7 +1033,7 @@
 													<span class="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">0 min</span>
 												{/if}
 
-												{#if item.deficitQuantity > 0 && !item.isMakeToOrder && businessId}
+												{#if !item.isMakeToOrder && businessId}
 													<form
 														method="POST"
 														action="?/produceForecastItem"
@@ -1058,9 +1058,9 @@
 															name="quantity"
 															min="0.01"
 															step="any"
-															value={Number(item.deficitQuantity.toFixed(2))}
+															value={Number((item.deficitQuantity > 0 ? item.deficitQuantity : item.requiredQuantity || 1).toFixed(2))}
 															class="w-14 rounded-lg border border-border bg-background px-1.5 py-0.5 text-center font-mono text-[11px] font-bold text-foreground focus:border-primary focus:outline-none"
-															title="Cantidad a producir (por defecto lo que falta)"
+															title="Cantidad a producir (por defecto lo que falta o la demanda)"
 														/>
 														<button
 															type="submit"

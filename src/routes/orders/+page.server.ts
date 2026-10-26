@@ -32,8 +32,8 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 	]);
 
 	const requestedTab = url.searchParams.get('tab');
-	const initialTab: 'orders' | 'upcoming' | 'forecast' =
-		requestedTab === 'upcoming' || requestedTab === 'forecast'
+	const initialTab: 'orders' | 'upcoming' | 'forecast' | 'loop' =
+		requestedTab === 'upcoming' || requestedTab === 'forecast' || requestedTab === 'loop'
 			? requestedTab
 			: 'orders';
 

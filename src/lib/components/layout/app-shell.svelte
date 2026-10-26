@@ -22,6 +22,7 @@
 	import Phone from '@lucide/svelte/icons/phone';
 	import Clock from '@lucide/svelte/icons/clock';
 	import Plus from '@lucide/svelte/icons/plus';
+	import Zap from '@lucide/svelte/icons/zap';
 	import X from '@lucide/svelte/icons/x';
 	import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
 	import PanelLeftOpen from '@lucide/svelte/icons/panel-left-open';
@@ -214,11 +215,19 @@
 
 		<!-- Menú de Navegación Principal -->
 		<nav class="flex-1 space-y-1.5 overflow-y-auto {isCollapsed ? 'p-2' : 'p-4'}">
-			<div class="pb-2">
+			<div class="pb-2 space-y-2">
 				{#if !isCollapsed}
 					<Button href="/orders/new" variant="tertiary" class="w-full justify-center gap-2 shadow-xs font-semibold">
 						<ShoppingCart class="size-4" />
 						<span>Nueva Orden</span>
+					</Button>
+					<Button
+						href="/orders?tab=loop"
+						variant={page.url.pathname === '/orders' && page.url.searchParams.get('tab') === 'loop' ? 'default' : 'secondary'}
+						class="w-full justify-center gap-2 shadow-xs font-semibold"
+					>
+						<Zap class="size-4" />
+						<span>Modo Loop</span>
 					</Button>
 				{:else}
 					<Button
@@ -229,6 +238,15 @@
 						title="Nueva Orden"
 					>
 						<ShoppingCart class="size-4" />
+					</Button>
+					<Button
+						href="/orders?tab=loop"
+						variant={page.url.pathname === '/orders' && page.url.searchParams.get('tab') === 'loop' ? 'default' : 'secondary'}
+						size="icon"
+						class="w-full h-10 justify-center shadow-xs"
+						title="Modo Loop Operativo"
+					>
+						<Zap class="size-4" />
 					</Button>
 				{/if}
 			</div>
@@ -332,6 +350,16 @@
 			</div>
 
 			<div class="flex shrink-0 items-center gap-1.5">
+				<Button
+					href="/orders?tab=loop"
+					variant={page.url.pathname === '/orders' && page.url.searchParams.get('tab') === 'loop' ? 'default' : 'secondary'}
+					size="sm"
+					class="h-7 gap-1 px-2.5 text-xs font-semibold shadow-2xs"
+					title="Ir al Modo Loop Operativo"
+				>
+					<Zap class="size-3.5" />
+					<span>Loop</span>
+				</Button>
 				<ThemeToggle />
 				<div
 					class="flex size-7 items-center justify-center rounded-full bg-primary/10 text-[11px] font-bold text-primary"
