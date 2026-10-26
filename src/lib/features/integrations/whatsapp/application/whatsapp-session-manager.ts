@@ -10,7 +10,7 @@ import pino from 'pino';
 import QRCode from 'qrcode';
 import { v7 as uuidv7 } from 'uuid';
 import { eq } from 'drizzle-orm';
-import { getDb } from '#lib/server/db';
+import { getDb } from '#lib/server/db/index';
 import { businesses } from '#lib/server/db/schema';
 import type {
 	WhatsAppMessage,
@@ -41,8 +41,45 @@ export class WhatsAppSessionManager {
 	constructor() {
 		try {
 			fs.mkdirSync(SESSIONS_DIR, { recursive: true });
+			// Auto-restaurar sesiones activas previas al iniciar el servidor
+			setTimeout(() => {
+				this.restoreAllSessions();
+			}, 1000);
 		} catch (e) {
 			console.error('[WhatsAppSessionManager] Error al crear directorio de sesiones:', e);
+		}
+	}
+
+	async restoreAllSessions(): Promise<void> {
+		try {
+			if (!fs.existsSync(SESSIONS_DIR)) return;
+			const dirs = fs.readdirSync(SESSIONS_DIR, { withFileTypes: true });
+			for (const dir of dirs) {
+				if (dir.isDirectory()) {
+					const businessId = dir.name;
+					const credsPath = path.resolve(SESSIONS_DIR, businessId, 'creds.json');
+					if (fs.existsSync(credsPath)) {
+						const holder = this.getOrCreateHolder(businessId);
+						try {
+							const creds = JSON.parse(fs.readFileSync(credsPath, 'utf8'));
+							if (creds.me?.id) {
+								holder.phone = creds.me.id.split(':')[0].split('@')[0];
+								holder.pushName = creds.me.name || null;
+							}
+						} catch (_) {}
+
+						if (holder.status !== 'connected' && !holder.sock) {
+							holder.status = 'connecting';
+							console.log(`[WhatsAppSessionManager] Restaurando sesión de WhatsApp para ${businessId} (+${holder.phone})...`);
+							this.connect(businessId).catch((err) =>
+								console.error(`[WhatsAppSessionManager] Error al auto-conectar ${businessId}:`, err)
+							);
+						}
+					}
+				}
+			}
+		} catch (err) {
+			console.error('[WhatsAppSessionManager] Error en restoreAllSessions:', err);
 		}
 	}
 
@@ -68,6 +105,25 @@ export class WhatsAppSessionManager {
 
 	getSessionInfo(businessId: string): WhatsAppSessionInfo {
 		const holder = this.getOrCreateHolder(businessId);
+
+		// Si no está activo pero existen credenciales en disco, iniciar auto-conexión transparente
+		if (holder.status === 'disconnected' && !holder.sock && !holder.connectingPromise) {
+			const credsPath = path.resolve(SESSIONS_DIR, businessId, 'creds.json');
+			if (fs.existsSync(credsPath)) {
+				try {
+					const creds = JSON.parse(fs.readFileSync(credsPath, 'utf8'));
+					if (creds.me?.id) {
+						holder.phone = creds.me.id.split(':')[0].split('@')[0];
+						holder.pushName = creds.me.name || null;
+					}
+					holder.status = 'connecting';
+					this.connect(businessId).catch((err) =>
+						console.error(`[WhatsAppSessionManager] Error auto-conectando ${businessId}:`, err)
+					);
+				} catch (_) {}
+			}
+		}
+
 		return {
 			businessId,
 			status: holder.status,
@@ -232,18 +288,16 @@ export class WhatsAppSessionManager {
 								);
 							}, 4000);
 						} else {
-							// Desvinculado / sesión cerrada desde el celular
+							// Desvinculado o desconexión crítica reportada por WhatsApp
 							holder.status = 'disconnected';
-							holder.phone = null;
-							holder.pushName = null;
 							this.broadcast(holder, {
 								type: 'whatsapp:status',
 								businessId,
 								status: 'disconnected'
 							});
-							try {
-								fs.rmSync(sessionPath, { recursive: true, force: true });
-							} catch (_) {}
+							// NOTA: No borramos los archivos del disco aquí para no perder credenciales
+							// ante caídas temporales o 401 transitorios. El borrado sólo se realiza
+							// de forma explícita cuando el usuario pulsa "Desvincular".
 						}
 					}
 				});
