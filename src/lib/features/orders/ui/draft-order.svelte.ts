@@ -60,9 +60,6 @@ class DraftOrderStore {
 					this.loadFromStorage();
 				}
 			});
-			window.addEventListener('giveos_draft_order_updated', () => {
-				this.loadFromStorage();
-			});
 		}
 	}
 
@@ -106,7 +103,6 @@ class DraftOrderStore {
 				};
 				localStorage.setItem(`${STORAGE_PREFIX}${this.businessId}`, JSON.stringify(payload));
 			}
-			window.dispatchEvent(new CustomEvent('giveos_draft_order_updated'));
 		} catch (e) {
 			console.error('Error al guardar borrador de orden en localStorage:', e);
 		}
@@ -116,8 +112,28 @@ class DraftOrderStore {
 		this.resetInMemory();
 		if (typeof window !== 'undefined' && this.businessId) {
 			localStorage.removeItem(`${STORAGE_PREFIX}${this.businessId}`);
-			window.dispatchEvent(new CustomEvent('giveos_draft_order_updated'));
 		}
+	}
+
+	updateFromTerminal(data: {
+		lines: DraftOrderLine[];
+		customerName: string;
+		paymentStatus: PaymentStatus;
+		paidAmount: number;
+		deliveryDate: string;
+		notes: string;
+		transactionId: string;
+		createAsUnconfirmed: boolean;
+	}) {
+		this.lines = data.lines;
+		this.customerName = data.customerName;
+		this.paymentStatus = data.paymentStatus;
+		this.paidAmount = data.paidAmount;
+		this.deliveryDate = data.deliveryDate;
+		this.notes = data.notes;
+		this.transactionId = data.transactionId;
+		this.createAsUnconfirmed = data.createAsUnconfirmed;
+		this.save();
 	}
 
 	addLine(line: DraftOrderLine) {

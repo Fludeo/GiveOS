@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { enhance } from '$app/forms';
 	import type { PageProps } from './$types';
 	import type { PaymentStatus } from '#lib/features/orders/domain/order.entity';
@@ -34,33 +35,48 @@
 	let isLoadedFromStorage = $state(false);
 
 	$effect(() => {
-		if (data.activeBusiness?.id) {
-			draftOrderStore.init(data.activeBusiness.id);
-			if (!isLoadedFromStorage) {
-				draftLines = draftOrderStore.lines;
-				draftCustomerName = draftOrderStore.customerName;
-				draftPaymentStatus = draftOrderStore.paymentStatus;
-				draftPaidAmount = draftOrderStore.paidAmount;
-				draftDeliveryDate = draftOrderStore.deliveryDate;
-				draftNotes = draftOrderStore.notes;
-				draftTransactionId = draftOrderStore.transactionId;
-				draftCreateAsUnconfirmed = draftOrderStore.createAsUnconfirmed;
-				isLoadedFromStorage = true;
-			}
+		const bizId = data.activeBusiness?.id;
+		if (bizId) {
+			untrack(() => {
+				draftOrderStore.init(bizId);
+				if (!isLoadedFromStorage) {
+					draftLines = [...draftOrderStore.lines];
+					draftCustomerName = draftOrderStore.customerName;
+					draftPaymentStatus = draftOrderStore.paymentStatus;
+					draftPaidAmount = draftOrderStore.paidAmount;
+					draftDeliveryDate = draftOrderStore.deliveryDate;
+					draftNotes = draftOrderStore.notes;
+					draftTransactionId = draftOrderStore.transactionId;
+					draftCreateAsUnconfirmed = draftOrderStore.createAsUnconfirmed;
+					isLoadedFromStorage = true;
+				}
+			});
 		}
 	});
 
 	$effect(() => {
 		if (isLoadedFromStorage && data.activeBusiness?.id) {
-			draftOrderStore.lines = draftLines;
-			draftOrderStore.customerName = draftCustomerName;
-			draftOrderStore.paymentStatus = draftPaymentStatus;
-			draftOrderStore.paidAmount = draftPaidAmount;
-			draftOrderStore.deliveryDate = draftDeliveryDate;
-			draftOrderStore.notes = draftNotes;
-			draftOrderStore.transactionId = draftTransactionId;
-			draftOrderStore.createAsUnconfirmed = draftCreateAsUnconfirmed;
-			draftOrderStore.save();
+			const lines = draftLines;
+			const customerName = draftCustomerName;
+			const paymentStatus = draftPaymentStatus;
+			const paidAmount = draftPaidAmount;
+			const deliveryDate = draftDeliveryDate;
+			const notes = draftNotes;
+			const transactionId = draftTransactionId;
+			const createAsUnconfirmed = draftCreateAsUnconfirmed;
+
+			untrack(() => {
+				draftOrderStore.updateFromTerminal({
+					lines,
+					customerName,
+					paymentStatus,
+					paidAmount,
+					deliveryDate,
+					notes,
+					transactionId,
+					createAsUnconfirmed
+				});
+			});
 		}
 	});
 
