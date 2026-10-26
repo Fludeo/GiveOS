@@ -23,7 +23,6 @@
 	import Clock from '@lucide/svelte/icons/clock';
 	import Crosshair from '@lucide/svelte/icons/crosshair';
 	import Layers from '@lucide/svelte/icons/layers';
-	import ShoppingBag from '@lucide/svelte/icons/shopping-bag';
 	import { formatCurrency } from '../utils';
 
 	interface Props {
@@ -315,10 +314,6 @@
 			</div>
 			<div class="flex items-center gap-2">
 				<h2 class="text-sm sm:text-base font-bold text-foreground">Loop</h2>
-				<Badge variant="outline" class="border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400 font-mono text-xs px-2 py-0.5" title="Pedidos activos en la ventana seleccionada">
-					<ShoppingBag class="size-3 mr-1" />
-					{ordersInHorizon.length}
-				</Badge>
 			</div>
 		</div>
 
