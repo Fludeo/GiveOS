@@ -22,6 +22,19 @@ export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
 export const ORDER_ITEM_FULFILLMENT_TYPES = ['immediate', 'preorder'] as const;
 export type OrderItemFulfillmentType = (typeof ORDER_ITEM_FULFILLMENT_TYPES)[number];
 
+export interface DraftOrderLine {
+	key: string;
+	salesProductId: string;
+	productName: string;
+	productCode: string;
+	isCombo: boolean;
+	quantity: number;
+	unitPrice: number;
+	fulfillmentType: OrderItemFulfillmentType;
+	deliveryDate: string;
+	notes: string;
+}
+
 export const FULFILLMENT_TYPE_LABELS: Record<OrderItemFulfillmentType, string> = {
 	immediate: 'Entrega en el momento',
 	preorder: 'Pedido por encargo'

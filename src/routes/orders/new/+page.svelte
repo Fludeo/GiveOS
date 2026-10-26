@@ -9,6 +9,9 @@
 	import ArrowLeft from '@lucide/svelte/icons/arrow-left';
 	import Tag from '@lucide/svelte/icons/tag';
 	import X from '@lucide/svelte/icons/x';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import { toast } from '#lib/components/ui/toast';
+	import { draftOrderStore } from '#lib/features/orders/ui/draft-order.svelte';
 	import { formatCurrency, type DraftOrderLine } from '../_components/utils';
 	import PosCatalog from './_components/pos-catalog.svelte';
 	import PosItemConfig from './_components/pos-item-config.svelte';
@@ -28,6 +31,38 @@
 	let draftCreateAsUnconfirmed = $state(false);
 	let isSubmitting = $state(false);
 	let isMobileCartOpen = $state(false);
+	let isLoadedFromStorage = $state(false);
+
+	$effect(() => {
+		if (data.activeBusiness?.id) {
+			draftOrderStore.init(data.activeBusiness.id);
+			if (!isLoadedFromStorage) {
+				draftLines = draftOrderStore.lines;
+				draftCustomerName = draftOrderStore.customerName;
+				draftPaymentStatus = draftOrderStore.paymentStatus;
+				draftPaidAmount = draftOrderStore.paidAmount;
+				draftDeliveryDate = draftOrderStore.deliveryDate;
+				draftNotes = draftOrderStore.notes;
+				draftTransactionId = draftOrderStore.transactionId;
+				draftCreateAsUnconfirmed = draftOrderStore.createAsUnconfirmed;
+				isLoadedFromStorage = true;
+			}
+		}
+	});
+
+	$effect(() => {
+		if (isLoadedFromStorage && data.activeBusiness?.id) {
+			draftOrderStore.lines = draftLines;
+			draftOrderStore.customerName = draftCustomerName;
+			draftOrderStore.paymentStatus = draftPaymentStatus;
+			draftOrderStore.paidAmount = draftPaidAmount;
+			draftOrderStore.deliveryDate = draftDeliveryDate;
+			draftOrderStore.notes = draftNotes;
+			draftOrderStore.transactionId = draftTransactionId;
+			draftOrderStore.createAsUnconfirmed = draftCreateAsUnconfirmed;
+			draftOrderStore.save();
+		}
+	});
 
 	const draftTotalAmount = $derived(
 		draftLines.reduce((sum, l) => sum + (l.quantity > 0 ? l.quantity : 0) * (l.unitPrice >= 0 ? l.unitPrice : 0), 0)
@@ -77,11 +112,24 @@
 	function handleChangeLineQuantity(index: number, delta: number) {
 		const current = draftLines[index].quantity;
 		const next = Math.max(1, Number((current + delta).toFixed(2)));
-		draftLines[index].quantity = next;
+		draftLines = draftLines.map((l, idx) => (idx === index ? { ...l, quantity: next } : l));
 	}
 
 	function handleRemoveLine(index: number) {
 		draftLines = draftLines.filter((_, idx) => idx !== index);
+	}
+
+	function handleClearOrder() {
+		draftLines = [];
+		draftCustomerName = 'Cliente Mostrador';
+		draftPaidAmount = 0;
+		draftPaymentStatus = 'paid';
+		draftDeliveryDate = '';
+		draftNotes = '';
+		draftTransactionId = '';
+		draftCreateAsUnconfirmed = false;
+		draftOrderStore.clear();
+		toast.info('Comanda vaciada', 'Se han eliminado todos los productos de la orden en borrador.');
 	}
 </script>
 
@@ -163,7 +211,10 @@
 					action="?/createOrder"
 					use:enhance={() => {
 						isSubmitting = true;
-						return async ({ update }) => {
+						return async ({ update, result }) => {
+							if (result.type === 'redirect') {
+								draftOrderStore.clear();
+							}
 							await update();
 							isSubmitting = false;
 						};
@@ -184,6 +235,7 @@
 						isMobileDrawer={false}
 						onChangeLineQuantity={handleChangeLineQuantity}
 						onRemoveLine={handleRemoveLine}
+						onClearCart={handleClearOrder}
 					/>
 				</form>
 			</div>
@@ -235,9 +287,22 @@
 							<div class="flex items-center gap-2">
 								<ShoppingCart class="size-5 text-primary" />
 								<h3 class="text-base font-bold text-foreground">Orden de Compra</h3>
-								<span class="rounded-full bg-primary/10 px-2.5 py-0.5 font-mono text-xs font-bold text-primary">
-									{draftLines.length}
-								</span>
+								<div class="flex items-center gap-1.5">
+									<span class="rounded-full bg-primary/10 px-2.5 py-0.5 font-mono text-xs font-bold text-primary">
+										{draftLines.length} {draftLines.length === 1 ? 'producto' : 'productos'}
+									</span>
+									{#if draftLines.length > 0}
+										<button
+											type="button"
+											onclick={handleClearOrder}
+											class="inline-flex items-center gap-1 rounded-lg border border-destructive/20 bg-destructive/10 px-2 py-0.5 text-xs font-semibold text-destructive hover:bg-destructive hover:text-white transition-all cursor-pointer active:scale-95"
+											title="Vaciar comanda completa"
+										>
+											<Trash2 class="size-3" />
+											<span>Vaciar</span>
+										</button>
+									{/if}
+								</div>
 							</div>
 							<Button
 								type="button"
@@ -255,7 +320,10 @@
 							action="?/createOrder"
 							use:enhance={() => {
 								isSubmitting = true;
-								return async ({ update }) => {
+								return async ({ update, result }) => {
+									if (result.type === 'redirect') {
+										draftOrderStore.clear();
+									}
 									await update();
 									isSubmitting = false;
 									isMobileCartOpen = false;
@@ -277,6 +345,7 @@
 								isMobileDrawer={true}
 								onChangeLineQuantity={handleChangeLineQuantity}
 								onRemoveLine={handleRemoveLine}
+								onClearCart={handleClearOrder}
 							/>
 						</form>
 					</div>

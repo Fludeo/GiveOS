@@ -9,6 +9,7 @@
 	import CalendarClock from '@lucide/svelte/icons/calendar-clock';
 	import Boxes from '@lucide/svelte/icons/boxes';
 	import { toast } from '#lib/components/ui/toast';
+	import { draftOrderStore } from '#lib/features/orders/ui/draft-order.svelte';
 
 	// Componentes modulares
 	import OrdersSummaryCards from './_components/sections/orders-summary-cards.svelte';
@@ -47,6 +48,7 @@
 
 	$effect(() => {
 		if (data.createdOrderNumber) {
+			draftOrderStore.clear();
 			toast.success(
 				`¡Orden ${data.createdOrderNumber} registrada con éxito!`,
 				'Los productos y cobros han sido actualizados en el sistema.'

@@ -28,6 +28,7 @@
 	import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
 	import PanelLeftOpen from '@lucide/svelte/icons/panel-left-open';
 	import ThemeToggle from '#lib/components/theme-toggle.svelte';
+	import { draftOrderStore } from '#lib/features/orders/ui/draft-order.svelte';
 
 	let {
 		user,
@@ -74,6 +75,13 @@
 		}
 	}
 
+	$effect(() => {
+		if (activeBusiness?.id) {
+			draftOrderStore.init(activeBusiness.id);
+		}
+	});
+
+	const draftOrderCount = $derived(draftOrderStore.count);
 	const openStatus = $derived(getBusinessOpenStatus(activeBusiness.openingHours));
 	const parsedSchedule = $derived(parseWeeklySchedule(activeBusiness.openingHours));
 	const isNewOrderRoute = $derived(page.url.pathname.startsWith('/orders/new'));
@@ -226,9 +234,23 @@
 		<nav class="flex-1 space-y-1.5 overflow-y-auto {isCollapsed ? 'p-2' : 'p-4'}">
 			<div class="pb-2 space-y-2">
 				{#if !isCollapsed}
-					<Button href="/orders/new" variant="tertiary" class="w-full justify-center gap-2 shadow-xs font-semibold">
-						<ShoppingCart class="size-4" />
-						<span>Nueva Orden</span>
+					<Button
+						href="/orders/new"
+						variant="tertiary"
+						class="w-full justify-between gap-2 shadow-xs font-semibold group cursor-pointer"
+					>
+						<div class="flex items-center gap-2 truncate">
+							<ShoppingCart class="size-4 shrink-0" />
+							<span>{draftOrderCount > 0 ? 'Continuar Orden' : 'Nueva Orden'}</span>
+						</div>
+						{#if draftOrderCount > 0}
+							<span
+								class="inline-flex items-center justify-center rounded-full bg-primary text-primary-foreground px-2 py-0.5 font-mono text-xs font-bold shadow-xs shrink-0"
+								title="{draftOrderCount} {draftOrderCount === 1 ? 'producto' : 'productos'} en la orden"
+							>
+								{draftOrderCount}
+							</span>
+						{/if}
 					</Button>
 					<Button
 						href="/orders?tab=loop"
@@ -238,15 +260,24 @@
 						<span>Modo Loop</span>
 					</Button>
 				{:else}
-					<Button
-						href="/orders/new"
-						variant="tertiary"
-						size="icon"
-						class="w-full h-10 justify-center shadow-xs"
-						title="Nueva Orden"
-					>
-						<ShoppingCart class="size-4" />
-					</Button>
+					<div class="relative w-full">
+						<Button
+							href="/orders/new"
+							variant="tertiary"
+							size="icon"
+							class="w-full h-10 justify-center shadow-xs cursor-pointer"
+							title={draftOrderCount > 0 ? `Continuar Orden (${draftOrderCount} prod.)` : 'Nueva Orden'}
+						>
+							<ShoppingCart class="size-4" />
+						</Button>
+						{#if draftOrderCount > 0}
+							<span
+								class="absolute -top-1 -right-1 flex size-5 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-white shadow-xs pointer-events-none"
+							>
+								{draftOrderCount}
+							</span>
+						{/if}
+					</div>
 					<Button
 						href="/orders?tab=loop"
 						size="icon"
@@ -450,27 +481,34 @@
 				</a>
 			{/each}
 
-			<!-- Botón Central Destacado: Nueva Orden (preparado para futura acción "Continuar Orden") -->
+			<!-- Botón Central Destacado: Nueva Orden / Continuar Orden -->
 			<div class="flex flex-col items-center justify-center">
 				<a
 					href="/orders/new"
 					aria-label="Nueva Orden"
-					title="Nueva Orden"
+					title={draftOrderCount > 0 ? `Continuar Orden (${draftOrderCount} prod.)` : 'Nueva Orden'}
 					class="group relative -mt-6 flex flex-col items-center justify-center focus-visible:outline-none"
 				>
 					<div
-						class="flex size-13 items-center justify-center rounded-2xl shadow-lg ring-4 ring-background transition-all duration-150 group-active:scale-95 {isNewOrderRoute
+						class="relative flex size-13 items-center justify-center rounded-2xl shadow-lg ring-4 ring-background transition-all duration-150 group-active:scale-95 {isNewOrderRoute
 							? 'bg-primary text-primary-foreground shadow-primary/30'
 							: 'bg-tertiary text-tertiary-foreground hover:brightness-95'}"
 					>
 						<ShoppingCart class="size-5.5 stroke-[2.25]" />
+						{#if draftOrderCount > 0}
+							<span
+								class="absolute -top-1.5 -right-1.5 flex size-5.5 items-center justify-center rounded-full bg-destructive text-[11px] font-bold text-white shadow-md ring-2 ring-background animate-in zoom-in"
+							>
+								{draftOrderCount}
+							</span>
+						{/if}
 					</div>
 					<span
 						class="mt-1 text-[10px] leading-none font-bold tracking-tight {isNewOrderRoute
 							? 'text-primary'
 							: 'text-foreground'}"
 					>
-						Nueva Orden
+						{draftOrderCount > 0 ? `Orden (${draftOrderCount})` : 'Nueva Orden'}
 					</span>
 				</a>
 			</div>

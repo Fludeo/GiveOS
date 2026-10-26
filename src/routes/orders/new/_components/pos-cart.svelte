@@ -25,7 +25,8 @@
 		isSubmitting = false,
 		isMobileDrawer = false,
 		onChangeLineQuantity,
-		onRemoveLine
+		onRemoveLine,
+		onClearCart
 	}: {
 		activeBusinessId: string;
 		draftLines: DraftOrderLine[];
@@ -40,6 +41,7 @@
 		isMobileDrawer?: boolean;
 		onChangeLineQuantity: (index: number, delta: number) => void;
 		onRemoveLine: (index: number) => void;
+		onClearCart?: () => void;
 	} = $props();
 
 	const draftImmediateAmount = $derived(
@@ -112,9 +114,22 @@
 				Orden de Compra
 			</h3>
 		</div>
-		<span class="rounded-full bg-primary/10 px-2.5 py-0.5 font-mono text-xs font-bold text-primary">
-			{draftLines.length} {draftLines.length === 1 ? 'producto' : 'productos'}
-		</span>
+		<div class="flex items-center gap-2">
+			<span class="rounded-full bg-primary/10 px-2.5 py-0.5 font-mono text-xs font-bold text-primary">
+				{draftLines.length} {draftLines.length === 1 ? 'producto' : 'productos'}
+			</span>
+			{#if draftLines.length > 0 && onClearCart}
+				<button
+					type="button"
+					onclick={onClearCart}
+					class="inline-flex items-center gap-1 rounded-lg border border-destructive/20 bg-destructive/10 px-2 py-0.5 text-xs font-semibold text-destructive hover:bg-destructive hover:text-white transition-all cursor-pointer active:scale-95"
+					title="Vaciar comanda completa"
+				>
+					<Trash2 class="size-3" />
+					<span>Vaciar</span>
+				</button>
+			{/if}
+		</div>
 	</div>
 {/if}
 
