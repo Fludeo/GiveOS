@@ -199,6 +199,10 @@
 			onDeliverOrder={(order: OrderWithItems) => (deliveringOrderId = order.id)}
 			onCancelOrder={(order: OrderWithItems) => (cancellingOrderId = order.id)}
 			onConfirmOrder={(order: OrderWithItems) => (confirmingOrderId = order.id)}
+			onProduceOrders={(ordersToProduce: OrderWithItems[], periodLabel: string) => {
+				producingOrders = ordersToProduce;
+				producingPeriodLabel = periodLabel;
+			}}
 		/>
 	{:else if currentTab === 'upcoming'}
 		<!-- Agenda Completa de Próximos Pedidos con pestañas de 7 Días, +7 Días y Todos -->

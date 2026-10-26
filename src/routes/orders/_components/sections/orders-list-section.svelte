@@ -6,6 +6,7 @@
 		SalesProductWithItems
 	} from '#lib/features/orders/domain/order.entity';
 	import {
+		isOrderReadyToDeliver,
 		ORDER_STATUS_LABELS
 	} from '#lib/features/orders/domain/order.entity';
 	import TablePagination from '#lib/components/ui/pagination/table-pagination.svelte';
@@ -17,6 +18,8 @@
 	import ShoppingBag from '@lucide/svelte/icons/shopping-bag';
 	import Calendar from '@lucide/svelte/icons/calendar';
 	import Check from '@lucide/svelte/icons/check';
+	import ChefHat from '@lucide/svelte/icons/chef-hat';
+	import PackageCheck from '@lucide/svelte/icons/package-check';
 	import Eye from '@lucide/svelte/icons/eye';
 	import X from '@lucide/svelte/icons/x';
 	import Plus from '@lucide/svelte/icons/plus';
@@ -33,6 +36,7 @@
 		onDeliverOrder: (order: OrderWithItems) => void;
 		onCancelOrder: (order: OrderWithItems) => void;
 		onConfirmOrder: (order: OrderWithItems) => void;
+		onProduceOrders?: (orders: OrderWithItems[], periodLabel: string) => void;
 	}
 
 	let {
@@ -41,11 +45,12 @@
 		onPayOrder,
 		onDeliverOrder,
 		onCancelOrder,
-		onConfirmOrder
+		onConfirmOrder,
+		onProduceOrders
 	}: Props = $props();
 
 	let searchQuery = $state('');
-	let filterStatus = $state<OrderStatus | 'all'>('all');
+	let filterStatus = $state<OrderStatus | 'ready' | 'all'>('all');
 	let filterPayment = $state<PaymentStatus | 'all'>('all');
 	let currentPage = $state(1);
 	let pageSize = $state(10);
@@ -72,12 +77,21 @@
 	});
 
 	const unconfirmedOrdersCount = $derived(orders.filter((o) => o.status === 'unconfirmed').length);
-	const pendingOrdersCount = $derived(orders.filter((o) => o.status === 'pending').length);
+	const pendingOrdersCount = $derived(
+		orders.filter((o) => o.status === 'pending' && !isOrderReadyToDeliver(o)).length
+	);
+	const readyOrdersCount = $derived(orders.filter((o) => isOrderReadyToDeliver(o)).length);
 	const completedOrdersCount = $derived(orders.filter((o) => o.status === 'completed').length);
 
 	const filteredOrders = $derived(
 		orders.filter((order) => {
-			if (filterStatus !== 'all' && order.status !== filterStatus) return false;
+			if (filterStatus === 'ready') {
+				if (!isOrderReadyToDeliver(order)) return false;
+			} else if (filterStatus === 'pending') {
+				if (order.status !== 'pending' || isOrderReadyToDeliver(order)) return false;
+			} else if (filterStatus !== 'all' && order.status !== filterStatus) {
+				return false;
+			}
 			const effectivePayment = order.status === 'completed' ? 'paid' : order.paymentStatus;
 			if (filterPayment !== 'all' && effectivePayment !== filterPayment) return false;
 			if (searchQuery.trim()) {
@@ -145,7 +159,18 @@
 					variant={filterStatus === 'pending' ? 'default' : 'outline'}
 					onclick={() => (filterStatus = 'pending')}
 				>
-					Confirmadas / Pendientes ({pendingOrdersCount})
+					En Preparación ({pendingOrdersCount})
+				</Button>
+				<Button
+					size="sm"
+					class="shrink-0 whitespace-nowrap {filterStatus !== 'ready' && readyOrdersCount > 0
+						? 'border-emerald-500/40 text-emerald-700 dark:text-emerald-400 bg-emerald-500/10'
+						: ''}"
+					variant={filterStatus === 'ready' ? 'default' : 'outline'}
+					onclick={() => (filterStatus = 'ready')}
+				>
+					<PackageCheck class="size-3.5 mr-1" />
+					Listas p/ Retirar ({readyOrdersCount})
 				</Button>
 				<Button
 					size="sm"
@@ -270,6 +295,14 @@
 												>
 													{ORDER_STATUS_LABELS.unconfirmed}
 												</Badge>
+											{:else if isOrderReadyToDeliver(order)}
+												<Badge
+													variant="outline"
+													class="border-emerald-500/40 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 text-[11px] font-bold gap-1"
+												>
+													<PackageCheck class="size-3" />
+													Listo p/ retirar
+												</Badge>
 											{:else if order.status === 'pending'}
 												<Badge
 													variant="outline"
@@ -385,6 +418,13 @@
 																<Check class="size-2.5" />
 																Entregado
 															</span>
+														{:else if line.status === 'ready'}
+															<span
+																class="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300"
+															>
+																<PackageCheck class="size-2.5" />
+																Listo
+															</span>
 														{:else if line.status === 'pending_delivery'}
 															<span
 																class="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-700"
@@ -484,6 +524,8 @@
 											</Button>
 										</div>
 									{:else if order.status === 'pending'}
+										{@const canProduce =
+											order.items.some((i) => i.status === 'pending_delivery') && Boolean(onProduceOrders)}
 										<div class="flex items-center gap-2 pt-1">
 											<Button
 												type="button"
@@ -501,13 +543,27 @@
 												type="button"
 												size="sm"
 												variant="outline"
-												class="flex-1 h-9 gap-1.5 text-xs font-medium"
+												class="h-9 gap-1 px-2.5 text-xs font-medium"
 												title="Ver listado de ítems y detalle de la orden"
 												onclick={() => onViewOrder(order)}
 											>
 												<Eye class="size-3.5" />
-												<span>Ver Ítems</span>
+												<span>Ver</span>
 											</Button>
+
+											{#if canProduce}
+												<Button
+													type="button"
+													size="sm"
+													variant="outline"
+													class="flex-1 h-9 gap-1 text-xs font-semibold border-primary/30 text-primary hover:bg-primary/10"
+													title="Marcar pedido como Listo y descontar insumos"
+													onclick={() => onProduceOrders?.([order], order.orderNumber)}
+												>
+													<ChefHat class="size-3.5" />
+													<span>Listo</span>
+												</Button>
+											{/if}
 
 											<Button
 												type="button"
@@ -654,6 +710,14 @@
 												>
 													{ORDER_STATUS_LABELS.unconfirmed}
 												</Badge>
+											{:else if isOrderReadyToDeliver(order)}
+												<Badge
+													variant="outline"
+													class="border-emerald-500/40 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 text-[11px] font-bold gap-1"
+												>
+													<PackageCheck class="size-3" />
+													Listo p/ retirar
+												</Badge>
 											{:else if order.status === 'pending'}
 												<Badge
 													variant="outline"
@@ -751,6 +815,19 @@
 														<Check class="size-3.5" />
 													</Button>
 												{:else if order.status === 'pending'}
+													{#if order.items.some((i) => i.status === 'pending_delivery') && onProduceOrders}
+														<Button
+															type="button"
+															size="sm"
+															variant="outline"
+															class="h-8 px-2.5 text-xs font-semibold border-primary/30 text-primary hover:bg-primary/10 cursor-pointer"
+															onclick={() => onProduceOrders([order], order.orderNumber)}
+															title="Marcar pedido como Listo y descontar insumos"
+														>
+															<ChefHat class="size-3.5" />
+															<span>Listo</span>
+														</Button>
+													{/if}
 													<Button
 														type="button"
 														size="sm"
