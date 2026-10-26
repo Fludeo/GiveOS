@@ -310,12 +310,12 @@
 	{@const activeBatches = batches.filter((b) => b.remainingQuantity > 0)}
 	{@const oldestActive = activeBatches.length > 0 ? activeBatches[0] : null}
 	<div
-		class="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4 backdrop-blur-[1px]"
+		class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-foreground/40 p-0 sm:p-4 backdrop-blur-[1px]"
 		role="dialog"
 		aria-modal="true"
 	>
 		<div
-			class="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl lg:max-w-3xl"
+			class="flex max-h-[94vh] sm:max-h-[90vh] w-full max-w-full sm:max-w-2xl flex-col overflow-hidden rounded-t-2xl sm:rounded-2xl border-t sm:border border-border bg-card shadow-2xl lg:max-w-3xl"
 		>
 			<!-- Encabezado del Modal -->
 			<div class="flex items-start justify-between gap-4 border-b border-border p-6 pb-4">
@@ -1008,12 +1008,12 @@
 	<!-- Modal de confirmación para eliminar carga de stock -->
 	{#if batchToDelete}
 		<div
-			class="fixed inset-0 z-60 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs"
+			class="fixed inset-0 z-60 flex items-end sm:items-center justify-center bg-black/60 p-0 sm:p-4 backdrop-blur-xs"
 			role="dialog"
 			aria-modal="true"
 		>
 			<div
-				class="w-full max-w-md overflow-hidden rounded-2xl border border-border bg-card shadow-2xl animate-in fade-in zoom-in-95 duration-150"
+				class="w-full max-w-full sm:max-w-md overflow-hidden rounded-t-2xl sm:rounded-2xl border-t sm:border border-border bg-card shadow-2xl animate-in fade-in zoom-in-95 duration-150"
 			>
 				<div class="border-b border-border px-5 py-4">
 					<div class="flex items-center gap-2.5">

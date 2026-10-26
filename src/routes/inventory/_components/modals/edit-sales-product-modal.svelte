@@ -73,11 +73,11 @@
 
 {#if open && product}
 	<div
-		class="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4 backdrop-blur-[1px]"
+		class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-foreground/40 p-0 sm:p-4 backdrop-blur-[1px]"
 		role="dialog"
 		aria-modal="true"
 	>
-		<div class="w-full max-w-lg overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
+		<div class="w-full max-w-full sm:max-w-lg max-h-[92vh] sm:max-h-[90vh] flex flex-col overflow-hidden rounded-t-2xl sm:rounded-2xl border-t sm:border border-border bg-card shadow-xl">
 			<div class="flex items-start justify-between gap-4 border-b border-border p-6">
 				<div class="space-y-1">
 					<div class="flex items-center gap-2">

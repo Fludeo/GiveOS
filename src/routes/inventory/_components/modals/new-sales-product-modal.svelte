@@ -83,12 +83,12 @@
 
 {#if open}
 	<div
-		class="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4 backdrop-blur-[1px]"
+		class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-foreground/40 p-0 sm:p-4 backdrop-blur-[1px]"
 		role="dialog"
 		aria-modal="true"
 		aria-labelledby="new-sales-product-title"
 	>
-		<div class="w-full max-w-lg overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
+		<div class="w-full max-w-full sm:max-w-lg max-h-[92vh] sm:max-h-[90vh] flex flex-col overflow-hidden rounded-t-2xl sm:rounded-2xl border-t sm:border border-border bg-card shadow-xl">
 			<!-- Header con Barra de Progreso y Paso -->
 			<div class="border-b border-border p-5">
 				<div class="flex items-center justify-between">

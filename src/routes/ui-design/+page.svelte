@@ -1122,8 +1122,8 @@
 
 			<!-- Modal Demo -->
 			{#if showDemoModal}
-				<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
-					<div class="w-full max-w-lg rounded-2xl border border-border bg-card p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-150">
+				<div class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 p-0 sm:p-4 backdrop-blur-xs">
+					<div class="w-full max-w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl border-t sm:border border-border bg-card p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-150">
 						<!-- Header -->
 						<div class="flex items-center justify-between border-b border-border pb-3">
 							<div class="space-y-0.5">

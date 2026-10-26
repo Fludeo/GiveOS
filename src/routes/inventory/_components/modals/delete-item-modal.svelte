@@ -22,11 +22,11 @@
 
 {#if open && item}
 	<div
-		class="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4 backdrop-blur-[1px]"
+		class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-foreground/40 p-0 sm:p-4 backdrop-blur-[1px]"
 		role="dialog"
 		aria-modal="true"
 	>
-		<div class="w-full max-w-md overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
+		<div class="w-full max-w-full sm:max-w-md overflow-hidden rounded-t-2xl sm:rounded-2xl border-t sm:border border-border bg-card shadow-xl">
 			<div class="space-y-3 p-6">
 				<div class="flex size-11 items-center justify-center rounded-xl bg-destructive/10 text-destructive">
 					<AlertTriangle class="size-5" />
