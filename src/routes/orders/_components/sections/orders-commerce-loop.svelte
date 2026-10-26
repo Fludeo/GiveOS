@@ -404,9 +404,9 @@
 			</div>
 
 			{#if rawMaterialLines.length === 0}
-				<div class="flex items-center justify-center gap-2 rounded-xl border border-emerald-500/25 bg-emerald-500/5 py-6 px-3 text-emerald-600 dark:text-emerald-400">
-					<CheckCircle2 class="size-5 shrink-0" />
-					<span class="text-xs font-bold">Stock cubierto</span>
+				<div class="flex items-center justify-center gap-2 rounded-xl border border-dashed border-border py-6 px-3 text-muted-foreground">
+					<CheckCircle2 class="size-5 text-emerald-500 shrink-0" />
+					<span class="text-xs font-bold text-foreground">Stock cubierto</span>
 				</div>
 			{:else}
 				<div class="space-y-2 max-h-[420px] overflow-y-auto pr-0.5">
@@ -531,9 +531,9 @@
 
 			<!-- Lista de Elaboraciones con Stepper por Múltiplos de Receta y Modal de Carga -->
 			{#if fabricableItems.length === 0 && producibleOrders.length === 0}
-				<div class="flex items-center justify-center gap-2 rounded-xl border border-emerald-500/25 bg-emerald-500/5 py-6 px-3 text-emerald-600 dark:text-emerald-400">
-					<CheckCircle2 class="size-5 shrink-0" />
-					<span class="text-xs font-bold">Sin pendientes</span>
+				<div class="flex items-center justify-center gap-2 rounded-xl border border-dashed border-border py-6 px-3 text-muted-foreground">
+					<CheckCircle2 class="size-5 text-emerald-500 shrink-0" />
+					<span class="text-xs font-bold text-foreground">Sin pendientes</span>
 				</div>
 			{:else if fabricableItems.length > 0}
 				<div class="space-y-2 max-h-[380px] overflow-y-auto pr-0.5">
