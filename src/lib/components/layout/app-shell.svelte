@@ -237,15 +237,15 @@
 					<Button
 						href="/orders/new"
 						variant="tertiary"
-						class="w-full justify-between gap-2 shadow-xs font-semibold group cursor-pointer"
+						class="relative w-full justify-center gap-2 shadow-xs font-semibold group cursor-pointer"
 					>
-						<div class="flex items-center gap-2 truncate">
+						<div class="flex items-center justify-center gap-2 truncate">
 							<ShoppingCart class="size-4 shrink-0" />
 							<span>{draftOrderCount > 0 ? 'Continuar Orden' : 'Nueva Orden'}</span>
 						</div>
 						{#if draftOrderCount > 0}
 							<span
-								class="inline-flex items-center justify-center rounded-full bg-primary text-primary-foreground px-2 py-0.5 font-mono text-xs font-bold shadow-xs shrink-0"
+								class="absolute right-3 inline-flex items-center justify-center rounded-full bg-primary text-primary-foreground px-2 py-0.5 font-mono text-xs font-bold shadow-xs shrink-0 pointer-events-none"
 								title="{draftOrderCount} {draftOrderCount === 1 ? 'producto' : 'productos'} en la orden"
 							>
 								{draftOrderCount}
@@ -272,7 +272,7 @@
 						</Button>
 						{#if draftOrderCount > 0}
 							<span
-								class="absolute -top-1 -right-1 flex size-5 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-white shadow-xs pointer-events-none"
+								class="absolute -top-1 -right-1 flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] font-bold shadow-xs pointer-events-none"
 							>
 								{draftOrderCount}
 							</span>
@@ -494,7 +494,7 @@
 						<ShoppingCart class="size-5.5 stroke-[2.25]" />
 						{#if draftOrderCount > 0}
 							<span
-								class="absolute -top-1.5 -right-1.5 flex size-5.5 items-center justify-center rounded-full bg-destructive text-[11px] font-bold text-white shadow-md ring-2 ring-background animate-in zoom-in"
+								class="absolute -top-1.5 -right-1.5 flex size-5.5 items-center justify-center rounded-full bg-primary text-primary-foreground text-[11px] font-bold shadow-md ring-2 ring-background animate-in zoom-in"
 							>
 								{draftOrderCount}
 							</span>
