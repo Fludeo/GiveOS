@@ -95,7 +95,7 @@
 	businesses={data.businesses}
 	currentSection="orders"
 	title="Terminal de Órdenes de Compra"
-	description="Pantalla completa para registro rápido de órdenes inmediatas y órdenes por encargo"
+	description="Pantalla completa para registro rápido de ventas y órdenes por encargo"
 >
 	{#snippet headerActions()}
 		<div class="flex items-center gap-2">

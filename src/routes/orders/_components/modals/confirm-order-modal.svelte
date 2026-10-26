@@ -97,7 +97,7 @@
 				</div>
 
 				<p class="text-muted-foreground text-[11px] leading-relaxed">
-					Al confirmar, el pedido comenzará a descontar stock inmediato de sus productos y se
+					Al confirmar, el pedido comenzará a descontar stock disponible de sus productos y se
 					contabilizará en la previsión de insumos y recetas de cocina.
 				</p>
 

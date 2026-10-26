@@ -234,7 +234,7 @@
 		<Label class="text-xs font-semibold">Modalidad de Cobro</Label>
 		{#if draftIsMixed}
 			<span class="rounded bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
-				Inmediato + Encargo
+				Venta + Encargo
 			</span>
 		{/if}
 	</div>
@@ -244,7 +244,7 @@
 			<div class="flex items-center justify-between">
 				<span class="flex items-center gap-1.5 text-muted-foreground text-[11px]">
 					<Zap class="size-3 text-emerald-600" />
-					<span>Inmediato (se entrega ahora):</span>
+					<span>Venta (se entrega ahora):</span>
 				</span>
 				<span class="font-mono font-bold text-foreground">
 					{formatCurrency(draftImmediateAmount)}
@@ -260,7 +260,7 @@
 				</span>
 			</div>
 			<p class="text-[10px] text-muted-foreground pt-1 border-t border-border/40 italic">
-				* Lo inmediato se cobra en el acto de forma obligatoria.
+				* La venta se cobra en el acto de forma obligatoria.
 			</p>
 		</div>
 	{/if}
@@ -296,17 +296,17 @@
 					: 'border-border bg-card hover:bg-muted'}"
 			>
 				<span class="block text-xs font-bold text-foreground">
-					{draftIsMixed ? 'Inm. + Seña' : 'Seña Parcial'}
+					{draftIsMixed ? 'Venta + Seña' : 'Seña Parcial'}
 				</span>
 				<span class="block font-mono text-[11px] text-sky-600">
-					{draftIsMixed ? 'Inmediato + Anticipo' : 'Anticipo'}
+					{draftIsMixed ? 'Venta + Anticipo' : 'Anticipo'}
 				</span>
 			</button>
 		</div>
 	{:else}
 		<div class="rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-3.5 text-center">
 			<span class="block text-xs font-bold text-emerald-600">
-				Cobro Total Inmediato
+				Cobro Total
 			</span>
 			<span class="block font-mono text-sm font-bold text-emerald-600 mt-1">
 				{formatCurrency(draftTotalAmount)}
@@ -333,7 +333,7 @@
 				<div class="flex justify-between text-[10px] font-mono text-muted-foreground">
 					<span>
 						Mín: {formatCurrency(draftImmediateAmount)}
-						{#if draftHasImmediate}<span class="text-emerald-600 font-sans font-medium">(Inmediato)</span>{/if}
+						{#if draftHasImmediate}<span class="text-emerald-600 font-sans font-medium">(Venta)</span>{/if}
 					</span>
 					<span>
 						Máx: {formatCurrency(draftTotalAmount)}
@@ -364,7 +364,7 @@
 			<div class="space-y-1 pt-1.5 border-t border-sky-500/20 text-[11px]">
 				{#if draftIsMixed}
 					<div class="flex justify-between text-muted-foreground text-[10px]">
-						<span>Inmediato obligatorio:</span>
+						<span>Venta en mostrador:</span>
 						<span class="font-mono">{formatCurrency(draftImmediateAmount)}</span>
 					</div>
 					<div class="flex justify-between text-muted-foreground text-[10px]">
