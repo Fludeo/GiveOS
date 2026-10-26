@@ -102,6 +102,35 @@
 
 	const itemsById = $derived(new Map(items.map((i) => [i.id, i])));
 
+	function getOrdersCountForHorizon(hId: ForecastHorizon): number {
+		const now = new Date();
+		const endWindow = new Date(now);
+		if (hId === 'today' || hId === '1d') {
+			endWindow.setHours(23, 59, 59, 999);
+		} else if (typeof hId === 'string' && hId.endsWith('d')) {
+			const days = parseInt(hId, 10);
+			if (!Number.isNaN(days) && days > 0) {
+				endWindow.setDate(endWindow.getDate() + (days - 1));
+				endWindow.setHours(23, 59, 59, 999);
+			}
+		}
+
+		return orders.filter((o) => {
+			if (o.status === 'cancelled' || o.status === 'completed') return false;
+			if (hId === 'all') return true;
+			if (!o.deliveryDate) return true;
+			return new Date(o.deliveryDate).getTime() <= endWindow.getTime();
+		}).length;
+	}
+
+	const horizonCounts = $derived.by(() => {
+		const counts: Record<string, number> = {};
+		for (const h of HORIZON_OPTIONS) {
+			counts[h.id] = getOrdersCountForHorizon(h.id);
+		}
+		return counts;
+	});
+
 	// Filtrar órdenes según el mismo horizonte seleccionado
 	const ordersInHorizon = $derived.by(() => {
 		const now = new Date();
@@ -295,9 +324,10 @@
 		</div>
 
 		<div class="flex items-center gap-1.5 flex-wrap sm:flex-nowrap">
-			<!-- Selector de Ventana Temporal (1..7 días + Todo) -->
+			<!-- Selector de Ventana Temporal (1..7 días + Todo) con conteo de órdenes -->
 			<div class="inline-flex items-center rounded-xl border border-border bg-muted/40 p-0.5 max-w-full overflow-x-auto scrollbar-none">
 				{#each HORIZON_OPTIONS as h (h.id)}
+					{@const count = horizonCounts[h.id] ?? 0}
 					<button
 						type="button"
 						onclick={() => setHorizon(h.id)}
@@ -305,8 +335,12 @@
 						h.id
 							? 'bg-primary text-primary-foreground shadow-2xs'
 							: 'text-muted-foreground hover:text-foreground'}"
+						title="{h.label}: {count} {count === 1 ? 'orden' : 'órdenes'}"
 					>
-						{h.label}
+						<span>{h.label}</span>
+						<span class="ml-0.5 font-mono text-[11px] {forecastHorizon === h.id ? 'text-primary-foreground/90 font-bold' : 'text-muted-foreground'}">
+							({count})
+						</span>
 					</button>
 				{/each}
 			</div>
