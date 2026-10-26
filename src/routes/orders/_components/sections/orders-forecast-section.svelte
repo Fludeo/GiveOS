@@ -543,7 +543,7 @@
 					>
 						<span class="relative inline-flex size-3.5 items-center justify-center">
 							<Shield class="size-3.5" />
-							<Package class="absolute size-2" />
+							<Package class="absolute size-1.5" />
 						</span>
 						<span>Conservar Stock</span>
 						<span

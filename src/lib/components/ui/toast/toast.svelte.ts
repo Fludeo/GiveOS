@@ -13,7 +13,7 @@ export interface ToastItem {
 class ToastStore {
 	items = $state<ToastItem[]>([]);
 
-	add(variant: ToastVariant, title: string, description?: string, durationMs = 4200) {
+	add(variant: ToastVariant, title: string, description?: string, durationMs = 6000) {
 		const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 		const item: ToastItem = { id, variant, title, description, durationMs };
 
@@ -34,19 +34,19 @@ class ToastStore {
 	}
 
 	success(title: string, description?: string) {
-		return this.add('success', title, description, 4000);
+		return this.add('success', title, description, 6000);
 	}
 
 	error(title: string, description?: string) {
-		return this.add('error', title, description, 5500);
+		return this.add('error', title, description, 9000);
 	}
 
 	warning(title: string, description?: string) {
-		return this.add('warning', title, description, 5000);
+		return this.add('warning', title, description, 7500);
 	}
 
 	info(title: string, description?: string) {
-		return this.add('info', title, description, 4000);
+		return this.add('info', title, description, 6000);
 	}
 
 	dismiss(id: string) {

@@ -21,7 +21,6 @@
 	import Shield from '@lucide/svelte/icons/shield';
 	import Eye from '@lucide/svelte/icons/eye';
 	import Clock from '@lucide/svelte/icons/clock';
-	import List from '@lucide/svelte/icons/list';
 	import Crosshair from '@lucide/svelte/icons/crosshair';
 	import Layers from '@lucide/svelte/icons/layers';
 	import ShoppingBag from '@lucide/svelte/icons/shopping-bag';
@@ -338,9 +337,11 @@
 						title="{h.label}: {count} {count === 1 ? 'orden' : 'órdenes'}"
 					>
 						<span>{h.label}</span>
-						<span class="ml-0.5 font-mono text-[11px] {forecastHorizon === h.id ? 'text-primary-foreground/90 font-bold' : 'text-muted-foreground'}">
-							({count})
-						</span>
+						{#if count > 0}
+							<span class="ml-0.5 font-mono text-[11px] {forecastHorizon === h.id ? 'text-primary-foreground/90 font-bold' : 'text-muted-foreground'}">
+								({count})
+							</span>
+						{/if}
 					</button>
 				{/each}
 			</div>
@@ -359,19 +360,8 @@
 			>
 				<span class="relative inline-flex size-4.5 items-center justify-center">
 					<Shield class="size-4.5" />
-					<Package class="absolute size-2.5" />
+					<Package class="absolute size-2 text-current" />
 				</span>
-			</button>
-
-			<!-- Botón Icono: Ir a Vista de Tablas Detalladas -->
-			<button
-				type="button"
-				onclick={onSwitchToDetailedTabs}
-				class="inline-flex size-8 items-center justify-center rounded-xl border border-border bg-background text-muted-foreground hover:text-foreground transition-colors cursor-pointer shrink-0"
-				title="Ver tablas detalladas"
-				aria-label="Ver tablas detalladas"
-			>
-				<List class="size-4" />
 			</button>
 		</div>
 	</div>
