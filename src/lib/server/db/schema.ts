@@ -4,6 +4,7 @@ import { v7 as uuidv7 } from 'uuid';
 import {
 	boolean,
 	doublePrecision,
+	index,
 	integer,
 	jsonb,
 	pgTable,
@@ -286,3 +287,26 @@ export const orderItems = pgTable('order_items', {
 	status: text('status').$type<OrderItemStatus>().notNull().default('delivered'),
 	notes: text('notes')
 });
+
+// ==========================================
+// Domain Schema: WhatsApp Integration Keys
+// ==========================================
+
+export const whatsappAuthKeys = pgTable(
+	'whatsapp_auth_keys',
+	{
+		id: text('id').primaryKey(), // `${businessId}:${key}`
+		businessId: text('business_id')
+			.notNull()
+			.references(() => businesses.id, { onDelete: 'cascade' }),
+		key: text('key').notNull(),
+		value: text('value').notNull(),
+		updatedAt: timestamp('updated_at', { mode: 'date' })
+			.notNull()
+			.$defaultFn(() => new Date())
+	},
+	(table) => [
+		index('whatsapp_auth_keys_business_idx').on(table.businessId),
+		uniqueIndex('whatsapp_auth_keys_business_key_idx').on(table.businessId, table.key)
+	]
+);

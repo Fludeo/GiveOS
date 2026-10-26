@@ -50,6 +50,13 @@
       "when": 1792971686522,
       "tag": "0006_flawless_namora",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793058602307,
+      "tag": "0007_faulty_archangel",
+      "breakpoints": true
     }
   ]
 }

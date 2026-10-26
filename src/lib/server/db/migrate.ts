@@ -33,6 +33,20 @@ export async function runMigrations() {
 						'ALTER TABLE "order_items" ADD COLUMN IF NOT EXISTS "unit_cost" double precision DEFAULT 0 NOT NULL;'
 					)
 					.catch(() => {});
+
+				await existingClient
+					.exec(`
+						CREATE TABLE IF NOT EXISTS "whatsapp_auth_keys" (
+							"id" text PRIMARY KEY NOT NULL,
+							"business_id" text NOT NULL REFERENCES "businesses"("id") ON DELETE CASCADE,
+							"key" text NOT NULL,
+							"value" text NOT NULL,
+							"updated_at" timestamp DEFAULT now() NOT NULL
+						);
+						CREATE INDEX IF NOT EXISTS "whatsapp_auth_keys_business_idx" ON "whatsapp_auth_keys" ("business_id");
+						CREATE UNIQUE INDEX IF NOT EXISTS "whatsapp_auth_keys_business_key_idx" ON "whatsapp_auth_keys" ("business_id", "key");
+					`)
+					.catch(() => {});
 			}
 			if (isDev) {
 				console.log('[db:migrate] Local PGlite environment detected. Skipping auto-migration on boot.');

@@ -1,7 +1,4 @@
-import path from 'node:path';
-import fs from 'node:fs';
 import makeWASocket, {
-	useMultiFileAuthState,
 	DisconnectReason,
 	fetchLatestBaileysVersion,
 	type WASocket
@@ -12,6 +9,11 @@ import { v7 as uuidv7 } from 'uuid';
 import { eq } from 'drizzle-orm';
 import { getDb } from '#lib/server/db/index';
 import { businesses } from '#lib/server/db/schema';
+import {
+	useDatabaseAuthState,
+	getDatabaseSessionPhone,
+	getAllActiveSessionBusinessIds
+} from '../infrastructure/database-auth-state';
 import type {
 	WhatsAppMessage,
 	WhatsAppMessageKey,
@@ -19,8 +21,6 @@ import type {
 	WhatsAppSessionStatus,
 	RealtimeEvent
 } from '../domain/whatsapp.entity';
-
-const SESSIONS_DIR = path.resolve(process.cwd(), 'storage', 'whatsapp_sessions');
 
 interface SessionHolder {
 	businessId: string;
@@ -39,43 +39,31 @@ export class WhatsAppSessionManager {
 	private sessions = new Map<string, SessionHolder>();
 
 	constructor() {
-		try {
-			fs.mkdirSync(SESSIONS_DIR, { recursive: true });
-			// Auto-restaurar sesiones activas previas al iniciar el servidor
-			setTimeout(() => {
-				this.restoreAllSessions();
-			}, 1000);
-		} catch (e) {
-			console.error('[WhatsAppSessionManager] Error al crear directorio de sesiones:', e);
-		}
+		// Auto-restaurar sesiones activas guardadas en PostgreSQL al iniciar el servidor
+		setTimeout(() => {
+			this.restoreAllSessions();
+		}, 1500);
 	}
 
 	async restoreAllSessions(): Promise<void> {
 		try {
-			if (!fs.existsSync(SESSIONS_DIR)) return;
-			const dirs = fs.readdirSync(SESSIONS_DIR, { withFileTypes: true });
-			for (const dir of dirs) {
-				if (dir.isDirectory()) {
-					const businessId = dir.name;
-					const credsPath = path.resolve(SESSIONS_DIR, businessId, 'creds.json');
-					if (fs.existsSync(credsPath)) {
-						const holder = this.getOrCreateHolder(businessId);
-						try {
-							const creds = JSON.parse(fs.readFileSync(credsPath, 'utf8'));
-							if (creds.me?.id) {
-								holder.phone = creds.me.id.split(':')[0].split('@')[0];
-								holder.pushName = creds.me.name || null;
-							}
-						} catch (_) {}
+			const activeBusinessIds = await getAllActiveSessionBusinessIds();
+			for (const businessId of activeBusinessIds) {
+				const holder = this.getOrCreateHolder(businessId);
+				const { phone, pushName } = await getDatabaseSessionPhone(businessId);
+				if (phone) {
+					holder.phone = phone;
+					holder.pushName = pushName;
+				}
 
-						if (holder.status !== 'connected' && !holder.sock) {
-							holder.status = 'connecting';
-							console.log(`[WhatsAppSessionManager] Restaurando sesión de WhatsApp para ${businessId} (+${holder.phone})...`);
-							this.connect(businessId).catch((err) =>
-								console.error(`[WhatsAppSessionManager] Error al auto-conectar ${businessId}:`, err)
-							);
-						}
-					}
+				if (holder.status !== 'connected' && !holder.sock) {
+					holder.status = 'connecting';
+					console.log(
+						`[WhatsAppSessionManager] Auto-reconectando WhatsApp desde PostgreSQL para negocio ${businessId} (+${holder.phone})...`
+					);
+					this.connect(businessId).catch((err) =>
+						console.error(`[WhatsAppSessionManager] Error al auto-conectar ${businessId}:`, err)
+					);
 				}
 			}
 		} catch (err) {
@@ -106,22 +94,26 @@ export class WhatsAppSessionManager {
 	getSessionInfo(businessId: string): WhatsAppSessionInfo {
 		const holder = this.getOrCreateHolder(businessId);
 
-		// Si no está activo pero existen credenciales en disco, iniciar auto-conexión transparente
+		// Si el socket en RAM no está activo, verificar si existen credenciales en PostgreSQL para auto-reconectar
 		if (holder.status === 'disconnected' && !holder.sock && !holder.connectingPromise) {
-			const credsPath = path.resolve(SESSIONS_DIR, businessId, 'creds.json');
-			if (fs.existsSync(credsPath)) {
-				try {
-					const creds = JSON.parse(fs.readFileSync(credsPath, 'utf8'));
-					if (creds.me?.id) {
-						holder.phone = creds.me.id.split(':')[0].split('@')[0];
-						holder.pushName = creds.me.name || null;
-					}
+			(async () => {
+				const { phone, pushName } = await getDatabaseSessionPhone(businessId);
+				if (phone) {
+					holder.phone = phone;
+					holder.pushName = pushName;
 					holder.status = 'connecting';
+					this.broadcast(holder, {
+						type: 'whatsapp:status',
+						businessId,
+						status: 'connecting',
+						phone,
+						pushName
+					});
 					this.connect(businessId).catch((err) =>
 						console.error(`[WhatsAppSessionManager] Error auto-conectando ${businessId}:`, err)
 					);
-				} catch (_) {}
-			}
+				}
+			})();
 		}
 
 		return {
@@ -156,7 +148,7 @@ export class WhatsAppSessionManager {
 	async connect(businessId: string): Promise<void> {
 		const holder = this.getOrCreateHolder(businessId);
 
-		// Si ya está conectado, no reconectar
+		// Si ya está conectado con socket activo, no reconectar
 		if (holder.status === 'connected' && holder.sock) {
 			return;
 		}
@@ -175,10 +167,8 @@ export class WhatsAppSessionManager {
 					status: 'connecting'
 				});
 
-				const sessionPath = path.resolve(SESSIONS_DIR, businessId);
-				fs.mkdirSync(sessionPath, { recursive: true });
-
-				const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
+				// Obtener adaptador de autenticación persistido en PostgreSQL
+				const { state, saveCreds, clearSession } = await useDatabaseAuthState(businessId);
 				const { version } = await fetchLatestBaileysVersion();
 
 				const sock = makeWASocket({
@@ -192,6 +182,7 @@ export class WhatsAppSessionManager {
 
 				holder.sock = sock;
 
+				// Guardar credenciales en PostgreSQL cada vez que Baileys las actualice
 				sock.ev.on('creds.update', saveCreds);
 
 				sock.ev.on('connection.update', async (update) => {
@@ -288,16 +279,13 @@ export class WhatsAppSessionManager {
 								);
 							}, 4000);
 						} else {
-							// Desvinculado o desconexión crítica reportada por WhatsApp
+							// Desvinculación o desconexión crítica reportada por WhatsApp
 							holder.status = 'disconnected';
 							this.broadcast(holder, {
 								type: 'whatsapp:status',
 								businessId,
 								status: 'disconnected'
 							});
-							// NOTA: No borramos los archivos del disco aquí para no perder credenciales
-							// ante caídas temporales o 401 transitorios. El borrado sólo se realiza
-							// de forma explícita cuando el usuario pulsa "Desvincular".
 						}
 					}
 				});
@@ -319,22 +307,24 @@ export class WhatsAppSessionManager {
 
 						if (!text) continue;
 
-						const fromJid = m.key.remoteJid || '';
-						if (fromJid.endsWith('@broadcast') || fromJid.includes('status')) continue;
+						const remoteJid = m.key.remoteJid || '';
+						if (remoteJid.endsWith('@g.us') || remoteJid === 'status@broadcast') {
+							continue;
+						}
 
-						const cleanPhone = fromJid.split('@')[0];
-						const senderName = m.pushName || cleanPhone;
+						const cleanFrom = remoteJid.replace('@s.whatsapp.net', '').replace(/:\d+/, '');
+						const senderName = m.pushName || cleanFrom;
+						const timestamp = typeof m.messageTimestamp === 'number' ? m.messageTimestamp * 1000 : Date.now();
 
-						const msgObj: WhatsAppMessage = {
+						const newMsg: WhatsAppMessage = {
 							id: m.key.id || uuidv7(),
 							businessId,
-							from: cleanPhone,
+							from: cleanFrom,
 							senderName,
 							text,
-							fromMe: Boolean(m.key.fromMe),
-							timestamp:
-								typeof m.messageTimestamp === 'number' ? m.messageTimestamp * 1000 : Date.now(),
-							isRead: Boolean(m.key.fromMe),
+							fromMe: !!m.key.fromMe,
+							timestamp,
+							isRead: !!m.key.fromMe,
 							key: {
 								remoteJid: m.key.remoteJid,
 								id: m.key.id,
@@ -343,8 +333,7 @@ export class WhatsAppSessionManager {
 							}
 						};
 
-						// Insertar al inicio de la lista en memoria
-						holder.messages.unshift(msgObj);
+						holder.messages.unshift(newMsg);
 						if (holder.messages.length > 100) {
 							holder.messages.pop();
 						}
@@ -352,7 +341,7 @@ export class WhatsAppSessionManager {
 						this.broadcast(holder, {
 							type: 'whatsapp:message',
 							businessId,
-							message: msgObj
+							message: newMsg
 						});
 					}
 				});
@@ -452,45 +441,44 @@ export class WhatsAppSessionManager {
 		holder.sock = null;
 		holder.status = 'disconnected';
 		holder.qr = null;
+
 		if (isLogout) {
 			holder.phone = null;
 			holder.pushName = null;
 			holder.connectedAt = null;
-			const sessionPath = path.resolve(SESSIONS_DIR, businessId);
-			try {
-				fs.rmSync(sessionPath, { recursive: true, force: true });
-			} catch (_) {}
 
-			// Actualizar base de datos
-			(async () => {
-				try {
-					const db = getDb();
-					const existing = await db.query.businesses.findFirst({
-						where: eq(businesses.id, businessId)
-					});
-					if (existing) {
-						const currentSettings = existing.settings || {};
-						await db
-							.update(businesses)
-							.set({
-								settings: {
-									...currentSettings,
-									integrations: {
-										...(currentSettings.integrations || {}),
-										whatsapp: {
-											status: 'disconnected',
-											phone: null,
-											disconnectedAt: new Date().toISOString()
-										}
+			// Limpiar credenciales de PostgreSQL
+			const { clearSession } = await useDatabaseAuthState(businessId);
+			await clearSession();
+
+			// Actualizar estado en tabla businesses
+			try {
+				const db = getDb();
+				const existing = await db.query.businesses.findFirst({
+					where: eq(businesses.id, businessId)
+				});
+				if (existing) {
+					const currentSettings = existing.settings || {};
+					await db
+						.update(businesses)
+						.set({
+							settings: {
+								...currentSettings,
+								integrations: {
+									...(currentSettings.integrations || {}),
+									whatsapp: {
+										status: 'disconnected',
+										phone: null,
+										disconnectedAt: new Date().toISOString()
 									}
 								}
-							})
-							.where(eq(businesses.id, businessId));
-					}
-				} catch (dbErr) {
-					console.error('[WhatsAppSessionManager] Error al actualizar estado en DB al desconectar:', dbErr);
+							}
+						})
+						.where(eq(businesses.id, businessId));
 				}
-			})();
+			} catch (dbErr) {
+				console.error('[WhatsAppSessionManager] Error al actualizar estado en DB al desconectar:', dbErr);
+			}
 		}
 
 		this.broadcast(holder, {
