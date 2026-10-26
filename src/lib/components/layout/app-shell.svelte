@@ -16,6 +16,7 @@
 	import ShoppingBag from '@lucide/svelte/icons/shopping-bag';
 	import ShoppingCart from '@lucide/svelte/icons/shopping-cart';
 	import Package from '@lucide/svelte/icons/package';
+	import Blocks from '@lucide/svelte/icons/blocks';
 	import Settings from '@lucide/svelte/icons/settings';
 	import Store from '@lucide/svelte/icons/store';
 	import LogOut from '@lucide/svelte/icons/log-out';
@@ -44,7 +45,7 @@
 		user: AuthUser;
 		activeBusiness: Business;
 		businesses?: Array<Business & { role: BusinessRole }>;
-		currentSection: 'dashboard' | 'orders' | 'recipes' | 'inventory' | 'settings';
+		currentSection: 'dashboard' | 'orders' | 'recipes' | 'inventory' | 'settings' | 'integrations';
 		title: string;
 		description: string;
 		headerActions?: Snippet;
@@ -113,6 +114,13 @@
 			icon: Package
 		},
 		{
+			id: 'integrations' as const,
+			label: 'Integraciones',
+			mobileLabel: 'Integraciones',
+			href: '/integrations',
+			icon: Blocks
+		},
+		{
 			id: 'settings' as const,
 			label: 'Configuración',
 			mobileLabel: 'Ajustes',
@@ -122,7 +130,7 @@
 	]);
 
 	const leftDockItems = $derived(navItems.slice(0, 2));
-	const rightDockItems = $derived(navItems.slice(2, 4));
+	const rightDockItems = $derived([navItems[2], navItems[3]]);
 </script>
 
 <div class="flex h-screen h-dvh w-full overflow-hidden bg-muted/20">
@@ -396,6 +404,15 @@
 					<span>Loop</span>
 				</Button>
 				<ThemeToggle />
+				<Button
+					href="/settings"
+					variant="ghost"
+					size="icon"
+					class="size-8 text-muted-foreground hover:text-foreground cursor-pointer"
+					title="Configuración"
+				>
+					<Settings class="size-4" />
+				</Button>
 				<div
 					class="flex size-7 items-center justify-center rounded-full bg-primary/10 text-[11px] font-bold text-primary"
 					title="{user.name} ({user.email})"
