@@ -9,7 +9,7 @@
 	} from '#lib/features/orders/domain/order.entity';
 	import { Button } from '#lib/components/ui/button';
 	import { Badge } from '#lib/components/ui/badge';
-	import Zap from '@lucide/svelte/icons/zap';
+	import Repeat from '@lucide/svelte/icons/repeat';
 	import Wheat from '@lucide/svelte/icons/wheat';
 	import ChefHat from '@lucide/svelte/icons/chef-hat';
 	import Package from '@lucide/svelte/icons/package';
@@ -18,7 +18,7 @@
 	import CheckCircle2 from '@lucide/svelte/icons/check-circle-2';
 	import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
 	import Check from '@lucide/svelte/icons/check';
-	import Store from '@lucide/svelte/icons/store';
+	import Shield from '@lucide/svelte/icons/shield';
 	import Eye from '@lucide/svelte/icons/eye';
 	import Clock from '@lucide/svelte/icons/clock';
 	import List from '@lucide/svelte/icons/list';
@@ -63,7 +63,11 @@
 
 	const HORIZON_OPTIONS: Array<{ id: ForecastHorizon; label: string }> = [
 		{ id: 'today', label: 'Hoy' },
+		{ id: '2d', label: '2d' },
 		{ id: '3d', label: '3d' },
+		{ id: '4d', label: '4d' },
+		{ id: '5d', label: '5d' },
+		{ id: '6d', label: '6d' },
 		{ id: '7d', label: '7d' },
 		{ id: 'all', label: 'Todo' }
 	];
@@ -102,14 +106,14 @@
 	const ordersInHorizon = $derived.by(() => {
 		const now = new Date();
 		const endWindow = new Date(now);
-		if (forecastHorizon === 'today') {
+		if (forecastHorizon === 'today' || forecastHorizon === '1d') {
 			endWindow.setHours(23, 59, 59, 999);
-		} else if (forecastHorizon === '3d') {
-			endWindow.setDate(endWindow.getDate() + 3);
-			endWindow.setHours(23, 59, 59, 999);
-		} else if (forecastHorizon === '7d') {
-			endWindow.setDate(endWindow.getDate() + 7);
-			endWindow.setHours(23, 59, 59, 999);
+		} else if (typeof forecastHorizon === 'string' && forecastHorizon.endsWith('d')) {
+			const days = parseInt(forecastHorizon, 10);
+			if (!Number.isNaN(days) && days > 0) {
+				endWindow.setDate(endWindow.getDate() + (days - 1));
+				endWindow.setHours(23, 59, 59, 999);
+			}
 		}
 
 		return orders
@@ -278,26 +282,26 @@
 	<!-- Barra Superior Compacta del Modo Loop -->
 	<div class="flex flex-wrap items-center justify-between gap-2.5 rounded-2xl border border-border bg-card px-4 py-3 shadow-xs">
 		<div class="flex items-center gap-2.5">
-			<div class="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-2xs">
-				<Zap class="size-4.5" />
+			<div class="flex size-9 shrink-0 items-center justify-center rounded-xl bg-tertiary text-tertiary-foreground shadow-2xs">
+				<Repeat class="size-4.5" />
 			</div>
 			<div class="flex items-center gap-2">
 				<h2 class="text-sm sm:text-base font-bold text-foreground">Loop</h2>
-				<Badge variant="outline" class="border-primary/30 bg-primary/10 text-primary font-mono text-xs px-2 py-0.5" title="Pedidos activos en la ventana seleccionada">
+				<Badge variant="outline" class="border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400 font-mono text-xs px-2 py-0.5" title="Pedidos activos en la ventana seleccionada">
 					<ShoppingBag class="size-3 mr-1" />
 					{ordersInHorizon.length}
 				</Badge>
 			</div>
 		</div>
 
-		<div class="flex items-center gap-1.5">
-			<!-- Selector de Ventana Temporal -->
-			<div class="inline-flex items-center rounded-xl border border-border bg-muted/40 p-0.5">
+		<div class="flex items-center gap-1.5 flex-wrap sm:flex-nowrap">
+			<!-- Selector de Ventana Temporal (1..7 días + Todo) -->
+			<div class="inline-flex items-center rounded-xl border border-border bg-muted/40 p-0.5 max-w-full overflow-x-auto scrollbar-none">
 				{#each HORIZON_OPTIONS as h (h.id)}
 					<button
 						type="button"
 						onclick={() => setHorizon(h.id)}
-						class="rounded-lg px-2.5 py-1 text-xs font-semibold transition-all cursor-pointer {forecastHorizon ===
+						class="rounded-lg px-2 sm:px-2.5 py-1 text-xs font-semibold transition-all cursor-pointer whitespace-nowrap {forecastHorizon ===
 						h.id
 							? 'bg-primary text-primary-foreground shadow-2xs'
 							: 'text-muted-foreground hover:text-foreground'}"
@@ -307,26 +311,31 @@
 				{/each}
 			</div>
 
-			<!-- Botón Icono: Proteger Stock de Vidriera -->
+			<!-- Botón Icono: Conservación de Stock (Escudo + Caja) -->
 			<button
 				type="button"
 				onclick={togglePreserveDisplay}
-				class="inline-flex size-8 items-center justify-center rounded-xl border transition-colors cursor-pointer {preserveDisplayStock
-					? 'border-secondary bg-secondary/15 text-secondary'
+				class="inline-flex size-8 items-center justify-center rounded-xl border transition-colors cursor-pointer shrink-0 {preserveDisplayStock
+					? 'border-amber-500/40 bg-amber-500/15 text-amber-700 dark:text-amber-400 shadow-2xs ring-1 ring-amber-500/30'
 					: 'border-border bg-background text-muted-foreground hover:text-foreground'}"
 				title={preserveDisplayStock
-					? 'Proteger stock de vidriera: ACTIVO (no descuenta tu stock actual)'
-					: 'Proteger stock de vidriera: INACTIVO (usa tu stock disponible)'}
+					? 'Conservación de stock: ACTIVA (no descuenta tu stock disponible en mostrador)'
+					: 'Conservación de stock: INACTIVA (usa tu stock disponible)'}
+				aria-label="Conservación de stock"
 			>
-				<Store class="size-4" />
+				<span class="relative inline-flex size-4.5 items-center justify-center">
+					<Shield class="size-4.5" />
+					<Package class="absolute size-2.5" />
+				</span>
 			</button>
 
 			<!-- Botón Icono: Ir a Vista de Tablas Detalladas -->
 			<button
 				type="button"
 				onclick={onSwitchToDetailedTabs}
-				class="inline-flex size-8 items-center justify-center rounded-xl border border-border bg-background text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+				class="inline-flex size-8 items-center justify-center rounded-xl border border-border bg-background text-muted-foreground hover:text-foreground transition-colors cursor-pointer shrink-0"
 				title="Ver tablas detalladas"
+				aria-label="Ver tablas detalladas"
 			>
 				<List class="size-4" />
 			</button>
@@ -452,16 +461,16 @@
 		>
 			<div class="flex items-center justify-between gap-2 border-b border-border/60 pb-2.5">
 				<div class="flex items-center gap-2">
-					<span class="flex size-6 items-center justify-center rounded-lg bg-primary/15 font-mono text-xs font-bold text-primary">
+					<span class="flex size-6 items-center justify-center rounded-lg bg-violet-500/15 font-mono text-xs font-bold text-violet-600 dark:text-violet-400">
 						2
 					</span>
-					<ChefHat class="size-4 text-primary" />
+					<ChefHat class="size-4 text-violet-600 dark:text-violet-400" />
 					<h3 class="text-sm font-bold text-foreground">Producción</h3>
 				</div>
 
 				{#if producibleOrders.length > 0 || fabricableItems.some((f) => f.deficitQty > 0)}
 					<span
-						class="inline-flex items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 font-mono text-xs font-bold text-primary"
+						class="inline-flex items-center gap-1 rounded-full bg-violet-500/15 px-2 py-0.5 font-mono text-xs font-bold text-violet-600 dark:text-violet-400"
 						title="Pedidos pendientes de producir"
 					>
 						<ChefHat class="size-3.5" />
@@ -482,7 +491,7 @@
 				<Button
 					type="button"
 					size="sm"
-					class="w-full h-9 justify-between px-3 font-semibold shadow-2xs cursor-pointer"
+					class="w-full h-9 justify-between px-3 font-semibold shadow-2xs cursor-pointer bg-violet-600 hover:bg-violet-700 text-white"
 					onclick={() => onProduceOrders(producibleOrders, activeHorizonLabel)}
 					title="Abrir Hoja de Producción para marcar pedidos como Listos"
 				>
@@ -490,7 +499,7 @@
 						<ChefHat class="size-4" />
 						<span>Hoja de Producción</span>
 					</span>
-					<span class="rounded-md bg-primary-foreground/20 px-2 py-0.5 font-mono text-xs font-bold">
+					<span class="rounded-md bg-white/20 px-2 py-0.5 font-mono text-xs font-bold text-white">
 						{producibleOrders.length} {producibleOrders.length === 1 ? 'pedido' : 'pedidos'}
 					</span>
 				</Button>
@@ -585,7 +594,7 @@
 									<Button
 										type="button"
 										size="sm"
-										class="h-7 px-2 sm:px-2.5 gap-1 text-xs font-semibold cursor-pointer shrink-0"
+										class="h-7 px-2 sm:px-2.5 gap-1 text-xs font-semibold cursor-pointer shrink-0 bg-violet-600 hover:bg-violet-700 text-white shadow-2xs"
 										title="Abrir modal de producción con {totalProduceQty} {formatUnit(item.baseUnit)} ({batches}x receta)"
 										onclick={() => handleOpenPreparedStockModal(item.id, totalProduceQty)}
 									>
@@ -717,7 +726,7 @@
 												type="button"
 												size="sm"
 												variant="outline"
-												class="h-7 px-2 text-xs border-primary/30 text-primary hover:bg-primary/10 cursor-pointer"
+												class="h-7 px-2 text-xs border-violet-500/40 text-violet-600 dark:text-violet-400 hover:bg-violet-500/10 cursor-pointer"
 												onclick={() => onProduceOrders([order], order.orderNumber)}
 												title="Producir este pedido ahora"
 											>
@@ -770,14 +779,14 @@
 			onclick={() => (mobileStep = 2)}
 			class="relative inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold transition-all cursor-pointer {mobileStep ===
 			2
-				? 'bg-primary text-primary-foreground shadow-xs'
+				? 'bg-violet-600 text-white shadow-xs'
 				: 'text-muted-foreground hover:text-foreground'}"
 			title="2. Producción"
 		>
-			<ChefHat class="size-4" />
+			<ChefHat class="size-4 {mobileStep === 2 ? 'text-white' : 'text-violet-500'}" />
 			<span>2</span>
 			{#if producibleOrders.length > 0}
-				<span class="size-2 rounded-full bg-amber-500"></span>
+				<span class="size-2 rounded-full bg-violet-400"></span>
 			{/if}
 		</button>
 

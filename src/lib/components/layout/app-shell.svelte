@@ -23,6 +23,7 @@
 	import Clock from '@lucide/svelte/icons/clock';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Zap from '@lucide/svelte/icons/zap';
+	import Repeat from '@lucide/svelte/icons/repeat';
 	import X from '@lucide/svelte/icons/x';
 	import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
 	import PanelLeftOpen from '@lucide/svelte/icons/panel-left-open';
@@ -231,10 +232,9 @@
 					</Button>
 					<Button
 						href="/orders?tab=loop"
-						variant={page.url.pathname === '/orders' && page.url.searchParams.get('tab') === 'loop' ? 'default' : 'secondary'}
-						class="w-full justify-center gap-2 shadow-xs font-semibold"
+						class="w-full justify-center gap-2 shadow-xs font-semibold cursor-pointer {isLoopRoute ? 'bg-tertiary text-tertiary-foreground hover:bg-tertiary/90' : 'bg-secondary text-secondary-foreground hover:bg-secondary/90'}"
 					>
-						<Zap class="size-4" />
+						<Repeat class="size-4" />
 						<span>Modo Loop</span>
 					</Button>
 				{:else}
@@ -249,12 +249,11 @@
 					</Button>
 					<Button
 						href="/orders?tab=loop"
-						variant={page.url.pathname === '/orders' && page.url.searchParams.get('tab') === 'loop' ? 'default' : 'secondary'}
 						size="icon"
-						class="w-full h-10 justify-center shadow-xs"
+						class="w-full h-10 justify-center shadow-xs cursor-pointer {isLoopRoute ? 'bg-tertiary text-tertiary-foreground hover:bg-tertiary/90' : 'bg-secondary text-secondary-foreground hover:bg-secondary/90'}"
 						title="Modo Loop Operativo"
 					>
-						<Zap class="size-4" />
+						<Repeat class="size-4" />
 					</Button>
 				{/if}
 			</div>
@@ -358,12 +357,11 @@
 			<div class="flex shrink-0 items-center gap-1.5">
 				<Button
 					href="/orders?tab=loop"
-					variant={page.url.pathname === '/orders' && page.url.searchParams.get('tab') === 'loop' ? 'default' : 'secondary'}
 					size="sm"
-					class="h-7 gap-1 px-2.5 text-xs font-semibold shadow-2xs"
+					class="h-7 gap-1 px-2.5 text-xs font-semibold shadow-2xs cursor-pointer {isLoopRoute ? 'bg-tertiary text-tertiary-foreground hover:bg-tertiary/90' : 'bg-secondary text-secondary-foreground hover:bg-secondary/90'}"
 					title="Ir al Modo Loop Operativo"
 				>
-					<Zap class="size-3.5" />
+					<Repeat class="size-3.5" />
 					<span>Loop</span>
 				</Button>
 				<ThemeToggle />

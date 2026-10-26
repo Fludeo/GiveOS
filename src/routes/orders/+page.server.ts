@@ -1,5 +1,6 @@
 import { redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
+import type { ForecastHorizon } from '#lib/features/orders/domain/order.entity';
 import { getServices } from '#lib/server/container';
 import { resolveBusinessOrRedirect } from '#lib/server/business-resolver';
 import * as orderActions from './_actions';
@@ -19,10 +20,20 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 
 	const preserveDisplayStock = url.searchParams.get('preserveDisplay') === '1';
 	const horizonParam = url.searchParams.get('horizon');
-	const forecastHorizon: 'today' | '3d' | '7d' | 'all' =
-		horizonParam === 'today' || horizonParam === '3d' || horizonParam === '7d'
-			? horizonParam
-			: 'all';
+	const validHorizons: ForecastHorizon[] = [
+		'today',
+		'1d',
+		'2d',
+		'3d',
+		'4d',
+		'5d',
+		'6d',
+		'7d',
+		'all'
+	];
+	const forecastHorizon: ForecastHorizon = validHorizons.includes(horizonParam as ForecastHorizon)
+		? (horizonParam as ForecastHorizon)
+		: 'all';
 
 	const [items, orders, salesProducts, preorderForecast, recipeSummaries] = await Promise.all([
 		itemService.listItems(activeBusiness.id),

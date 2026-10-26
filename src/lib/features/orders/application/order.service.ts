@@ -755,14 +755,17 @@ export class OrderService {
 			59,
 			999
 		);
-		const horizonLimitMs =
-			horizon === 'today'
-				? endOfToday.getTime()
-				: horizon === '3d'
-					? endOfToday.getTime() + 2 * 86400_000
-					: horizon === '7d'
-						? endOfToday.getTime() + 6 * 86400_000
-						: null;
+		let horizonLimitMs: number | null = null;
+		if (horizon === 'today' || horizon === '1d') {
+			horizonLimitMs = endOfToday.getTime();
+		} else if (horizon === 'all') {
+			horizonLimitMs = null;
+		} else if (typeof horizon === 'string' && horizon.endsWith('d')) {
+			const days = parseInt(horizon, 10);
+			if (!Number.isNaN(days) && days > 0) {
+				horizonLimitMs = endOfToday.getTime() + (days - 1) * 86400_000;
+			}
+		}
 
 		const pendingOrders = orders.filter((o) => {
 			if (o.status !== 'pending') return false;

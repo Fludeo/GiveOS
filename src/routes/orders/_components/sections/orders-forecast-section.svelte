@@ -31,6 +31,7 @@
 	import Wheat from '@lucide/svelte/icons/wheat';
 	import GraphHub from '@lucide/svelte/icons/graph-hub';
 	import Store from '@lucide/svelte/icons/store';
+	import Shield from '@lucide/svelte/icons/shield';
 	import { convertQuantity } from '#lib/features/items/domain/item.entity';
 	import type { RecipeTreeNode } from '#lib/features/recipes/domain/recipe.entity';
 
@@ -506,17 +507,21 @@
 
 				<div class="flex flex-wrap items-center gap-2">
 					<!-- Selector de Horizonte Temporal -->
-					<div class="inline-flex items-center rounded-lg border border-border bg-background p-0.5 shadow-2xs">
+					<div class="inline-flex items-center rounded-lg border border-border bg-background p-0.5 shadow-2xs max-w-full overflow-x-auto scrollbar-none">
 						{#each [
 							{ id: 'today', label: 'Hoy' },
-							{ id: '3d', label: '3 Días' },
-							{ id: '7d', label: '7 Días' },
+							{ id: '2d', label: '2d' },
+							{ id: '3d', label: '3d' },
+							{ id: '4d', label: '4d' },
+							{ id: '5d', label: '5d' },
+							{ id: '6d', label: '6d' },
+							{ id: '7d', label: '7d' },
 							{ id: 'all', label: 'Todo' }
 						] as h}
 							<button
 								type="button"
 								onclick={() => setHorizon(h.id as ForecastHorizon)}
-								class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer {forecastHorizon ===
+								class="rounded-md px-2 sm:px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer whitespace-nowrap {forecastHorizon ===
 								h.id
 									? 'bg-primary text-primary-foreground font-semibold shadow-2xs'
 									: 'text-muted-foreground hover:text-foreground'}"
@@ -532,18 +537,21 @@
 						type="button"
 						onclick={togglePreserveDisplayStock}
 						class="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold transition-all cursor-pointer shadow-2xs {preserveDisplayStock
-							? 'border-secondary/40 bg-secondary/15 text-secondary hover:bg-secondary/20 ring-1 ring-secondary/30'
+							? 'border-amber-500/40 bg-amber-500/15 text-amber-700 dark:text-amber-400 hover:bg-amber-500/20 ring-1 ring-amber-500/30'
 							: 'border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted/50'}"
 						title="Al activar, el cálculo de faltantes no consumirá el stock ya disponible en mostrador/vidriera, planificando la producción completa para los pedidos."
 					>
-						<Store class="size-3.5 {preserveDisplayStock ? 'text-secondary' : 'text-muted-foreground'}" />
-						<span>Mantener Vidriera</span>
+						<span class="relative inline-flex size-3.5 items-center justify-center">
+							<Shield class="size-3.5" />
+							<Package class="absolute size-2" />
+						</span>
+						<span>Conservar Stock</span>
 						<span
 							class="ml-0.5 rounded px-1.5 py-0.2 text-[9px] font-bold uppercase tracking-wider {preserveDisplayStock
-								? 'bg-secondary text-secondary-foreground'
+								? 'bg-amber-500 text-white'
 								: 'bg-muted text-muted-foreground'}"
 						>
-							{preserveDisplayStock ? 'Activado' : 'Off'}
+							{preserveDisplayStock ? 'ON' : 'OFF'}
 						</span>
 					</button>
 

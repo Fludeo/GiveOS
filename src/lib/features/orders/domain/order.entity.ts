@@ -37,7 +37,16 @@ export const ORDER_ITEM_STATUS_LABELS: Record<OrderItemStatus, string> = {
 	cancelled: 'Cancelado'
 };
 
-export type ForecastHorizon = 'today' | '3d' | '7d' | 'all';
+export type ForecastHorizon =
+	| 'today'
+	| '1d'
+	| '2d'
+	| '3d'
+	| '4d'
+	| '5d'
+	| '6d'
+	| '7d'
+	| 'all';
 
 /**
  * Línea de la tabla intermedia `sales_product_items` que vincula un Producto Comercial
