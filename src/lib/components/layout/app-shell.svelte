@@ -137,9 +137,9 @@
 			<div class="flex items-center {isCollapsed ? 'flex-col gap-2' : 'justify-between gap-3'}">
 				<div class="flex items-center gap-3 min-w-0">
 					<div
-						class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-secondary text-secondary-foreground shadow-xs"
+						class="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-secondary text-secondary-foreground shadow-xs"
 					>
-						<ScanFace class="size-6" />
+						<ScanFace class="size-7.5" />
 					</div>
 					{#if !isCollapsed}
 						<div class="min-w-0">
@@ -365,9 +365,9 @@
 		>
 			<div class="flex min-w-0 items-center gap-2.5">
 				<div
-					class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-secondary text-secondary-foreground shadow-2xs"
+					class="flex size-9 shrink-0 items-center justify-center rounded-xl bg-secondary text-secondary-foreground shadow-2xs"
 				>
-					<ScanFace class="size-4.5" />
+					<ScanFace class="size-5.5" />
 				</div>
 				<span class="truncate text-sm font-bold text-foreground max-w-[140px] sm:max-w-[240px]">
 					{activeBusiness.name}
@@ -421,9 +421,6 @@
 				<div class="space-y-1 min-w-0">
 					<div class="flex flex-wrap items-center gap-2">
 						<h1 class="text-lg sm:text-2xl font-bold tracking-tight text-foreground">{title}</h1>
-						<Badge variant="outline" class="hidden text-xs lg:inline-flex">
-							{activeBusiness.name}
-						</Badge>
 					</div>
 					<p class="text-xs sm:text-sm text-muted-foreground">{description}</p>
 				</div>
