@@ -9,6 +9,9 @@ import makeWASocket, {
 import pino from 'pino';
 import QRCode from 'qrcode';
 import { v7 as uuidv7 } from 'uuid';
+import { eq } from 'drizzle-orm';
+import { getDb } from '#lib/server/db';
+import { businesses } from '#lib/server/db/schema';
 import type {
 	WhatsAppMessage,
 	WhatsAppMessageKey,
@@ -175,6 +178,39 @@ export class WhatsAppSessionManager {
 							phone,
 							pushName
 						});
+
+						// Persistir estado y número en la base de datos (tabla businesses)
+						(async () => {
+							try {
+								const db = getDb();
+								const existing = await db.query.businesses.findFirst({
+									where: eq(businesses.id, businessId)
+								});
+								if (existing) {
+									const currentSettings = existing.settings || {};
+									await db
+										.update(businesses)
+										.set({
+											whatsapp: phone || existing.whatsapp,
+											settings: {
+												...currentSettings,
+												integrations: {
+													...(currentSettings.integrations || {}),
+													whatsapp: {
+														status: 'connected',
+														phone,
+														pushName,
+														connectedAt: holder.connectedAt
+													}
+												}
+											}
+										})
+										.where(eq(businesses.id, businessId));
+								}
+							} catch (dbErr) {
+								console.error('[WhatsAppSessionManager] Error al persistir conexión en DB:', dbErr);
+							}
+						})();
 					} else if (connection === 'close') {
 						const statusCode = (lastDisconnect?.error as any)?.output?.statusCode;
 						const isLoggedOut = statusCode === DisconnectReason.loggedOut;
@@ -370,6 +406,37 @@ export class WhatsAppSessionManager {
 			try {
 				fs.rmSync(sessionPath, { recursive: true, force: true });
 			} catch (_) {}
+
+			// Actualizar base de datos
+			(async () => {
+				try {
+					const db = getDb();
+					const existing = await db.query.businesses.findFirst({
+						where: eq(businesses.id, businessId)
+					});
+					if (existing) {
+						const currentSettings = existing.settings || {};
+						await db
+							.update(businesses)
+							.set({
+								settings: {
+									...currentSettings,
+									integrations: {
+										...(currentSettings.integrations || {}),
+										whatsapp: {
+											status: 'disconnected',
+											phone: null,
+											disconnectedAt: new Date().toISOString()
+										}
+									}
+								}
+							})
+							.where(eq(businesses.id, businessId));
+					}
+				} catch (dbErr) {
+					console.error('[WhatsAppSessionManager] Error al actualizar estado en DB al desconectar:', dbErr);
+				}
+			})();
 		}
 
 		this.broadcast(holder, {

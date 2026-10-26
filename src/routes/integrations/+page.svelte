@@ -27,6 +27,8 @@
 	let { data }: PageProps = $props();
 
 	let showQrModal = $state(false);
+	let showDisconnectModal = $state(false);
+	let isDisconnecting = $state(false);
 
 	// Estado reactivo de la sesión
 	let status = $state<WhatsAppSessionStatus>('disconnected');
@@ -350,7 +352,7 @@
 							type="button"
 							variant="outline"
 							size="sm"
-							onclick={() => handleDisconnect(true)}
+							onclick={() => (showDisconnectModal = true)}
 							class="text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10"
 						>
 							<LogOut class="size-3.5 mr-1" />
@@ -734,6 +736,93 @@
 						onclick={() => (showQrModal = false)}
 					>
 						Cerrar
+					</Button>
+				</div>
+			</div>
+		</div>
+	{/if}
+
+	<!-- MODAL: CONFIRMACIÓN DE DESVINCULACIÓN -->
+	{#if showDisconnectModal}
+		<div
+			class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-foreground/40 p-0 sm:p-4 backdrop-blur-[1px] animate-in fade-in"
+			role="dialog"
+			aria-modal="true"
+		>
+			<div
+				class="w-full max-w-full sm:max-w-md overflow-hidden rounded-t-2xl sm:rounded-2xl border-t sm:border border-border bg-card shadow-2xl animate-in zoom-in-95"
+			>
+				<div class="flex items-center justify-between border-b border-border bg-card/95 p-5">
+					<div class="flex items-center gap-2.5">
+						<div
+							class="flex size-9 items-center justify-center rounded-xl bg-destructive/15 text-destructive"
+						>
+							<LogOut class="size-5" />
+						</div>
+						<div>
+							<h3 class="text-sm font-bold text-foreground">¿Desvincular WhatsApp?</h3>
+							<p class="text-xs text-muted-foreground">Confirmar cierre de sesión</p>
+						</div>
+					</div>
+					<Button
+						type="button"
+						size="icon"
+						variant="ghost"
+						class="size-8"
+						onclick={() => (showDisconnectModal = false)}
+						disabled={isDisconnecting}
+					>
+						<X class="size-4" />
+					</Button>
+				</div>
+
+				<div class="p-6 space-y-3">
+					<p class="text-xs text-muted-foreground leading-relaxed">
+						Se cerrará la sesión del número vinculado
+						{#if phone}
+							<strong class="text-foreground font-mono">+{phone}</strong>
+						{/if}
+						en este negocio.
+					</p>
+					<div
+						class="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-800 dark:text-amber-300"
+					>
+						⚠️ Dejarás de recibir y enviar mensajes desde la plataforma hasta que vuelvas a escanear el código QR.
+					</div>
+				</div>
+
+				<div class="flex items-center justify-end gap-2 border-t border-border bg-muted/20 px-5 py-3">
+					<Button
+						type="button"
+						size="sm"
+						variant="outline"
+						onclick={() => (showDisconnectModal = false)}
+						disabled={isDisconnecting}
+					>
+						Cancelar
+					</Button>
+					<Button
+						type="button"
+						size="sm"
+						variant="destructive"
+						disabled={isDisconnecting}
+						onclick={async () => {
+							isDisconnecting = true;
+							try {
+								await handleDisconnect(true);
+							} finally {
+								isDisconnecting = false;
+								showDisconnectModal = false;
+							}
+						}}
+					>
+						{#if isDisconnecting}
+							<RefreshCw class="size-3.5 animate-spin mr-1" />
+							<span>Desvinculando...</span>
+						{:else}
+							<LogOut class="size-3.5 mr-1" />
+							<span>Sí, desvincular</span>
+						{/if}
 					</Button>
 				</div>
 			</div>

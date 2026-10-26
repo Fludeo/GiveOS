@@ -20,6 +20,15 @@ export interface OperationalCostResource {
 export interface BusinessSettings {
 	operationalCosts?: OperationalCostResource[];
 	currencySymbol?: string;
+	integrations?: {
+		whatsapp?: {
+			status: 'connected' | 'disconnected';
+			phone?: string | null;
+			pushName?: string | null;
+			connectedAt?: string | null;
+			disconnectedAt?: string | null;
+		};
+	};
 }
 
 export interface DaySchedule {
