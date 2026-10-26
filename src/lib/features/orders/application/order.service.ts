@@ -13,6 +13,7 @@ import {
 	computePaymentStatus,
 	generateNextOrderNumber,
 	generateNextSalesProductCode,
+	getProductAvailableStock,
 	type ForecastHorizon,
 	type PriceTier,
 	type CreateOrderInput,
@@ -286,6 +287,15 @@ export class OrderService {
 			const fulfillmentType =
 				line.fulfillmentType === 'preorder' ? 'preorder' : 'immediate';
 			const status = fulfillmentType === 'preorder' ? 'pending_delivery' : 'delivered';
+
+			if (fulfillmentType === 'immediate') {
+				const availableStock = getProductAvailableStock(salesProduct);
+				if (availableStock < line.quantity) {
+					throw new Error(
+						`Stock insuficiente para venta de "${salesProduct.name}". Disponible en mostrador: ${availableStock} u, solicitado: ${line.quantity} u. Debe registrarse como orden por encargo o producirse stock primero.`
+					);
+				}
+			}
 
 			totalAmount += line.quantity * unitPrice;
 

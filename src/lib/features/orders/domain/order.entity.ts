@@ -132,6 +132,28 @@ export interface SalesProductWithItems extends Omit<SalesProduct, 'pricingTiers'
 	isCombo: boolean;
 }
 
+/**
+ * Calcula el stock comercial disponible para un producto (simple o combo),
+ * evaluando el inventario actual de sus componentes divididos por la cantidad requerida (cuello de botella).
+ */
+export function getProductAvailableStock(
+	product: SalesProductWithItems | null | undefined
+): number {
+	if (!product || !product.components || product.components.length === 0) return 0;
+	let minQty = Infinity;
+	let validComponents = 0;
+	for (const comp of product.components) {
+		if (comp.quantity <= 0) continue;
+		validComponents++;
+		if (!comp.item) return 0;
+		const stock = comp.item.currentStock ?? 0;
+		const avail = Math.floor(stock / comp.quantity);
+		if (avail < minQty) minQty = avail;
+	}
+	if (validComponents === 0) return 0;
+	return minQty === Infinity ? 0 : Math.max(0, minQty);
+}
+
 export interface SalesProductComponentInput {
 	itemId: string;
 	quantity: number;

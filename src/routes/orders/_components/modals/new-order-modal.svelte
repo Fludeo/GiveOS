@@ -1,11 +1,12 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import type {
-		OrderItemFulfillmentType,
-		PaymentStatus,
-		SalesProductWithItems
+	import {
+		calculateEffectiveUnitPrice,
+		getProductAvailableStock,
+		type OrderItemFulfillmentType,
+		type PaymentStatus,
+		type SalesProductWithItems
 	} from '#lib/features/orders/domain/order.entity';
-	import { calculateEffectiveUnitPrice } from '#lib/features/orders/domain/order.entity';
 	import { Button } from '#lib/components/ui/button';
 	import { Badge } from '#lib/components/ui/badge';
 	import { Input } from '#lib/components/ui/input';
@@ -125,6 +126,13 @@
 		);
 	});
 
+	const configuringProductStock = $derived(
+		configuringProduct ? getProductAvailableStock(configuringProduct) : 0
+	);
+	const hasInsufficientStockForImmediate = $derived(
+		configuringProductStock <= 0 || itemConfigQuantity > configuringProductStock
+	);
+
 	function syncModalDeliveryDateTime() {
 		if (!modalDeliveryDateOnly) {
 			itemConfigDeliveryDate = '';
@@ -164,7 +172,7 @@
 	}
 
 	function finishAddingImmediateItem() {
-		if (!configuringProduct) return;
+		if (!configuringProduct || hasInsufficientStockForImmediate) return;
 		draftLines = [
 			...draftLines,
 			{
@@ -397,6 +405,7 @@
 									{:else}
 										<div class="max-h-48 overflow-y-auto divide-y divide-border/50">
 											{#each filteredProductsBySearch as prod (prod.id)}
+												{@const stock = getProductAvailableStock(prod)}
 												<button
 													type="button"
 													onclick={() => startConfiguringProduct(prod)}
@@ -419,6 +428,21 @@
 																	<Sparkles class="size-2.5 text-primary" />
 																	Combo
 																</Badge>
+															{/if}
+														</div>
+														<div class="mt-1 flex items-center gap-2">
+															{#if stock > 0}
+																<span
+																	class="inline-flex items-center gap-1 rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700"
+																>
+																	Stock: {stock} u
+																</span>
+															{:else}
+																<span
+																	class="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground"
+																>
+																	Sin stock (por encargo)
+																</span>
 															{/if}
 														</div>
 													</div>
@@ -459,6 +483,7 @@
 							{#if shortcutProducts.length > 0}
 								<div class="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4">
 									{#each shortcutProducts as prod (prod.id)}
+										{@const stock = getProductAvailableStock(prod)}
 										<button
 											type="button"
 											onclick={() => startConfiguringProduct(prod)}
@@ -483,9 +508,24 @@
 													{prod.name}
 												</h4>
 												<div
-													class="mt-2 font-mono text-xs font-bold text-emerald-600"
+													class="mt-2 flex items-center justify-between gap-1"
 												>
-													{formatCurrency(prod.salePrice)}
+													<span class="font-mono text-xs font-bold text-emerald-600">
+														{formatCurrency(prod.salePrice)}
+													</span>
+													{#if stock > 0}
+														<span
+															class="rounded bg-emerald-500/15 px-1.5 py-0.5 font-mono text-[9px] font-bold text-emerald-700"
+														>
+															{stock} u
+														</span>
+													{:else}
+														<span
+															class="rounded bg-muted px-1.5 py-0.5 font-mono text-[9px] font-semibold text-muted-foreground"
+														>
+															0 u
+														</span>
+													{/if}
 												</div>
 											</div>
 
@@ -520,6 +560,7 @@
 									</p>
 									<div class="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
 										{#each suggestedFallbackProducts as prod (prod.id)}
+											{@const stock = getProductAvailableStock(prod)}
 											<button
 												type="button"
 												onclick={() => startConfiguringProduct(prod)}
@@ -533,10 +574,27 @@
 														class="line-clamp-1 text-xs font-semibold text-foreground group-hover:text-primary transition-colors"
 														>{prod.name}</span
 													>
-													<span
-														class="mt-1 font-mono text-xs font-bold text-emerald-600"
-														>{formatCurrency(prod.salePrice)}</span
+													<div
+														class="mt-1 flex items-center justify-between gap-1"
 													>
+														<span
+															class="font-mono text-xs font-bold text-emerald-600"
+															>{formatCurrency(prod.salePrice)}</span
+														>
+														{#if stock > 0}
+															<span
+																class="rounded bg-emerald-500/15 px-1.5 py-0.5 font-mono text-[9px] font-bold text-emerald-700"
+															>
+																{stock} u
+															</span>
+														{:else}
+															<span
+																class="rounded bg-muted px-1.5 py-0.5 font-mono text-[9px] font-semibold text-muted-foreground"
+															>
+																0 u
+															</span>
+														{/if}
+													</div>
 												</div>
 												<span
 													role="button"
@@ -614,7 +672,7 @@
 															class="gap-1 border-emerald-500/40 bg-emerald-500/10 text-[10px] text-emerald-700"
 														>
 															<Zap class="size-2.5" />
-															Venta Inmediata
+															Venta
 														</Badge>
 													{:else}
 														<Badge
@@ -787,7 +845,22 @@
 									class="grid grid-cols-1 gap-4 rounded-xl border border-border bg-muted/15 p-4 sm:grid-cols-2"
 								>
 									<div class="space-y-1.5">
-										<Label class="text-xs">Cantidad</Label>
+										<div class="flex items-center justify-between">
+											<Label class="text-xs">Cantidad</Label>
+											{#if configuringProductStock > 0}
+												<span
+													class="rounded bg-emerald-500/15 px-2 py-0.5 text-[11px] font-bold text-emerald-700"
+												>
+													Stock: {configuringProductStock} u
+												</span>
+											{:else}
+												<span
+													class="rounded bg-destructive/15 px-2 py-0.5 text-[11px] font-bold text-destructive"
+												>
+													Sin stock
+												</span>
+											{/if}
+										</div>
 										<div class="flex items-center">
 											<Button
 												type="button"
@@ -855,34 +928,64 @@
 									<button
 										type="button"
 										onclick={finishAddingImmediateItem}
-										class="group flex flex-col justify-between rounded-2xl border-2 border-emerald-500/30 bg-emerald-500/5 p-6 text-left transition-all hover:border-emerald-500 hover:bg-emerald-500/10 hover:shadow-md cursor-pointer active:scale-[0.98]"
+										disabled={hasInsufficientStockForImmediate}
+										class="group flex flex-col justify-between rounded-2xl border-2 p-6 text-left transition-all active:scale-[0.98] {hasInsufficientStockForImmediate
+											? 'border-border bg-muted/30 opacity-60 cursor-not-allowed'
+											: 'border-emerald-500/30 bg-emerald-500/5 hover:border-emerald-500 hover:bg-emerald-500/10 hover:shadow-md cursor-pointer'}"
 									>
 										<div class="space-y-2">
 											<div
-												class="flex size-10 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-700"
+												class="flex size-10 items-center justify-center rounded-xl {hasInsufficientStockForImmediate
+													? 'bg-muted text-muted-foreground'
+													: 'bg-emerald-500/20 text-emerald-700'}"
 											>
 												<Zap class="size-5" />
 											</div>
-											<h3
-												class="text-base font-bold text-foreground group-hover:text-emerald-700"
-											>
-												Orden Inmediata
-											</h3>
+											<div class="flex items-center justify-between gap-2">
+												<h3
+													class="text-base font-bold text-foreground {hasInsufficientStockForImmediate
+														? ''
+														: 'group-hover:text-emerald-700'}"
+												>
+													Venta
+												</h3>
+												{#if hasInsufficientStockForImmediate}
+													<Badge variant="destructive" class="text-[10px]">Sin stock</Badge>
+												{/if}
+											</div>
 											<p class="text-xs text-muted-foreground leading-relaxed">
-												Se entrega y despacha ahora en el mostrador. Descuenta el stock
-												en el acto.
+												Descuenta stock disponible inmediatamente.
 											</p>
+											{#if hasInsufficientStockForImmediate}
+												<p class="text-[11px] font-semibold text-destructive mt-1">
+													{configuringProductStock === 0
+														? 'No hay stock disponible en mostrador.'
+														: `Stock insuficiente: disponible ${configuringProductStock} u.`}
+												</p>
+											{/if}
 										</div>
 										<div
-											class="mt-4 flex items-center justify-between border-t border-emerald-500/20 pt-3"
+											class="mt-4 flex items-center justify-between border-t {hasInsufficientStockForImmediate
+												? 'border-border/60'
+												: 'border-emerald-500/20'} pt-3"
 										>
-											<span class="text-xs font-semibold text-emerald-700">
-												Listo en el acto
+											<span
+												class="text-xs font-semibold {hasInsufficientStockForImmediate
+													? 'text-muted-foreground'
+													: 'text-emerald-700'}"
+											>
+												{hasInsufficientStockForImmediate
+													? 'Stock insuficiente'
+													: 'Listo en el acto'}
 											</span>
 											<span
-												class="rounded-lg bg-emerald-600 px-3 py-1 text-xs font-bold text-white shadow-xs"
+												class="rounded-lg px-3 py-1 text-xs font-bold shadow-xs {hasInsufficientStockForImmediate
+													? 'bg-muted text-muted-foreground'
+													: 'bg-emerald-600 text-white'}"
 											>
-												Agregar ya →
+												{hasInsufficientStockForImmediate
+													? 'No disponible'
+													: 'Agregar ya →'}
 											</span>
 										</div>
 									</button>

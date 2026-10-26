@@ -4,7 +4,10 @@
 	import Star from '@lucide/svelte/icons/star';
 	import Sparkles from '@lucide/svelte/icons/sparkles';
 	import X from '@lucide/svelte/icons/x';
-	import type { SalesProductWithItems } from '#lib/features/orders/domain/order.entity';
+	import {
+		getProductAvailableStock,
+		type SalesProductWithItems
+	} from '#lib/features/orders/domain/order.entity';
 	import { formatCurrency } from '../../_components/utils';
 
 	let {
@@ -69,6 +72,7 @@
 			{:else}
 				<div class="max-h-60 overflow-y-auto divide-y divide-border/50">
 					{#each searchResults as prod (prod.id)}
+						{@const stock = getProductAvailableStock(prod)}
 						<button
 							type="button"
 							onclick={() => onSelectProduct(prod)}
@@ -84,6 +88,21 @@
 									</span>
 									{#if prod.isCombo}
 										<Badge variant="secondary" class="text-[10px]">Combo</Badge>
+									{/if}
+								</div>
+								<div class="mt-1 flex items-center gap-2">
+									{#if stock > 0}
+										<span
+											class="inline-flex items-center gap-1 rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700"
+										>
+											Stock: {stock} u
+										</span>
+									{:else}
+										<span
+											class="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground"
+										>
+											Sin stock (por encargo)
+										</span>
 									{/if}
 								</div>
 							</div>
@@ -119,6 +138,7 @@
 		{#if shortcutProducts.length > 0}
 			<div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
 				{#each shortcutProducts as prod (prod.id)}
+					{@const stock = getProductAvailableStock(prod)}
 					<button
 						type="button"
 						onclick={() => onSelectProduct(prod)}
@@ -134,8 +154,25 @@
 									Combo
 								</span>
 							{/if}
-							<div class="mt-2 font-mono text-sm font-bold text-emerald-600">
-								{formatCurrency(prod.salePrice)}
+							<div class="mt-2 flex items-center justify-between gap-1">
+								<span class="font-mono text-sm font-bold text-emerald-600">
+									{formatCurrency(prod.salePrice)}
+								</span>
+								{#if stock > 0}
+									<span
+										class="rounded bg-emerald-500/15 px-1.5 py-0.5 font-mono text-[10px] font-bold text-emerald-700"
+										title="Stock disponible en mostrador"
+									>
+										{stock} u
+									</span>
+								{:else}
+									<span
+										class="rounded bg-muted px-1.5 py-0.5 font-mono text-[9px] font-semibold text-muted-foreground"
+										title="Sin stock para venta inmediata"
+									>
+										0 u
+									</span>
+								{/if}
 							</div>
 						</div>
 						<span
@@ -167,6 +204,7 @@
 				</p>
 				<div class="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4">
 					{#each fallbackSuggestedProducts as prod (prod.id)}
+						{@const stock = getProductAvailableStock(prod)}
 						<button
 							type="button"
 							onclick={() => onSelectProduct(prod)}
@@ -175,7 +213,18 @@
 							<div class="flex flex-col pr-5">
 								<span class="font-mono text-[10px] text-muted-foreground">{prod.code}</span>
 								<span class="line-clamp-1 text-xs font-bold text-foreground group-hover:text-primary transition-colors">{prod.name}</span>
-								<span class="mt-1 font-mono text-xs font-bold text-emerald-600">{formatCurrency(prod.salePrice)}</span>
+								<div class="mt-1 flex items-center justify-between gap-1">
+									<span class="font-mono text-xs font-bold text-emerald-600">{formatCurrency(prod.salePrice)}</span>
+									{#if stock > 0}
+										<span class="rounded bg-emerald-500/15 px-1.5 py-0.5 font-mono text-[9px] font-bold text-emerald-700">
+											{stock} u
+										</span>
+									{:else}
+										<span class="rounded bg-muted px-1.5 py-0.5 font-mono text-[9px] font-semibold text-muted-foreground">
+											0 u
+										</span>
+									{/if}
+								</div>
 							</div>
 							<span
 								role="button"

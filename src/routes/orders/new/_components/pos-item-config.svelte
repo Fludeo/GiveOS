@@ -15,6 +15,7 @@
 	import Percent from '@lucide/svelte/icons/percent';
 	import {
 		calculateEffectiveUnitPrice,
+		getProductAvailableStock,
 		type OrderItemFulfillmentType,
 		type SalesProductWithItems
 	} from '#lib/features/orders/domain/order.entity';
@@ -97,6 +98,11 @@
 
 	const effectiveConfigUnitPrice = $derived(autoPriceCalculation.unitPrice);
 
+	const availableStock = $derived(getProductAvailableStock(product));
+	const hasInsufficientStockForSale = $derived(
+		availableStock <= 0 || itemConfigQuantity > availableStock
+	);
+
 	function changeConfigQuantity(delta: number) {
 		const next = Math.max(1, Number((itemConfigQuantity + delta).toFixed(2)));
 		itemConfigQuantity = next;
@@ -119,6 +125,7 @@
 	}
 
 	function handleAddImmediate() {
+		if (hasInsufficientStockForSale) return;
 		const discountText = autoPriceCalculation.appliedTier
 			? `${autoPriceCalculation.discountPct}% OFF`
 			: null;
@@ -197,9 +204,24 @@
 			<Label class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
 				1. Cantidad de Unidades
 			</Label>
-			<span class="font-mono text-xs font-bold text-foreground">
-				{itemConfigQuantity} {itemConfigQuantity === 1 ? 'unidad' : 'unidades'}
-			</span>
+			<div class="flex items-center gap-2">
+				{#if availableStock > 0}
+					<span
+						class="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-bold text-emerald-700"
+					>
+						Stock: {availableStock} u
+					</span>
+				{:else}
+					<span
+						class="inline-flex items-center gap-1 rounded-full bg-destructive/15 px-2 py-0.5 text-xs font-bold text-destructive"
+					>
+						Sin stock
+					</span>
+				{/if}
+				<span class="font-mono text-xs font-bold text-foreground">
+					{itemConfigQuantity} {itemConfigQuantity === 1 ? 'unidad' : 'unidades'}
+				</span>
+			</div>
 		</div>
 
 		<div class="flex items-center">
@@ -306,27 +328,64 @@
 
 		{#if itemConfigStep === 'config'}
 			<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-				<!-- Orden Inmediata -->
+				<!-- Venta -->
 				<button
 					type="button"
 					onclick={handleAddImmediate}
-					class="group flex flex-col justify-between rounded-2xl border-2 border-emerald-500/40 bg-emerald-500/5 p-5 text-left transition-all hover:border-emerald-500 hover:bg-emerald-500/10 hover:shadow-md cursor-pointer active:scale-[0.98]"
+					disabled={hasInsufficientStockForSale}
+					class="group flex flex-col justify-between rounded-2xl border-2 p-5 text-left transition-all active:scale-[0.98] {hasInsufficientStockForSale
+						? 'border-border bg-muted/30 opacity-60 cursor-not-allowed'
+						: 'border-emerald-500/40 bg-emerald-500/5 hover:border-emerald-500 hover:bg-emerald-500/10 hover:shadow-md cursor-pointer'}"
 				>
 					<div class="space-y-1.5">
-						<div class="flex size-9 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-700">
+						<div
+							class="flex size-9 items-center justify-center rounded-lg {hasInsufficientStockForSale
+								? 'bg-muted text-muted-foreground'
+								: 'bg-emerald-500/20 text-emerald-700'}"
+						>
 							<Zap class="size-5" />
 						</div>
-						<h4 class="text-base font-bold text-foreground group-hover:text-emerald-700">
-							Orden Inmediata
-						</h4>
+						<div class="flex items-center justify-between gap-2">
+							<h4
+								class="text-base font-bold text-foreground {hasInsufficientStockForSale
+									? ''
+									: 'group-hover:text-emerald-700'}"
+							>
+								Venta
+							</h4>
+							{#if hasInsufficientStockForSale}
+								<Badge variant="destructive" class="text-[10px]">Sin stock</Badge>
+							{/if}
+						</div>
 						<p class="text-xs text-muted-foreground leading-relaxed">
-							Se despacha en el acto en el mostrador. Descuenta stock inmediatamente.
+							Descuenta stock disponible inmediatamente.
 						</p>
+						{#if hasInsufficientStockForSale}
+							<p class="text-[11px] font-semibold text-destructive mt-1">
+								{availableStock === 0
+									? 'No hay stock disponible en mostrador.'
+									: `Stock insuficiente: disponible ${availableStock} ${availableStock === 1 ? 'u' : 'u'}.`}
+							</p>
+						{/if}
 					</div>
-					<div class="mt-4 flex items-center justify-between border-t border-emerald-500/20 pt-3">
-						<span class="text-xs font-medium text-emerald-700">Entrega ahora</span>
-						<span class="rounded-lg bg-emerald-600 px-3 py-1 text-xs font-bold text-white shadow-xs">
-							+ Cargar a la Orden
+					<div
+						class="mt-4 flex items-center justify-between border-t {hasInsufficientStockForSale
+							? 'border-border/60'
+							: 'border-emerald-500/20'} pt-3"
+					>
+						<span
+							class="text-xs font-medium {hasInsufficientStockForSale
+								? 'text-muted-foreground'
+								: 'text-emerald-700'}"
+						>
+							{hasInsufficientStockForSale ? 'Stock insuficiente' : 'Entrega ahora'}
+						</span>
+						<span
+							class="rounded-lg px-3 py-1 text-xs font-bold shadow-xs {hasInsufficientStockForSale
+								? 'bg-muted text-muted-foreground'
+								: 'bg-emerald-600 text-white'}"
+						>
+							{hasInsufficientStockForSale ? 'No disponible' : '+ Cargar a la Venta'}
 						</span>
 					</div>
 				</button>
@@ -446,7 +505,7 @@
 						onclick={() => (itemConfigStep = 'config')}
 					>
 						<ArrowLeft class="size-4" />
-						<span>Volver a Orden Inmediata</span>
+						<span>Volver</span>
 					</Button>
 
 					<Button

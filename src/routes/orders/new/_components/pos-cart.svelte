@@ -144,7 +144,7 @@
 							</h5>
 							{#if line.fulfillmentType === 'immediate'}
 								<span class="rounded bg-emerald-500/10 px-1.5 py-0.2 text-[10px] font-bold text-emerald-700">
-									Inmediato
+									Venta
 								</span>
 							{:else}
 								<span class="rounded bg-amber-500/10 px-1.5 py-0.2 text-[10px] font-bold text-amber-700">
