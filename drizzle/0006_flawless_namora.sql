@@ -1,0 +1,1 @@
+ALTER TABLE "order_items" ADD COLUMN IF NOT EXISTS "unit_cost" double precision DEFAULT 0 NOT NULL;

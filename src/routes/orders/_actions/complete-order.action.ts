@@ -11,9 +11,15 @@ export async function completeOrderAction({ request, locals, url }: RequestEvent
 
 	const { orderService } = getServices();
 	const orderId = String(formData.get('orderId') ?? '');
+	const useDisplayStock =
+		formData.get('useDisplayStock') === 'true' || formData.get('useDisplayStock') === 'on';
 
 	try {
-		const updated = await orderService.completeOrderJustInTime(activeBusiness.id, orderId);
+		const updated = await orderService.completeOrderJustInTime(
+			activeBusiness.id,
+			orderId,
+			useDisplayStock
+		);
 		return {
 			success: true,
 			message: `Orden ${updated.orderNumber} completada Just-In-Time (sub-ensambles e insumos descontados).`

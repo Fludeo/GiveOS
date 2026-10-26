@@ -20,6 +20,7 @@
 	import CancelOrderModal from './_components/modals/cancel-order-modal.svelte';
 	import DeliverOrderModal from './_components/modals/deliver-order-modal.svelte';
 	import ConfirmOrderModal from './_components/modals/confirm-order-modal.svelte';
+	import ProduceOrdersModal from './_components/modals/produce-orders-modal.svelte';
 
 	let { data }: PageProps = $props();
 
@@ -62,6 +63,8 @@
 	let cancellingOrderId = $state<string | null>(null);
 	let deliveringOrderId = $state<string | null>(null);
 	let confirmingOrderId = $state<string | null>(null);
+	let producingOrders = $state<OrderWithItems[]>([]);
+	let producingPeriodLabel = $state<string>('Seleccionados');
 
 	const viewingOrder = $derived(
 		viewingOrderId ? (data.orders.find((o) => o.id === viewingOrderId) ?? null) : null
@@ -182,11 +185,17 @@
 			onPayOrder={(order: OrderWithItems) => (payingOrderId = order.id)}
 			onDeliverOrder={(order: OrderWithItems) => (deliveringOrderId = order.id)}
 			onConfirmOrder={(order: OrderWithItems) => (confirmingOrderId = order.id)}
+			onProduceOrders={(ordersToProduce: OrderWithItems[], periodLabel: string) => {
+				producingOrders = ordersToProduce;
+				producingPeriodLabel = periodLabel;
+			}}
 		/>
 	{:else if currentTab === 'forecast'}
 		<OrdersForecastSection
 			forecast={data.preorderForecast}
 			preserveDisplayStock={data.preserveDisplayStock}
+			forecastHorizon={data.forecastHorizon}
+			businessId={data.activeBusiness.id}
 			recipeSummaries={data.recipeSummaries}
 		/>
 	{/if}
@@ -223,5 +232,13 @@
 		order={confirmingOrder}
 		businessId={data.activeBusiness.id}
 		onClose={() => (confirmingOrderId = null)}
+	/>
+
+	<ProduceOrdersModal
+		orders={producingOrders}
+		salesProducts={data.allSalesProducts ?? data.salesProducts}
+		businessId={data.activeBusiness.id}
+		periodLabel={producingPeriodLabel}
+		onClose={() => (producingOrders = [])}
 	/>
 </AppShell>

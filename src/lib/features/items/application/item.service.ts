@@ -3,7 +3,9 @@ import {
 	applyStockConsumption,
 	applyStockIntake,
 	generateNextItemCode,
+	getDirectUnitCost,
 	removeStockBatch,
+	trimStockBatches,
 	type CreateItemInput,
 	type Item,
 	type ItemStockBatch,
@@ -100,7 +102,7 @@ export class ItemService {
 				notes: intake.notes?.trim() || null
 			};
 			const currentBatches = existing.batches ?? [];
-			const updatedBatches = [...currentBatches, newBatch].slice(-15);
+			const updatedBatches = trimStockBatches([...currentBatches, newBatch]);
 			const newStock = existing.currentStock + intake.quantity;
 
 			const updated = await this.itemRepo.update(id, businessId, {
@@ -126,11 +128,12 @@ export class ItemService {
 		);
 
 		const newStock = existing.currentStock + intake.quantity;
+		const purchaseQty = existing.purchaseQuantity > 0 ? existing.purchaseQuantity : 1;
 
 		const updated = await this.itemRepo.update(id, businessId, {
 			currentStock: newStock,
-			referenceCost: newReferenceCost,
-			purchaseQuantity: 1,
+			referenceCost: newReferenceCost * purchaseQty,
+			purchaseQuantity: purchaseQty,
 			batches: newBatches
 		});
 

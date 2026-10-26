@@ -48,6 +48,7 @@ export interface IOrderRepository {
 			productName: string;
 			quantity: number;
 			unitPrice: number;
+			unitCost?: number;
 			fulfillmentType: OrderItemFulfillmentType;
 			status: OrderItemStatus;
 			notes: string | null;

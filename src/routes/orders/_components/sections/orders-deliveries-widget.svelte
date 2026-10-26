@@ -1,12 +1,17 @@
 <script lang="ts">
-	import type { OrderWithItems } from '#lib/features/orders/domain/order.entity';
-	import { ORDER_STATUS_LABELS } from '#lib/features/orders/domain/order.entity';
+	import {
+		isOrderReadyToDeliver,
+		ORDER_STATUS_LABELS,
+		type OrderWithItems
+	} from '#lib/features/orders/domain/order.entity';
 	import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '#lib/components/ui/card';
 	import { Button } from '#lib/components/ui/button';
 	import { Badge } from '#lib/components/ui/badge';
 	import CalendarClock from '@lucide/svelte/icons/calendar-clock';
 	import Clock from '@lucide/svelte/icons/clock';
 	import Check from '@lucide/svelte/icons/check';
+	import ChefHat from '@lucide/svelte/icons/chef-hat';
+	import PackageCheck from '@lucide/svelte/icons/package-check';
 	import Eye from '@lucide/svelte/icons/eye';
 	import Zap from '@lucide/svelte/icons/zap';
 	import AlertCircle from '@lucide/svelte/icons/alert-circle';
@@ -24,6 +29,7 @@
 		onPayOrder: (order: OrderWithItems) => void;
 		onDeliverOrder: (order: OrderWithItems) => void;
 		onConfirmOrder: (order: OrderWithItems) => void;
+		onProduceOrders?: (orders: OrderWithItems[], periodLabel: string) => void;
 	}
 
 	let {
@@ -31,13 +37,20 @@
 		onViewOrder,
 		onPayOrder,
 		onDeliverOrder,
-		onConfirmOrder
+		onConfirmOrder,
+		onProduceOrders
 	}: Props = $props();
 
 	// Tab seleccionado: 0..6 (días de la semana), 'beyond' (+7 días), o 'all' (todos los pendientes)
 	type SelectedTab = number | 'beyond' | 'all';
 	let selectedTab = $state<SelectedTab>(0);
 	let viewMode = $state<'table' | 'cards'>('table');
+	let selectedOrderIds = $state<string[]>([]);
+
+	$effect(() => {
+		void selectedTab;
+		selectedOrderIds = [];
+	});
 
 	$effect(() => {
 		if (typeof window !== 'undefined') {
@@ -218,6 +231,41 @@
 			pendingCount: day.pendingCount
 		};
 	});
+
+	const producibleOrdersInView = $derived(
+		currentViewData.orders.filter(
+			(o) => o.status === 'pending' && o.items.some((i) => i.status === 'pending_delivery')
+		)
+	);
+
+	const selectedProducibleOrders = $derived(
+		producibleOrdersInView.filter((o) => selectedOrderIds.includes(o.id))
+	);
+
+	function toggleSelectOrder(orderId: string) {
+		if (selectedOrderIds.includes(orderId)) {
+			selectedOrderIds = selectedOrderIds.filter((id) => id !== orderId);
+		} else {
+			selectedOrderIds = [...selectedOrderIds, orderId];
+		}
+	}
+
+	function toggleSelectAllProducible() {
+		if (selectedProducibleOrders.length === producibleOrdersInView.length) {
+			selectedOrderIds = [];
+		} else {
+			selectedOrderIds = producibleOrdersInView.map((o) => o.id);
+		}
+	}
+
+	function handleBatchProduce() {
+		if (!onProduceOrders) return;
+		const target =
+			selectedProducibleOrders.length > 0 ? selectedProducibleOrders : producibleOrdersInView;
+		if (target.length > 0) {
+			onProduceOrders(target, currentViewData.title);
+		}
+	}
 
 	function getTimingInfo(order: OrderWithItems): {
 		label: string;
@@ -513,7 +561,7 @@
 
 		<CardContent class="p-4 sm:p-6">
 			<!-- Subcabecera del filtro activo -->
-			<div class="flex items-center justify-between mb-4 pb-2 border-b border-border/40 text-xs text-muted-foreground">
+			<div class="flex flex-wrap items-center justify-between gap-2 mb-4 pb-2.5 border-b border-border/40 text-xs text-muted-foreground">
 				<div class="flex items-center gap-2">
 					<span class="font-bold text-foreground text-sm">{currentViewData.title}</span>
 					{#if selectedTab === 0}
@@ -521,11 +569,28 @@
 							Hoy
 						</Badge>
 					{/if}
+					<span>
+						· {currentViewData.orders.length} {currentViewData.orders.length === 1 ? 'pedido' : 'pedidos'}
+						({currentViewData.pendingCount} por entregar)
+					</span>
 				</div>
-				<span>
-					{currentViewData.orders.length} {currentViewData.orders.length === 1 ? 'pedido' : 'pedidos'}
-					({currentViewData.pendingCount} por entregar)
-				</span>
+
+				{#if producibleOrdersInView.length > 0 && onProduceOrders}
+					<Button
+						type="button"
+						size="sm"
+						variant="default"
+						class="h-8 gap-1.5 text-xs font-semibold shadow-2xs"
+						onclick={handleBatchProduce}
+					>
+						<ChefHat class="size-3.5" />
+						{#if selectedProducibleOrders.length > 0}
+							<span>Producir Seleccionados ({selectedProducibleOrders.length})</span>
+						{:else}
+							<span>Producir Pendientes ({producibleOrdersInView.length})</span>
+						{/if}
+					</Button>
+				{/if}
 			</div>
 
 			{#if currentViewData.orders.length === 0}
@@ -559,6 +624,17 @@
 					<table class="w-full text-left text-xs border-collapse">
 						<thead>
 							<tr class="border-b border-border bg-muted/40 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+								{#if producibleOrdersInView.length > 0 && onProduceOrders}
+									<th class="py-2.5 pl-3 pr-1 w-8">
+										<input
+											type="checkbox"
+											checked={selectedProducibleOrders.length === producibleOrdersInView.length && producibleOrdersInView.length > 0}
+											onchange={toggleSelectAllProducible}
+											title="Seleccionar todos los pedidos en preparación"
+											class="size-3.5 rounded border-border text-primary focus:ring-primary cursor-pointer"
+										/>
+									</th>
+								{/if}
 								<th class="py-2.5 px-3">Horario</th>
 								<th class="py-2.5 px-3">Orden</th>
 								<th class="py-2.5 px-3">Cliente</th>
@@ -572,13 +648,29 @@
 							{#each currentViewData.orders as order (order.id)}
 								{@const timing = getTimingInfo(order)}
 								{@const isDone = order.status === 'completed'}
+								{@const isReady = isOrderReadyToDeliver(order)}
+								{@const canProduce = order.status === 'pending' && order.items.some((i) => i.status === 'pending_delivery')}
 								<tr
 									class="transition-colors hover:bg-muted/30 {isDone
 										? 'opacity-60 bg-muted/10'
-										: timing.isOverdue
-											? 'bg-red-500/5'
-											: ''}"
+										: isReady
+											? 'bg-emerald-500/5'
+											: timing.isOverdue
+												? 'bg-red-500/5'
+												: ''}"
 								>
+									{#if producibleOrdersInView.length > 0 && onProduceOrders}
+										<td class="py-3 pl-3 pr-1 align-top">
+											{#if canProduce}
+												<input
+													type="checkbox"
+													checked={selectedOrderIds.includes(order.id)}
+													onchange={() => toggleSelectOrder(order.id)}
+													class="mt-1 size-3.5 rounded border-border text-primary focus:ring-primary cursor-pointer"
+												/>
+											{/if}
+										</td>
+									{/if}
 									<!-- Horario / Urgencia -->
 									<td class="py-3 px-3 align-top whitespace-nowrap">
 										<span
@@ -609,13 +701,17 @@
 												<span class="inline-flex items-center gap-0.5 text-[10px] font-bold text-emerald-600">
 													<Check class="size-2.5" /> Entregada
 												</span>
+											{:else if isReady}
+												<span class="inline-flex items-center gap-0.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+													<PackageCheck class="size-3" /> Listo p/ retirar
+												</span>
 											{:else if order.status === 'unconfirmed'}
 												<span class="text-[10px] font-bold text-amber-600">
 													Por Confirmar
 												</span>
 											{:else}
 												<span class="text-[10px] font-medium text-muted-foreground">
-													Pendiente
+													En preparación
 												</span>
 											{/if}
 										</div>
@@ -643,8 +739,12 @@
 														{item.productName}
 													</span>
 													{#if item.status === 'delivered'}
-														<span class="text-[10px] font-semibold text-emerald-600 ml-1 shrink-0">
+														<span class="text-[10px] font-semibold text-emerald-600 ml-1 shrink-0" title="Entregado">
 															✓
+														</span>
+													{:else if item.status === 'ready'}
+														<span class="rounded bg-emerald-500/15 px-1.5 py-0.2 text-[9px] font-bold text-emerald-700 dark:text-emerald-300 ml-1 shrink-0">
+															Listo
 														</span>
 													{/if}
 												</div>
@@ -695,6 +795,18 @@
 													Confirmar
 												</Button>
 											{:else if order.status === 'pending'}
+												{#if canProduce && onProduceOrders}
+													<Button
+														size="sm"
+														variant="outline"
+														class="h-7 px-2 text-xs border-primary/30 text-primary hover:bg-primary/10"
+														title="Marcar pedido como Listo y descontar insumos ahora"
+														onclick={() => onProduceOrders([order], order.orderNumber)}
+													>
+														<ChefHat class="size-3 mr-1" />
+														Listo
+													</Button>
+												{/if}
 												<Button
 													size="sm"
 													variant="default"
@@ -740,23 +852,42 @@
 					{#each currentViewData.orders as order (order.id)}
 						{@const timing = getTimingInfo(order)}
 						{@const isDone = order.status === 'completed'}
+						{@const isReady = isOrderReadyToDeliver(order)}
+						{@const canProduce = order.status === 'pending' && order.items.some((i) => i.status === 'pending_delivery')}
 						<div
 							class="flex flex-col justify-between rounded-xl border border-border bg-card p-4 transition-all hover:border-primary/40 hover:shadow-2xs space-y-3 {isDone
 								? 'opacity-60 bg-muted/10'
-								: timing.isOverdue
-									? 'border-red-500/30 bg-red-500/5'
-									: ''}"
+								: isReady
+									? 'border-emerald-500/40 bg-emerald-500/5'
+									: timing.isOverdue
+										? 'border-red-500/30 bg-red-500/5'
+										: ''}"
 						>
 							<div class="space-y-2.5">
 								<!-- Encabezado de la Tarjeta -->
 								<div class="flex items-center justify-between gap-2">
-									<button
-										type="button"
-										onclick={() => onViewOrder(order)}
-										class="inline-flex items-center rounded bg-muted/80 px-2 py-0.5 font-mono text-xs font-bold text-foreground hover:underline cursor-pointer"
-									>
-										{order.orderNumber}
-									</button>
+									<div class="flex items-center gap-2">
+										{#if canProduce && onProduceOrders}
+											<input
+												type="checkbox"
+												checked={selectedOrderIds.includes(order.id)}
+												onchange={() => toggleSelectOrder(order.id)}
+												class="size-3.5 rounded border-border text-primary focus:ring-primary cursor-pointer"
+											/>
+										{/if}
+										<button
+											type="button"
+											onclick={() => onViewOrder(order)}
+											class="inline-flex items-center rounded bg-muted/80 px-2 py-0.5 font-mono text-xs font-bold text-foreground hover:underline cursor-pointer"
+										>
+											{order.orderNumber}
+										</button>
+										{#if isReady}
+											<span class="inline-flex items-center gap-0.5 rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
+												<PackageCheck class="size-3" /> Listo
+											</span>
+										{/if}
+									</div>
 									<span
 										class="inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs {timing.badgeClass}"
 									>
@@ -798,6 +929,10 @@
 												{#if item.status === 'delivered'}
 													<span class="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 font-semibold shrink-0">
 														<Check class="size-2.5" /> Entregado
+													</span>
+												{:else if item.status === 'ready'}
+													<span class="inline-flex items-center gap-0.5 rounded bg-emerald-500/15 px-1.5 py-0.2 text-[10px] text-emerald-700 dark:text-emerald-300 font-bold shrink-0">
+														<Check class="size-2.5" /> Listo
 													</span>
 												{/if}
 											</div>
@@ -841,6 +976,17 @@
 											Confirmar
 										</Button>
 									{:else if order.status === 'pending'}
+										{#if canProduce && onProduceOrders}
+											<Button
+												size="sm"
+												variant="outline"
+												class="h-7 px-2 text-xs border-primary/30 text-primary hover:bg-primary/10"
+												onclick={() => onProduceOrders([order], order.orderNumber)}
+											>
+												<ChefHat class="size-3 mr-1" />
+												Listo
+											</Button>
+										{/if}
 										<Button
 											size="sm"
 											variant="default"

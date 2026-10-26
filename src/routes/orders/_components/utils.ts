@@ -55,11 +55,14 @@ export function toTimeString(date: Date): string {
 }
 
 export function calculateOrderCost(
-	order: { items: Array<{ salesProductId: string; quantity: number }> },
+	order: { items: Array<{ salesProductId: string; quantity: number; unitCost?: number }> },
 	costMap: Map<string, number>
 ): number {
 	return order.items.reduce((acc, item) => {
-		const unitCost = costMap.get(item.salesProductId) ?? 0;
+		const unitCost =
+			item.unitCost !== undefined && item.unitCost > 0
+				? item.unitCost
+				: (costMap.get(item.salesProductId) ?? 0);
 		return acc + unitCost * (item.quantity || 0);
 	}, 0);
 }

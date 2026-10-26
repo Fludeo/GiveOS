@@ -27,14 +27,17 @@ export const FULFILLMENT_TYPE_LABELS: Record<OrderItemFulfillmentType, string> =
 	preorder: 'Pedido por encargo'
 };
 
-export const ORDER_ITEM_STATUSES = ['pending_delivery', 'delivered', 'cancelled'] as const;
+export const ORDER_ITEM_STATUSES = ['pending_delivery', 'ready', 'delivered', 'cancelled'] as const;
 export type OrderItemStatus = (typeof ORDER_ITEM_STATUSES)[number];
 
 export const ORDER_ITEM_STATUS_LABELS: Record<OrderItemStatus, string> = {
-	pending_delivery: 'Pendiente de entrega',
+	pending_delivery: 'En preparación',
+	ready: 'Listo para entregar',
 	delivered: 'Entregado',
 	cancelled: 'Cancelado'
 };
+
+export type ForecastHorizon = 'today' | '3d' | '7d' | 'all';
 
 /**
  * Línea de la tabla intermedia `sales_product_items` que vincula un Producto Comercial
@@ -154,6 +157,7 @@ export interface OrderItem {
 	productName: string;
 	quantity: number;
 	unitPrice: number;
+	unitCost?: number;
 	fulfillmentType: OrderItemFulfillmentType;
 	status: OrderItemStatus;
 	notes: string | null;
@@ -211,6 +215,7 @@ export interface PreorderForecastLine {
 	projectedBalance: number;
 	deficitQuantity: number;
 	isShortage: boolean;
+	isBelowMinStock?: boolean;
 	isMakeToOrder?: boolean;
 	prepTimeMinutes?: number;
 	passiveTimeMinutes?: number;
@@ -224,6 +229,7 @@ export interface PreorderForecastLine {
 }
 
 export interface PreorderForecastSummary {
+	horizon?: ForecastHorizon;
 	pendingOrdersCount: number;
 	pendingPreorderLinesCount: number;
 	productDemands: Array<{
@@ -302,8 +308,25 @@ export function computeOrderStatusFromItems(
 	if (currentStatus === 'cancelled') return 'cancelled';
 	const activeItems = items.filter((i) => i.status !== 'cancelled');
 	if (activeItems.length === 0) return 'cancelled';
-	const hasPendingDelivery = activeItems.some((i) => i.status === 'pending_delivery');
-	return hasPendingDelivery ? 'pending' : 'completed';
+	const hasNotDelivered = activeItems.some(
+		(i) => i.status === 'pending_delivery' || i.status === 'ready'
+	);
+	return hasNotDelivered ? 'pending' : 'completed';
+}
+
+export function isOrderReadyToDeliver(order: {
+	status?: OrderStatus;
+	items: Array<{ status: OrderItemStatus }>;
+}): boolean {
+	if (order.status === 'completed' || order.status === 'cancelled' || order.status === 'unconfirmed') {
+		return false;
+	}
+	const activeItems = order.items.filter((i) => i.status !== 'cancelled');
+	if (activeItems.length === 0) return false;
+	return (
+		activeItems.every((i) => i.status === 'ready' || i.status === 'delivered') &&
+		activeItems.some((i) => i.status === 'ready')
+	);
 }
 
 export function computePaymentStatus(

@@ -25,13 +25,21 @@ export async function runMigrations() {
 
 	try {
 		if (usePglite) {
+			getDb();
+			const existingClient = getPgliteClient();
+			if (existingClient) {
+				await existingClient
+					.exec(
+						'ALTER TABLE "order_items" ADD COLUMN IF NOT EXISTS "unit_cost" double precision DEFAULT 0 NOT NULL;'
+					)
+					.catch(() => {});
+			}
 			if (isDev) {
 				console.log('[db:migrate] Local PGlite environment detected. Skipping auto-migration on boot.');
 				return;
 			}
 			console.log('[db:migrate] Running local PGlite migrations...');
-			const db = getDb();
-			const client = getPgliteClient() || new PGlite(process.env.PGLITE_DATA_DIR || './.pglite_data');
+			const client = existingClient || new PGlite(process.env.PGLITE_DATA_DIR || './.pglite_data');
 			const migDb = drizzlePglite(client);
 			await migratePglite(migDb, { migrationsFolder: './drizzle' });
 			console.log('[db:migrate] PGlite migrations completed.');

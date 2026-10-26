@@ -7,6 +7,7 @@ import {
 	calculateRecipeOperationalSummary,
 	convertQuantity,
 	getDirectUnitCost,
+	trimStockBatches,
 	type Item,
 	type ItemStockBatch
 } from '#lib/features/items/domain/item.entity';
@@ -98,25 +99,13 @@ export class RecipeService {
 		if (!ok) throw new Error('No se pudo eliminar la línea de la receta.');
 	}
 
-	/**
-	 * Construye el árbol de receta multinivel completo de un ítem del negocio y calcula costos de referencia en cascada.
-	 */
-	async getRecipeTree(businessId: string, rootItemId: string): Promise<RecipeTree | null> {
-		const [allItems, allLines] = await Promise.all([
-			this.itemRepo.findAllByBusiness(businessId),
-			this.recipeRepo.findAllLinesByBusiness(businessId)
-		]);
-
-		const itemsById = new Map<string, Item>(allItems.map((item) => [item.id, item]));
+	private buildRecipeTreeFromMaps(
+		rootItemId: string,
+		itemsById: Map<string, Item>,
+		linesByParent: Map<string, RecipeLine[]>
+	): RecipeTree | null {
 		const rootItem = itemsById.get(rootItemId);
 		if (!rootItem) return null;
-
-		const linesByParent = new Map<string, RecipeLine[]>();
-		for (const line of allLines) {
-			const list = linesByParent.get(line.parentItemId) ?? [];
-			list.push(line);
-			linesByParent.set(line.parentItemId, list);
-		}
 
 		const buildNodes = (
 			parentId: string,
@@ -139,12 +128,29 @@ export class RecipeService {
 
 				let componentUnitCost = getDirectUnitCost(component);
 				if (children.length > 0) {
-					const subRecipeTotalCost = children.reduce(
+					const subIngredientCost = children.reduce(
 						(acc, child) => acc + child.estimatedLineCost,
 						0
 					);
+					const subOpSummary = calculateRecipeOperationalSummary(
+						component.recipeConfig,
+						component.prepTimeMinutes,
+						component.passiveTimeMinutes,
+						Boolean(component.isPrepTimeScalable),
+						component.yieldQuantity
+					);
+					const subRecipeTotalCost = subIngredientCost + subOpSummary.operationalTotalCost;
 					const yieldQty = component.yieldQuantity > 0 ? component.yieldQuantity : 1;
 					componentUnitCost = subRecipeTotalCost / yieldQty;
+				} else if (component.type === 'prepared' && component.recipeConfig?.operationalCosts?.length) {
+					const subOpSummary = calculateRecipeOperationalSummary(
+						component.recipeConfig,
+						component.prepTimeMinutes,
+						component.passiveTimeMinutes,
+						Boolean(component.isPrepTimeScalable),
+						component.yieldQuantity
+					);
+					componentUnitCost = getDirectUnitCost(component) + subOpSummary.operationalUnitCost;
 				}
 
 				const quantityInComponentBaseUnit = convertQuantity(
@@ -181,7 +187,8 @@ export class RecipeService {
 			rootItem.recipeConfig,
 			rootItem.prepTimeMinutes,
 			rootItem.passiveTimeMinutes,
-			Boolean(rootItem.isPrepTimeScalable)
+			Boolean(rootItem.isPrepTimeScalable),
+			rootItem.yieldQuantity
 		);
 
 		const estimatedTotalCost = Math.round((ingredientTotalCost + opSummary.operationalTotalCost) * 100) / 100;
@@ -201,6 +208,26 @@ export class RecipeService {
 			activeMinutes: opSummary.activeMinutes,
 			passiveMinutes: opSummary.passiveMinutes
 		};
+	}
+
+	/**
+	 * Construye el árbol de receta multinivel completo de un ítem del negocio y calcula costos de referencia en cascada.
+	 */
+	async getRecipeTree(businessId: string, rootItemId: string): Promise<RecipeTree | null> {
+		const [allItems, allLines] = await Promise.all([
+			this.itemRepo.findAllByBusiness(businessId),
+			this.recipeRepo.findAllLinesByBusiness(businessId)
+		]);
+
+		const itemsById = new Map<string, Item>(allItems.map((item) => [item.id, item]));
+		const linesByParent = new Map<string, RecipeLine[]>();
+		for (const line of allLines) {
+			const list = linesByParent.get(line.parentItemId) ?? [];
+			list.push(line);
+			linesByParent.set(line.parentItemId, list);
+		}
+
+		return this.buildRecipeTreeFromMaps(rootItemId, itemsById, linesByParent);
 	}
 
 	/**
@@ -228,6 +255,17 @@ export class RecipeService {
 			this.recipeRepo.findAllLinesByBusiness(businessId)
 		]);
 
+		const itemsById = new Map<string, Item>(allItems.map((item) => [item.id, item]));
+		const linesByParent = new Map<string, RecipeLine[]>();
+		const directCounts = new Map<string, number>();
+
+		for (const line of allLines) {
+			const list = linesByParent.get(line.parentItemId) ?? [];
+			list.push(line);
+			linesByParent.set(line.parentItemId, list);
+			directCounts.set(line.parentItemId, (directCounts.get(line.parentItemId) ?? 0) + 1);
+		}
+
 		const summaries: Record<
 			string,
 			{
@@ -242,13 +280,8 @@ export class RecipeService {
 			}
 		> = {};
 
-		const directCounts = new Map<string, number>();
-		for (const line of allLines) {
-			directCounts.set(line.parentItemId, (directCounts.get(line.parentItemId) ?? 0) + 1);
-		}
-
 		for (const item of allItems) {
-			const tree = await this.getRecipeTree(businessId, item.id);
+			const tree = this.buildRecipeTreeFromMaps(item.id, itemsById, linesByParent);
 			summaries[item.id] = {
 				directComponentsCount: directCounts.get(item.id) ?? 0,
 				estimatedTotalCost: tree?.estimatedTotalCost ?? item.referenceCost,
@@ -346,6 +379,7 @@ export class RecipeService {
 		}
 
 		const consumedComponents: Array<{ item: Item; consumedQty: number }> = [];
+		let totalConsumedIngredientsCost = 0;
 
 		for (const { item: comp, qty: requiredInCompBase } of deductionsMap.values()) {
 			const nextStock = Math.max(0, Math.round((comp.currentStock - requiredInCompBase) * 10000) / 10000);
@@ -355,6 +389,9 @@ export class RecipeService {
 				const res = applyStockConsumption(comp.batches, requiredInCompBase, comp.referenceCost);
 				newBatches = res.batches;
 				newRefCost = res.newReferenceCost;
+				totalConsumedIngredientsCost += res.consumedCost;
+			} else {
+				totalConsumedIngredientsCost += requiredInCompBase * getDirectUnitCost(comp);
 			}
 			const updatedComp = await this.itemRepo.update(comp.id, businessId, {
 				currentStock: nextStock,
@@ -367,18 +404,29 @@ export class RecipeService {
 			}
 		}
 
+		const parentOpSummary = calculateRecipeOperationalSummary(
+			parent.recipeConfig,
+			parent.prepTimeMinutes,
+			parent.passiveTimeMinutes,
+			Boolean(parent.isPrepTimeScalable),
+			parent.yieldQuantity
+		);
+		const batchTotalCost =
+			Math.round((totalConsumedIngredientsCost + parentOpSummary.operationalUnitCost * producedQty) * 100) / 100;
+		const batchUnitCost = producedQty > 0 ? Math.round((batchTotalCost / producedQty) * 10000) / 10000 : 0;
+
 		const nextParentStock = Math.round((parent.currentStock + producedQty) * 10000) / 10000;
 		const newBatch: ItemStockBatch = {
 			id: uuidv7(),
 			createdAt: new Date().toISOString(),
 			initialQuantity: producedQty,
 			remainingQuantity: producedQty,
-			totalCost: 0,
-			unitCost: 0,
+			totalCost: batchTotalCost,
+			unitCost: batchUnitCost,
 			notes: notes?.trim() || null
 		};
 		const currentBatches = parent.batches ?? [];
-		const updatedBatches = [...currentBatches, newBatch].slice(-15);
+		const updatedBatches = trimStockBatches([...currentBatches, newBatch]);
 
 		const updatedParent = await this.itemRepo.update(parent.id, businessId, {
 			currentStock: nextParentStock,

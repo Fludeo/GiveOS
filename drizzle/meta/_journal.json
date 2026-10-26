@@ -43,6 +43,13 @@
       "when": 1792705088908,
       "tag": "0005_medical_masked_marvel",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792971686522,
+      "tag": "0006_flawless_namora",
+      "breakpoints": true
     }
   ]
 }

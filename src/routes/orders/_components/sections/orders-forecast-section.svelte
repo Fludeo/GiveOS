@@ -1,9 +1,12 @@
 <script lang="ts">
+	import { enhance } from '$app/forms';
 	import { goto } from '$app/navigation';
 	import type {
+		ForecastHorizon,
 		PreorderForecastSummary,
 		PreorderForecastLine
 	} from '#lib/features/orders/domain/order.entity';
+	import { toast } from '#lib/components/ui/toast';
 	import type { ItemType } from '#lib/features/items/domain/item.entity';
 	import ItemTypeBadge from '#lib/features/items/ui/item-type-badge.svelte';
 	import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '#lib/components/ui/card';
@@ -34,6 +37,8 @@
 	interface Props {
 		forecast: PreorderForecastSummary;
 		preserveDisplayStock?: boolean;
+		forecastHorizon?: ForecastHorizon;
+		businessId?: string;
 		recipeSummaries?: Record<
 			string,
 			{
@@ -45,7 +50,13 @@
 		>;
 	}
 
-	let { forecast, preserveDisplayStock = false, recipeSummaries = {} }: Props = $props();
+	let {
+		forecast,
+		preserveDisplayStock = false,
+		forecastHorizon = 'all',
+		businessId = '',
+		recipeSummaries = {}
+	}: Props = $props();
 
 	function togglePreserveDisplayStock() {
 		if (typeof window !== 'undefined') {
@@ -54,6 +65,18 @@
 				url.searchParams.delete('preserveDisplay');
 			} else {
 				url.searchParams.set('preserveDisplay', '1');
+			}
+			goto(url.toString(), { replaceState: true });
+		}
+	}
+
+	function setHorizon(next: ForecastHorizon) {
+		if (typeof window !== 'undefined') {
+			const url = new URL(window.location.href);
+			if (next === 'all') {
+				url.searchParams.delete('horizon');
+			} else {
+				url.searchParams.set('horizon', next);
 			}
 			goto(url.toString(), { replaceState: true });
 		}
@@ -124,6 +147,7 @@
 		projectedBalance: number;
 		deficitQuantity: number;
 		isShortage: boolean;
+		isBelowMinStock?: boolean;
 		isMakeToOrder?: boolean;
 		subIngredients?: SubIngredientBreakdown[];
 		prepTimeMinutes?: number;
@@ -196,6 +220,7 @@
 				projectedBalance: projBalance,
 				deficitQuantity: defQty,
 				isShortage: shortage,
+				isBelowMinStock: sub.isBelowMinStock,
 				isMakeToOrder: sub.isMakeToOrder,
 				subIngredients,
 				prepTimeMinutes: sub.prepTimeMinutes ?? 0,
@@ -242,6 +267,7 @@
 				projectedBalance: projBalance,
 				deficitQuantity: defQty,
 				isShortage: shortage,
+				isBelowMinStock: raw.isBelowMinStock,
 				prepTimeMinutes: 0,
 				laborMinutesForDeficit: 0,
 				laborMinutesTotalDemand: 0
@@ -479,6 +505,28 @@
 				</div>
 
 				<div class="flex flex-wrap items-center gap-2">
+					<!-- Selector de Horizonte Temporal -->
+					<div class="inline-flex items-center rounded-lg border border-border bg-background p-0.5 shadow-2xs">
+						{#each [
+							{ id: 'today', label: 'Hoy' },
+							{ id: '3d', label: '3 Días' },
+							{ id: '7d', label: '7 Días' },
+							{ id: 'all', label: 'Todo' }
+						] as h}
+							<button
+								type="button"
+								onclick={() => setHorizon(h.id as ForecastHorizon)}
+								class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer {forecastHorizon ===
+								h.id
+									? 'bg-primary text-primary-foreground font-semibold shadow-2xs'
+									: 'text-muted-foreground hover:text-foreground'}"
+								title="Filtrar horizonte temporal de los encargos"
+							>
+								{h.label}
+							</button>
+						{/each}
+					</div>
+
 					<!-- Toggle Mantener Vidriera -->
 					<button
 						type="button"
@@ -681,6 +729,11 @@
 											<AlertTriangle class="size-3" />
 											Faltan {formatNum(item.deficitQuantity)} {formatUnit(item.baseUnit)}
 										</span>
+									{:else if item.isBelowMinStock}
+										<span class="inline-flex items-center gap-1 rounded-md bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 font-mono text-[11px] font-bold text-amber-700 dark:text-amber-400" title="Quedará por debajo del stock mínimo ({formatNum(item.minStock)} {formatUnit(item.baseUnit)})">
+											<AlertTriangle class="size-3" />
+											Bajo mín. (+{formatNum(item.projectedBalance)} {formatUnit(item.baseUnit)})
+										</span>
 									{:else}
 										<span class="inline-flex items-center gap-1 rounded-md bg-muted/60 border border-border px-2 py-0.5 font-mono text-[11px] font-medium text-muted-foreground">
 											+{formatNum(item.projectedBalance)} {formatUnit(item.baseUnit)}
@@ -761,9 +814,8 @@
 							{/if}
 
 							<!-- Pie: Tiempo de trabajo o estado -->
-							<div class="flex items-center justify-between text-[11px] pt-0.5 font-mono">
+							<div class="flex items-center justify-between gap-2 text-[11px] pt-0.5 font-mono">
 								{#if isFabricable && item.isShortage && (item.laborMinutesForDeficit ?? 0) > 0}
-									<span class="text-muted-foreground">Fabricación:</span>
 									<div class="inline-flex items-center gap-2">
 										{#if (item.passiveTimeMinutes ?? 0) > 0}
 											<span class="inline-flex items-center gap-0.5 text-secondary font-semibold" title="Mano de obra activa">
@@ -791,9 +843,40 @@
 									<span class="text-emerald-600 dark:text-emerald-400 font-medium">0 min (listo)</span>
 								{:else}
 									<span class="text-muted-foreground">Insumo:</span>
-									<span class="{item.isShortage ? 'text-red-600 dark:text-red-400 font-bold' : 'text-emerald-600 dark:text-emerald-400 font-medium'}">
-										{item.isShortage ? 'Requiere compra' : 'Stock suficiente'}
+									<span class="{item.isShortage ? 'text-red-600 dark:text-red-400 font-bold' : item.isBelowMinStock ? 'text-amber-600 dark:text-amber-400 font-semibold' : 'text-emerald-600 dark:text-emerald-400 font-medium'}">
+										{item.isShortage ? 'Requiere compra' : item.isBelowMinStock ? 'Reponer stock mín.' : 'Stock suficiente'}
 									</span>
+								{/if}
+
+								{#if isFabricable && item.deficitQuantity > 0 && !item.isMakeToOrder && businessId}
+									<form
+										method="POST"
+										action="?/produceForecastItem"
+										use:enhance={() => {
+											return async ({ result, update }) => {
+												await update();
+												if (result.type === 'success') {
+													const msg = (result.data as { message?: string })?.message ?? 'Lote producido.';
+													toast.success('¡Faltante producido!', msg);
+												} else if (result.type === 'failure') {
+													const err = (result.data as { error?: string })?.error ?? 'Error al producir.';
+													toast.error('Error', err);
+												}
+											};
+										}}
+									>
+										<input type="hidden" name="businessId" value={businessId} />
+										<input type="hidden" name="itemId" value={item.id} />
+										<input type="hidden" name="quantity" value={item.deficitQuantity} />
+										<button
+											type="submit"
+											class="inline-flex items-center gap-1 rounded-lg bg-primary px-2.5 py-1 font-sans text-[11px] font-semibold text-primary-foreground shadow-2xs hover:bg-primary/90 cursor-pointer"
+											title="Producir este faltante en 1 clic descontando sus insumos"
+										>
+											<ChefHat class="size-3" />
+											<span>+ Producir ({formatNum(item.deficitQuantity)})</span>
+										</button>
+									</form>
 								{/if}
 							</div>
 						</div>

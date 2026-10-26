@@ -18,11 +18,16 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 	const { orderService, recipeService } = getServices();
 
 	const preserveDisplayStock = url.searchParams.get('preserveDisplay') === '1';
+	const horizonParam = url.searchParams.get('horizon');
+	const forecastHorizon: 'today' | '3d' | '7d' | 'all' =
+		horizonParam === 'today' || horizonParam === '3d' || horizonParam === '7d'
+			? horizonParam
+			: 'all';
 
 	const [orders, salesProducts, preorderForecast, recipeSummaries] = await Promise.all([
 		orderService.listOrders(activeBusiness.id),
 		orderService.listSalesProducts(activeBusiness.id),
-		orderService.getPreorderForecast(activeBusiness.id, preserveDisplayStock),
+		orderService.getPreorderForecast(activeBusiness.id, preserveDisplayStock, forecastHorizon),
 		recipeService.getAllRecipeSummaries(activeBusiness.id)
 	]);
 
@@ -42,6 +47,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		preorderForecast,
 		recipeSummaries,
 		preserveDisplayStock,
+		forecastHorizon,
 		initialTab,
 		openNewModalOnLoad: url.searchParams.get('new') === '1',
 		createdOrderNumber: url.searchParams.get('created')

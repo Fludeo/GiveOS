@@ -221,6 +221,7 @@ export class DrizzleOrderRepository implements IOrderRepository {
 			productName: string;
 			quantity: number;
 			unitPrice: number;
+			unitCost?: number;
 			fulfillmentType: OrderItemFulfillmentType;
 			status: OrderItemStatus;
 			notes: string | null;
@@ -252,6 +253,7 @@ export class DrizzleOrderRepository implements IOrderRepository {
 					productName: line.productName,
 					quantity: line.quantity,
 					unitPrice: line.unitPrice,
+					unitCost: line.unitCost ?? 0,
 					fulfillmentType: line.fulfillmentType,
 					status: line.status,
 					notes: line.notes

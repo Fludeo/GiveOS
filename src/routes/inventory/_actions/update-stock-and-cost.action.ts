@@ -1,6 +1,6 @@
 import { fail, redirect, type RequestEvent } from '@sveltejs/kit';
 import { getServices } from '#lib/server/container';
-import type { UnitOfMeasure } from '#lib/features/items/domain/item.entity';
+import { applyStockConsumption, type UnitOfMeasure } from '#lib/features/items/domain/item.entity';
 import { resolveBusinessOrRedirect } from '#lib/server/business-resolver';
 
 export async function updateStockAndCostAction({ request, locals, url }: RequestEvent) {
@@ -35,14 +35,29 @@ export async function updateStockAndCostAction({ request, locals, url }: Request
 			await recipeService.produceItemBatch(activeBusiness.id, id, stockDelta);
 		}
 
+		let nextBatches = existing.batches;
+		let nextRefCost =
+			Number.isFinite(referenceCost) && referenceCost >= 0 ? referenceCost : existing.referenceCost;
+
+		if (formData.has('currentStock') && stockDelta < 0 && existing.batches && existing.batches.length > 0) {
+			const res = applyStockConsumption(existing.batches, Math.abs(stockDelta), nextRefCost);
+			nextBatches = res.batches;
+			if (!formData.has('referenceCost')) {
+				nextRefCost = res.newReferenceCost;
+			}
+		}
+
 		const updated = await itemService.updateItem(id, activeBusiness.id, {
 			name: name ? name : undefined,
 			baseUnit: baseUnit ? baseUnit : undefined,
-			currentStock: formData.has('currentStock') ? targetStock : undefined,
+			currentStock: formData.has('currentStock') && !(existing.type !== 'raw_material' && stockDelta > 0)
+				? targetStock
+				: undefined,
 			minStock: Number.isFinite(minStock) && minStock >= 0 ? minStock : 0,
-			referenceCost: Number.isFinite(referenceCost) && referenceCost >= 0 ? referenceCost : 0,
+			referenceCost: nextRefCost,
 			purchaseQuantity:
-				Number.isFinite(purchaseQuantity) && purchaseQuantity > 0 ? purchaseQuantity : 1
+				Number.isFinite(purchaseQuantity) && purchaseQuantity > 0 ? purchaseQuantity : 1,
+			...(nextBatches !== existing.batches ? { batches: nextBatches } : {})
 		});
 		return {
 			success: true,

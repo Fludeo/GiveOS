@@ -131,15 +131,19 @@
 											class="text-[10px] {line.status === 'delivered' ||
 											order.status === 'completed'
 												? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700'
-												: line.status === 'pending_delivery'
-													? 'border-amber-500/40 bg-amber-500/10 text-amber-700'
-													: 'border-red-500/40 bg-red-500/10 text-red-700'}"
+												: line.status === 'ready'
+													? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-700 font-bold'
+													: line.status === 'pending_delivery'
+														? 'border-amber-500/40 bg-amber-500/10 text-amber-700'
+														: 'border-red-500/40 bg-red-500/10 text-red-700'}"
 										>
 											{line.status === 'delivered' || order.status === 'completed'
 												? 'Entregado'
-												: line.status === 'pending_delivery'
-													? 'Pendiente'
-													: 'Cancelado'}
+												: line.status === 'ready'
+													? 'Listo p/ retirar'
+													: line.status === 'pending_delivery'
+														? 'En preparación'
+														: 'Cancelado'}
 										</Badge>
 									</td>
 								</tr>

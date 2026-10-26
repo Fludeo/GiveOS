@@ -18,8 +18,14 @@ export async function updateRecipeYieldAction({ request, locals, url }: RequestE
 	}
 
 	try {
+		const existing = await itemService.getItemById(id, activeBusiness.id);
+		const updatedRecipeConfig = existing?.recipeConfig
+			? { ...existing.recipeConfig, yieldQuantity }
+			: undefined;
+
 		const updated = await itemService.updateItem(id, activeBusiness.id, {
-			yieldQuantity
+			yieldQuantity,
+			...(updatedRecipeConfig ? { recipeConfig: updatedRecipeConfig } : {})
 		});
 		return {
 			success: true,

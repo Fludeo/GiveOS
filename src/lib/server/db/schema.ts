@@ -234,7 +234,7 @@ export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
 export const ORDER_ITEM_FULFILLMENT_TYPES = ['immediate', 'preorder'] as const;
 export type OrderItemFulfillmentType = (typeof ORDER_ITEM_FULFILLMENT_TYPES)[number];
 
-export const ORDER_ITEM_STATUSES = ['pending_delivery', 'delivered', 'cancelled'] as const;
+export const ORDER_ITEM_STATUSES = ['pending_delivery', 'ready', 'delivered', 'cancelled'] as const;
 export type OrderItemStatus = (typeof ORDER_ITEM_STATUSES)[number];
 
 export const orders = pgTable(
@@ -278,6 +278,7 @@ export const orderItems = pgTable('order_items', {
 	productName: text('product_name').notNull(),
 	quantity: doublePrecision('quantity').notNull().default(1),
 	unitPrice: doublePrecision('unit_price').notNull().default(0),
+	unitCost: doublePrecision('unit_cost').notNull().default(0),
 	fulfillmentType: text('fulfillment_type')
 		.$type<OrderItemFulfillmentType>()
 		.notNull()

@@ -1,4 +1,10 @@
-import { applyStockConsumption, convertQuantity, getDirectUnitCost, type Item } from '#lib/features/items/domain/item.entity';
+import {
+	applyStockConsumption,
+	applyStockRestoration,
+	convertQuantity,
+	getDirectUnitCost,
+	type Item
+} from '#lib/features/items/domain/item.entity';
 import type { IItemRepository } from '#lib/features/items/domain/item.repository';
 import type { RecipeService } from '#lib/features/recipes/application/recipe.service';
 import type { RecipeTreeNode } from '#lib/features/recipes/domain/recipe.entity';
@@ -7,6 +13,7 @@ import {
 	computePaymentStatus,
 	generateNextOrderNumber,
 	generateNextSalesProductCode,
+	type ForecastHorizon,
 	type PriceTier,
 	type CreateOrderInput,
 	type CreateSalesProductInput,
@@ -85,7 +92,9 @@ export class OrderService {
 				pricingTiers: parsedTiers,
 				components,
 				estimatedRecipeCost,
-				isCombo: components.length > 1 || totalQty > 1
+				isCombo:
+					components.length > 1 ||
+					(components.length === 1 && components[0].item?.baseUnit === 'unit' && totalQty > 1)
 			};
 		});
 	}
@@ -245,6 +254,7 @@ export class OrderService {
 			productName: string;
 			quantity: number;
 			unitPrice: number;
+			unitCost: number;
 			fulfillmentType: 'immediate' | 'preorder';
 			status: 'delivered' | 'pending_delivery';
 			notes: string | null;
@@ -271,6 +281,8 @@ export class OrderService {
 					? line.unitPrice
 					: salesProduct.salePrice;
 
+			const unitCost = Number((salesProduct.estimatedRecipeCost ?? 0).toFixed(2));
+
 			const fulfillmentType =
 				line.fulfillmentType === 'preorder' ? 'preorder' : 'immediate';
 			const status = fulfillmentType === 'preorder' ? 'pending_delivery' : 'delivered';
@@ -282,6 +294,7 @@ export class OrderService {
 				productName: salesProduct.name,
 				quantity: line.quantity,
 				unitPrice,
+				unitCost,
 				fulfillmentType,
 				status,
 				notes: line.notes?.trim() || null
@@ -298,38 +311,7 @@ export class OrderService {
 			// Descontar stock directamente para todos los componentes (Productos Finales) de las líneas que se venden/entregan en el momento ('immediate')
 			for (const line of preparedLines) {
 				if (line.fulfillmentType === 'immediate') {
-					const salesProduct = productsById.get(line.salesProductId);
-					if (!salesProduct) continue;
-
-					for (const comp of salesProduct.components) {
-						const targetItem = itemsById.get(comp.itemId);
-						if (targetItem) {
-							const consumeQty = line.quantity * comp.quantity;
-							const nextStock = Math.max(
-								0,
-								Number((targetItem.currentStock - consumeQty).toFixed(4))
-							);
-							let newBatches = targetItem.batches;
-							let newRefCost = targetItem.referenceCost;
-							if (targetItem.batches && targetItem.batches.length > 0) {
-								const res = applyStockConsumption(targetItem.batches, consumeQty, targetItem.referenceCost);
-								newBatches = res.batches;
-								newRefCost = res.newReferenceCost;
-							}
-							const updatedItem = await this.itemRepo.update(
-								targetItem.id,
-								input.businessId,
-								{
-									currentStock: nextStock,
-									referenceCost: newRefCost,
-									batches: newBatches
-								}
-							);
-							if (updatedItem) {
-								itemsById.set(targetItem.id, updatedItem);
-							}
-						}
-					}
+					await this.fulfillOrderLineInventory(input.businessId, line, true);
 				}
 			}
 		}
@@ -358,15 +340,181 @@ export class OrderService {
 	}
 
 	/**
-	 * Completa/entrega una línea por encargo ("Just-In-Time"):
-	 * Para cada Producto Final que compone el producto de venta (sea individual o Combo):
-	 * 1. Suma +Q al ítem asociado produciéndolo mediante su Receta (lo cual consume sus sub-ensambles/insumos).
-	 * 2. Resta -Q al ítem asociado por la entrega al cliente, dejando su stock tal como estaba.
+	 * Ejecuta el descuento de inventario real para una línea de orden:
+	 * - Si `useDisplayStock` es true (ej. venta inmediata o usar estantería/vidriera), primero consume del stock actual disponible del ítem.
+	 * - Por la cantidad restante (o el 100% si es producción dedicada para encargo / Make-to-Order), ejecuta `produceItemBatch` (+Q de receta) y consume el lote (-Q).
+	 */
+	private async fulfillOrderLineInventory(
+		businessId: string,
+		line: { salesProductId: string; quantity: number },
+		useDisplayStock: boolean = false
+	): Promise<void> {
+		const productComponents = await this.orderRepo.findSalesProductItemsByProductIds([
+			line.salesProductId
+		]);
+
+		for (const comp of productComponents) {
+			const totalItemQty = Number((line.quantity * comp.quantity).toFixed(4));
+			if (totalItemQty <= 0) continue;
+
+			const targetItem = await this.itemRepo.findById(comp.itemId, businessId);
+			if (!targetItem) continue;
+
+			const isMakeToOrder =
+				targetItem.type === 'prepared' && Boolean(targetItem.recipeConfig?.isMakeToOrder);
+
+			let fromStockQty = 0;
+			if (useDisplayStock && !isMakeToOrder && targetItem.currentStock > 0) {
+				fromStockQty = Math.min(targetItem.currentStock, totalItemQty);
+			}
+			const toProduceQty = Number((totalItemQty - fromStockQty).toFixed(4));
+
+			if (fromStockQty > 0) {
+				const nextStock = Math.max(
+					0,
+					Number((targetItem.currentStock - fromStockQty).toFixed(4))
+				);
+				let newBatches = targetItem.batches;
+				let newRefCost = targetItem.referenceCost;
+				if (targetItem.batches && targetItem.batches.length > 0) {
+					const res = applyStockConsumption(
+						targetItem.batches,
+						fromStockQty,
+						targetItem.referenceCost
+					);
+					newBatches = res.batches;
+					newRefCost = res.newReferenceCost;
+				}
+				await this.itemRepo.update(targetItem.id, businessId, {
+					currentStock: nextStock,
+					referenceCost: newRefCost,
+					batches: newBatches
+				});
+			}
+
+			if (toProduceQty > 0) {
+				if (targetItem.type === 'prepared') {
+					const { parent: afterProduce } = await this.recipeService.produceItemBatch(
+						businessId,
+						comp.itemId,
+						toProduceQty,
+						'Producción orden'
+					);
+					const finalStock = Math.max(
+						0,
+						Number((afterProduce.currentStock - toProduceQty).toFixed(4))
+					);
+					// Remover el lote transitorio recién generado para que no quede remanente fantasma en el elaborado
+					const cleanedBatches =
+						afterProduce.batches && afterProduce.batches.length > 0
+							? afterProduce.batches.slice(0, -1)
+							: [];
+					await this.itemRepo.update(comp.itemId, businessId, {
+						currentStock: finalStock,
+						batches: cleanedBatches
+					});
+				} else {
+					const currentRaw = await this.itemRepo.findById(comp.itemId, businessId);
+					if (currentRaw) {
+						const nextStock = Math.max(
+							0,
+							Number((currentRaw.currentStock - toProduceQty).toFixed(4))
+						);
+						let newBatches = currentRaw.batches;
+						let newRefCost = currentRaw.referenceCost;
+						if (currentRaw.batches && currentRaw.batches.length > 0) {
+							const res = applyStockConsumption(
+								currentRaw.batches,
+								toProduceQty,
+								currentRaw.referenceCost
+							);
+							newBatches = res.batches;
+							newRefCost = res.newReferenceCost;
+						}
+						await this.itemRepo.update(currentRaw.id, businessId, {
+							currentStock: nextStock,
+							referenceCost: newRefCost,
+							batches: newBatches
+						});
+					}
+				}
+			}
+		}
+	}
+
+	/**
+	 * Marca una línea de encargo como "Lista para entregar" (`ready`), descontando en este instante
+	 * sus insumos/sub-ensambles (o stock de estantería si `useDisplayStock` es true).
+	 */
+	async markOrderItemReady(
+		businessId: string,
+		orderId: string,
+		lineId: string,
+		useDisplayStock: boolean = false
+	): Promise<OrderWithItems> {
+		const order = await this.orderRepo.findOrderById(orderId, businessId);
+		if (!order) {
+			throw new Error('Orden no encontrada.');
+		}
+		if (order.status === 'cancelled' || order.status === 'unconfirmed') {
+			throw new Error('La orden debe estar confirmada para marcar producción.');
+		}
+
+		const line = order.items.find((i) => i.id === lineId);
+		if (!line) {
+			throw new Error('Línea de orden no encontrada.');
+		}
+		if (line.status !== 'pending_delivery') {
+			return order;
+		}
+
+		await this.fulfillOrderLineInventory(businessId, line, useDisplayStock);
+		await this.orderRepo.updateOrderItemStatus(line.id, 'ready');
+
+		return (await this.orderRepo.findOrderById(order.id, businessId))!;
+	}
+
+	/**
+	 * Produce en lote todas las líneas pendientes (`pending_delivery`) de un conjunto de órdenes,
+	 * descontando los insumos/sub-ensambles y pasando las órdenes al estado "Listo para entregar" (`ready`).
+	 */
+	async produceOrdersBatch(
+		businessId: string,
+		orderIds: string[],
+		useDisplayStock: boolean = false
+	): Promise<{ processedOrdersCount: number; processedLinesCount: number }> {
+		let processedOrdersCount = 0;
+		let processedLinesCount = 0;
+
+		const uniqueIds = Array.from(new Set(orderIds.filter(Boolean)));
+		for (const orderId of uniqueIds) {
+			const order = await this.orderRepo.findOrderById(orderId, businessId);
+			if (!order || order.status !== 'pending') continue;
+
+			const pendingLines = order.items.filter((i) => i.status === 'pending_delivery');
+			if (pendingLines.length === 0) continue;
+
+			for (const line of pendingLines) {
+				await this.fulfillOrderLineInventory(businessId, line, useDisplayStock);
+				await this.orderRepo.updateOrderItemStatus(line.id, 'ready');
+				processedLinesCount++;
+			}
+			processedOrdersCount++;
+		}
+
+		return { processedOrdersCount, processedLinesCount };
+	}
+
+	/**
+	 * Completa/entrega una línea por encargo:
+	 * - Si la línea aún estaba en `pending_delivery` (no había sido marcada como `ready`), ejecuta el descuento de inventario en este acto.
+	 * - Si la línea ya estaba en `ready`, los insumos ya fueron descontados cuando se produjo, por lo que solo pasa a `delivered`.
 	 */
 	async deliverOrderItemJustInTime(
 		businessId: string,
 		orderId: string,
-		lineId: string
+		lineId: string,
+		useDisplayStock: boolean = false
 	): Promise<OrderWithItems> {
 		const order = await this.orderRepo.findOrderById(orderId, businessId);
 		if (!order) {
@@ -384,29 +532,9 @@ export class OrderService {
 			return order;
 		}
 
-		const productComponents = await this.orderRepo.findSalesProductItemsByProductIds([
-			line.salesProductId
-		]);
-
-		for (const comp of productComponents) {
-			const totalItemQty = Number((line.quantity * comp.quantity).toFixed(4));
-			if (totalItemQty <= 0) continue;
-
-			// Paso 1 (+Q): Producir el lote JIT (suma +totalItemQty al Producto Final y descuenta sus sub-ensambles/insumos directos de su Receta)
-			const { parent: afterProduce } = await this.recipeService.produceItemBatch(
-				businessId,
-				comp.itemId,
-				totalItemQty
-			);
-
-			// Paso 2 (-Q): Descontar -totalItemQty por la venta/entrega para que el stock del Producto Final quede igual que antes
-			const finalStock = Math.max(
-				0,
-				Number((afterProduce.currentStock - totalItemQty).toFixed(4))
-			);
-			await this.itemRepo.update(comp.itemId, businessId, {
-				currentStock: finalStock
-			});
+		// Solo descontar inventario si no fue producido previamente (es decir, si sigue en 'pending_delivery')
+		if (line.status === 'pending_delivery') {
+			await this.fulfillOrderLineInventory(businessId, line, useDisplayStock);
 		}
 
 		await this.orderRepo.updateOrderItemStatus(line.id, 'delivered');
@@ -424,9 +552,13 @@ export class OrderService {
 	}
 
 	/**
-	 * Completa todas las líneas pendientes de una orden ejecutando el flujo JIT (+1 / -1) en cada encargo pendiente.
+	 * Completa todas las líneas pendientes o listas de una orden.
 	 */
-	async completeOrderJustInTime(businessId: string, orderId: string): Promise<OrderWithItems> {
+	async completeOrderJustInTime(
+		businessId: string,
+		orderId: string,
+		useDisplayStock: boolean = false
+	): Promise<OrderWithItems> {
 		const order = await this.orderRepo.findOrderById(orderId, businessId);
 		if (!order) {
 			throw new Error('Orden no encontrada.');
@@ -435,9 +567,11 @@ export class OrderService {
 			throw new Error('No se puede completar una orden cancelada.');
 		}
 
-		const pendingLines = order.items.filter((i) => i.status === 'pending_delivery');
-		for (const line of pendingLines) {
-			await this.deliverOrderItemJustInTime(businessId, orderId, line.id);
+		const remainingLines = order.items.filter(
+			(i) => i.status === 'pending_delivery' || i.status === 'ready'
+		);
+		for (const line of remainingLines) {
+			await this.deliverOrderItemJustInTime(businessId, orderId, line.id, useDisplayStock);
 		}
 
 		await this.orderRepo.updateOrder(orderId, businessId, {
@@ -499,48 +633,10 @@ export class OrderService {
 			throw new Error('Esta orden ya fue confirmada previamente o está cancelada.');
 		}
 
-		const [salesProducts, allItems] = await Promise.all([
-			this.listSalesProducts(businessId),
-			this.itemRepo.findAllByBusiness(businessId)
-		]);
-		const productsById = new Map(salesProducts.map((p) => [p.id, p]));
-		const itemsById = new Map(allItems.map((i) => [i.id, i]));
-
 		// Descontar stock para las líneas inmediatas al momento de confirmar
 		for (const line of order.items) {
 			if (line.fulfillmentType === 'immediate' && line.status !== 'cancelled') {
-				const salesProduct = productsById.get(line.salesProductId);
-				if (!salesProduct) continue;
-
-				for (const comp of salesProduct.components) {
-					const targetItem = itemsById.get(comp.itemId);
-					if (targetItem) {
-						const consumeQty = line.quantity * comp.quantity;
-						const nextStock = Math.max(
-							0,
-							Number((targetItem.currentStock - consumeQty).toFixed(4))
-						);
-						let newBatches = targetItem.batches;
-						let newRefCost = targetItem.referenceCost;
-						if (targetItem.batches && targetItem.batches.length > 0) {
-							const res = applyStockConsumption(targetItem.batches, consumeQty, targetItem.referenceCost);
-							newBatches = res.batches;
-							newRefCost = res.newReferenceCost;
-						}
-						const updatedItem = await this.itemRepo.update(
-							targetItem.id,
-							businessId,
-							{
-								currentStock: nextStock,
-								referenceCost: newRefCost,
-								batches: newBatches
-							}
-						);
-						if (updatedItem) {
-							itemsById.set(targetItem.id, updatedItem);
-						}
-					}
-				}
+				await this.fulfillOrderLineInventory(businessId, line, true);
 			}
 		}
 
@@ -573,9 +669,44 @@ export class OrderService {
 		if (!order) {
 			throw new Error('Orden no encontrada.');
 		}
+		if (order.status === 'cancelled') {
+			return order;
+		}
+
+		const wasConfirmed = order.status !== 'unconfirmed';
 
 		for (const line of order.items) {
-			if (line.status === 'pending_delivery') {
+			if (wasConfirmed && (line.status === 'delivered' || line.status === 'ready')) {
+				const productComponents = await this.orderRepo.findSalesProductItemsByProductIds([
+					line.salesProductId
+				]);
+				for (const comp of productComponents) {
+					const restoreQty = Number((line.quantity * comp.quantity).toFixed(4));
+					if (restoreQty <= 0) continue;
+					const targetItem = await this.itemRepo.findById(comp.itemId, businessId);
+					if (!targetItem) continue;
+
+					const nextStock = Number((targetItem.currentStock + restoreQty).toFixed(4));
+					let newBatches = targetItem.batches;
+					let newRefCost = targetItem.referenceCost;
+					if (newBatches && newBatches.length > 0) {
+						const res = applyStockRestoration(
+							newBatches,
+							restoreQty,
+							targetItem.referenceCost
+						);
+						newBatches = res.batches;
+						newRefCost = res.newReferenceCost;
+					}
+					await this.itemRepo.update(targetItem.id, businessId, {
+						currentStock: nextStock,
+						referenceCost: newRefCost,
+						batches: newBatches
+					});
+				}
+			}
+
+			if (line.status !== 'cancelled') {
 				await this.orderRepo.updateOrderItemStatus(line.id, 'cancelled');
 			}
 		}
@@ -594,10 +725,12 @@ export class OrderService {
 	 *
 	 * @param preserveDisplayStock Si es true (Mantener vidriera), no descuenta el stock de productos/ensambles terminados,
 	 * calculando la producción total a fabricar para los pedidos sin tocar el mostrador.
+	 * @param horizon Ventana de tiempo a considerar ('today', '3d', '7d', 'all')
 	 */
 	async getPreorderForecast(
 		businessId: string,
-		preserveDisplayStock: boolean = false
+		preserveDisplayStock: boolean = false,
+		horizon: ForecastHorizon = 'all'
 	): Promise<PreorderForecastSummary> {
 		const [orders, allItems, recipeSummaries, salesProducts] = await Promise.all([
 			this.orderRepo.findOrdersByBusiness(businessId),
@@ -608,7 +741,37 @@ export class OrderService {
 
 		const itemsById = new Map<string, Item>(allItems.map((i) => [i.id, i]));
 		const salesProductsById = new Map(salesProducts.map((sp) => [sp.id, sp]));
-		const pendingOrders = orders.filter((o) => o.status === 'pending');
+
+		const now = new Date();
+		const endOfToday = new Date(
+			now.getFullYear(),
+			now.getMonth(),
+			now.getDate(),
+			23,
+			59,
+			59,
+			999
+		);
+		const horizonLimitMs =
+			horizon === 'today'
+				? endOfToday.getTime()
+				: horizon === '3d'
+					? endOfToday.getTime() + 2 * 86400_000
+					: horizon === '7d'
+						? endOfToday.getTime() + 6 * 86400_000
+						: null;
+
+		const pendingOrders = orders.filter((o) => {
+			if (o.status !== 'pending') return false;
+			if (!o.items.some((i) => i.status === 'pending_delivery')) return false;
+			if (horizonLimitMs !== null && o.deliveryDate) {
+				const deliveryMs = new Date(o.deliveryDate).getTime();
+				if (!Number.isNaN(deliveryMs) && deliveryMs > horizonLimitMs) {
+					return false;
+				}
+			}
+			return true;
+		});
 
 		const productDemandMap = new Map<string, number>();
 		let pendingPreorderLinesCount = 0;
@@ -919,6 +1082,8 @@ export class OrderService {
 				projectedBalance,
 				deficitQuantity: Number(deficitQuantity.toFixed(3)),
 				isShortage,
+				isBelowMinStock:
+					!isShortage && subItem.minStock > 0 && projectedBalance <= subItem.minStock,
 				isMakeToOrder,
 				prepTimeMinutes: subItem.prepTimeMinutes,
 				passiveTimeMinutes: subItem.passiveTimeMinutes,
@@ -958,6 +1123,8 @@ export class OrderService {
 				projectedBalance,
 				deficitQuantity: Number(deficitQuantity.toFixed(3)),
 				isShortage: deficitQuantity > 0,
+				isBelowMinStock:
+					deficitQuantity <= 0 && rawItem.minStock > 0 && projectedBalance <= rawItem.minStock,
 				prepTimeMinutes: rawItem.prepTimeMinutes,
 				isPrepTimeScalable: rawItem.isPrepTimeScalable,
 				yieldQuantity: rawItem.yieldQuantity,
@@ -975,7 +1142,7 @@ export class OrderService {
 		// Cálculo de tiempo: Activo (humano/operario), Pasivo (máquina/espera) y Ruta Crítica (paralelo)
 		let totalActiveMinutesForDeficit = 0;
 		let totalPassiveMinutesForDeficit = 0;
-		let maxSubAssemblyLeadTime = 0;
+		let maxSinglePassiveMinutes = 0;
 
 		for (const p of productDemands) {
 			const item = itemsById.get(p.itemId);
@@ -990,11 +1157,14 @@ export class OrderService {
 					);
 			totalActiveMinutesForDeficit += activeMinutes;
 			totalPassiveMinutesForDeficit += passiveMinutes;
+			if (passiveMinutes > maxSinglePassiveMinutes) {
+				maxSinglePassiveMinutes = passiveMinutes;
+			}
 		}
 
 		for (const s of subAssemblyForecast) {
 			const item = itemsById.get(s.itemId);
-			const { activeMinutes, passiveMinutes, laborMinutes } = item
+			const { activeMinutes, passiveMinutes } = item
 				? calcLaborForItem(item, s.deficitQuantity)
 				: calcLaborLegacy(
 						s.deficitQuantity,
@@ -1005,21 +1175,23 @@ export class OrderService {
 					);
 			totalActiveMinutesForDeficit += activeMinutes;
 			totalPassiveMinutesForDeficit += passiveMinutes;
-			if (laborMinutes > maxSubAssemblyLeadTime) {
-				maxSubAssemblyLeadTime = laborMinutes;
+			if (passiveMinutes > maxSinglePassiveMinutes) {
+				maxSinglePassiveMinutes = passiveMinutes;
 			}
 		}
 
 		const totalLaborMinutesForDeficit = totalActiveMinutesForDeficit + totalPassiveMinutesForDeficit;
 
-		// Ruta Crítica (Lead Time en paralelo):
-		// Las manos del pastelero son secuenciales (totalActiveMinutesForDeficit), pero el tiempo pasivo
-		// de cocción/frío se solapa concurrentemente con la mano de obra.
-		// Tiempo mínimo de entrega = Mano de obra activa total + el tiempo pasivo que no pudo ser solapado.
-		const criticalPathMinutesForDeficit = Math.max(
-			totalActiveMinutesForDeficit,
-			Math.round(totalActiveMinutesForDeficit + (totalPassiveMinutesForDeficit > totalActiveMinutesForDeficit ? totalPassiveMinutesForDeficit - totalActiveMinutesForDeficit : 0))
-		);
+		// Ruta Crítica (Lead Time realista):
+		// El trabajo activo es secuencial, y aunque varios tiempos pasivos de distintos lotes se solapen con otras tareas,
+		// al menos el último tramo pasivo (o el exceso de tiempo pasivo sobre el activo) se suma al tiempo real de entrega.
+		const criticalPathMinutesForDeficit =
+			totalLaborMinutesForDeficit > 0
+				? Math.max(
+						totalActiveMinutesForDeficit + maxSinglePassiveMinutes,
+						totalPassiveMinutesForDeficit
+					)
+				: 0;
 
 		const totalLaborMinutesTotalDemand =
 			subAssemblyForecast.reduce((acc, i) => acc + (i.laborMinutesTotalDemand ?? 0), 0) +
@@ -1034,6 +1206,7 @@ export class OrderService {
 			productDemands.reduce((acc, p) => acc + (p.laborCostTotalDemand ?? 0), 0);
 
 		return {
+			horizon,
 			pendingOrdersCount: pendingOrders.length,
 			pendingPreorderLinesCount,
 			productDemands,

@@ -5,3 +5,5 @@ export { confirmOrderAction as confirmOrder } from './confirm-order.action';
 export { updatePaymentAction as updatePayment } from './update-payment.action';
 export { cancelOrderAction as cancelOrder } from './cancel-order.action';
 export { toggleShortcutAction as toggleShortcut } from './toggle-shortcut.action';
+export { produceOrdersBatchAction as produceOrdersBatch } from './produce-orders-batch.action';
+export { produceForecastItemAction as produceForecastItem } from './produce-forecast-item.action';

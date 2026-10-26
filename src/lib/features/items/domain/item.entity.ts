@@ -242,6 +242,18 @@ export function calculateWeightedUnitCost(batches: ItemStockBatch[] = [], fallba
 	return totalQty > 0 ? totalValue / totalQty : fallbackCost;
 }
 
+export function trimStockBatches(batches: ItemStockBatch[]): ItemStockBatch[] {
+	if (batches.length <= 15) return batches;
+	const activeIds = new Set(batches.filter((b) => b.remainingQuantity > 0).map((b) => b.id));
+	const exhaustedIdsToKeep = new Set(
+		batches
+			.filter((b) => b.remainingQuantity <= 0)
+			.slice(-10)
+			.map((b) => b.id)
+	);
+	return batches.filter((b) => activeIds.has(b.id) || exhaustedIdsToKeep.has(b.id));
+}
+
 /**
  * Registra una nueva carga de stock (compra) y devuelve los lotes actualizados y el nuevo costo unitario ponderado.
  */
@@ -267,9 +279,9 @@ export function applyStockIntake(
 		notes: intake.notes?.trim() || null
 	};
 
-	// Conservar el historial de las últimas 15 cargas (incluso si alguna llegó a 0)
-	// para permitir revertir elaboraciones y restaurar a los lotes originales exactos
-	const updatedBatches = [...batches, newBatch].slice(-15);
+	// Conservar siempre las capas activas (remainingQuantity > 0) y hasta las últimas 10 agotadas
+	// para permitir revertir elaboraciones sin perder nunca capas FIFO activas
+	const updatedBatches = trimStockBatches([...batches, newBatch]);
 	const newReferenceCost = calculateWeightedUnitCost(updatedBatches, unitCost);
 
 	return {
@@ -413,7 +425,8 @@ export function calculateRecipeOperationalSummary(
 	recipeConfig?: ItemRecipeConfig | null,
 	fallbackActiveMinutes: number = 0,
 	fallbackPassiveMinutes: number = 0,
-	fallbackScalable: boolean = false
+	fallbackScalable: boolean = false,
+	itemYieldQuantity?: number
 ): {
 	activeMinutes: number;
 	passiveMinutes: number;
@@ -439,7 +452,12 @@ export function calculateRecipeOperationalSummary(
 	let activeMinutes = 0;
 	let passiveMinutes = 0;
 	let operationalTotalCost = 0;
-	const yieldQty = recipeConfig?.yieldQuantity && recipeConfig.yieldQuantity > 0 ? recipeConfig.yieldQuantity : 1;
+	const yieldQty =
+		itemYieldQuantity && itemYieldQuantity > 0
+			? itemYieldQuantity
+			: recipeConfig?.yieldQuantity && recipeConfig.yieldQuantity > 0
+				? recipeConfig.yieldQuantity
+				: 1;
 
 	for (const cost of costs) {
 		const dur = Number(cost.durationMinutes) || 0;
