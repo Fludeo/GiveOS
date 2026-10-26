@@ -49,6 +49,8 @@
 	} = $props();
 
 	let showScheduleModal = $state(false);
+	let showSignOutModal = $state(false);
+	let isSigningOut = $state(false);
 	let isCollapsed = $state(false);
 
 	$effect(() => {
@@ -285,17 +287,16 @@
 						<p class="truncate text-sm font-medium text-foreground">{user.name}</p>
 						<p class="truncate text-xs text-muted-foreground">{user.email}</p>
 					</div>
-					<form method="POST" action="/?/signOut" use:enhance>
-						<Button
-							type="submit"
-							variant="ghost"
-							size="icon"
-							class="size-8 text-muted-foreground hover:text-destructive"
-							title="Cerrar sesión"
-						>
-							<LogOut class="size-4" />
-						</Button>
-					</form>
+					<Button
+						type="button"
+						variant="ghost"
+						size="icon"
+						class="size-8 text-muted-foreground hover:text-destructive cursor-pointer"
+						title="Cerrar sesión"
+						onclick={() => (showSignOutModal = true)}
+					>
+						<LogOut class="size-4" />
+					</Button>
 				</div>
 			{:else}
 				<div class="flex flex-col items-center gap-2">
@@ -305,17 +306,16 @@
 					>
 						{user.name.charAt(0).toUpperCase()}
 					</div>
-					<form method="POST" action="/?/signOut" use:enhance>
-						<Button
-							type="submit"
-							variant="ghost"
-							size="icon"
-							class="size-8 text-muted-foreground hover:text-destructive"
-							title="Cerrar sesión"
-						>
-							<LogOut class="size-4" />
-						</Button>
-					</form>
+					<Button
+						type="button"
+						variant="ghost"
+						size="icon"
+						class="size-8 text-muted-foreground hover:text-destructive cursor-pointer"
+						title="Cerrar sesión"
+						onclick={() => (showSignOutModal = true)}
+					>
+						<LogOut class="size-4" />
+					</Button>
 				</div>
 			{/if}
 		</div>
@@ -367,17 +367,16 @@
 				>
 					{user.name.charAt(0).toUpperCase()}
 				</div>
-				<form method="POST" action="/?/signOut" use:enhance>
-					<Button
-						type="submit"
-						variant="ghost"
-						size="icon"
-						class="size-8 text-muted-foreground hover:text-destructive"
-						title="Cerrar sesión"
-					>
-						<LogOut class="size-4" />
-					</Button>
-				</form>
+				<Button
+					type="button"
+					variant="ghost"
+					size="icon"
+					class="size-8 text-muted-foreground hover:text-destructive cursor-pointer"
+					title="Cerrar sesión"
+					onclick={() => (showSignOutModal = true)}
+				>
+					<LogOut class="size-4" />
+				</Button>
 			</div>
 		</div>
 
@@ -580,6 +579,86 @@
 				<Button type="button" size="sm" onclick={() => (showScheduleModal = false)}>
 					Cerrar
 				</Button>
+			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- Modal de Confirmación para Cerrar Sesión -->
+{#if showSignOutModal}
+	<div
+		class="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4 backdrop-blur-[1px]"
+		role="dialog"
+		aria-modal="true"
+		aria-labelledby="signout-modal-title"
+	>
+		<div class="w-full max-w-sm overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
+			<div class="flex items-start justify-between gap-4 border-b border-border p-5">
+				<div class="flex items-center gap-3">
+					<div
+						class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-destructive/10 text-destructive"
+					>
+						<LogOut class="size-5" />
+					</div>
+					<div>
+						<h2 id="signout-modal-title" class="text-base font-bold text-foreground">
+							¿Cerrar sesión?
+						</h2>
+						<p class="text-xs text-muted-foreground truncate max-w-[180px]">
+							{user.email}
+						</p>
+					</div>
+				</div>
+				<Button
+					type="button"
+					size="icon"
+					variant="ghost"
+					class="size-8 text-muted-foreground hover:text-foreground cursor-pointer"
+					onclick={() => (showSignOutModal = false)}
+					title="Cerrar"
+					disabled={isSigningOut}
+				>
+					<X class="size-4" />
+				</Button>
+			</div>
+
+			<div class="p-5 text-xs text-muted-foreground">
+				¿Estás seguro de que deseas salir? Tendrás que volver a iniciar sesión para ingresar al sistema.
+			</div>
+
+			<div class="flex items-center justify-end gap-2 border-t border-border bg-muted/20 px-5 py-3.5">
+				<Button
+					type="button"
+					variant="outline"
+					size="sm"
+					onclick={() => (showSignOutModal = false)}
+					disabled={isSigningOut}
+				>
+					Cancelar
+				</Button>
+				<form
+					method="POST"
+					action="/?/signOut"
+					use:enhance={() => {
+						isSigningOut = true;
+						return async ({ update }) => {
+							await update();
+							isSigningOut = false;
+							showSignOutModal = false;
+						};
+					}}
+				>
+					<Button
+						type="submit"
+						variant="destructive"
+						size="sm"
+						class="gap-1.5 font-semibold cursor-pointer"
+						disabled={isSigningOut}
+					>
+						<LogOut class="size-3.5" />
+						<span>{isSigningOut ? 'Saliendo...' : 'Cerrar sesión'}</span>
+					</Button>
+				</form>
 			</div>
 		</div>
 	</div>
