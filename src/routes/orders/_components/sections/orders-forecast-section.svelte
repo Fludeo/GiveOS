@@ -861,9 +861,17 @@
 										method="POST"
 										action="?/produceForecastItem"
 										class="inline-flex items-center gap-1 ml-auto"
-										use:enhance={() => {
+										use:enhance={({ action }) => {
+											if (typeof window !== 'undefined') {
+												const currentUrl = new URL(window.location.href);
+												for (const [k, v] of currentUrl.searchParams.entries()) {
+													if (!action.searchParams.has(k)) {
+														action.searchParams.set(k, v);
+													}
+												}
+											}
 											return async ({ result, update }) => {
-												await update();
+												await update({ reset: false });
 												if (result.type === 'success') {
 													const msg = (result.data as { message?: string })?.message ?? 'Lote producido.';
 													toast.success('¡Lote producido!', msg);
@@ -1047,9 +1055,17 @@
 														method="POST"
 														action="?/produceForecastItem"
 														class="inline-flex items-center gap-1"
-														use:enhance={() => {
+														use:enhance={({ action }) => {
+															if (typeof window !== 'undefined') {
+																const currentUrl = new URL(window.location.href);
+																for (const [k, v] of currentUrl.searchParams.entries()) {
+																	if (!action.searchParams.has(k)) {
+																		action.searchParams.set(k, v);
+																	}
+																}
+															}
 															return async ({ result, update }) => {
-																await update();
+																await update({ reset: false });
 																if (result.type === 'success') {
 																	const msg = (result.data as { message?: string })?.message ?? 'Lote producido.';
 																	toast.success('¡Lote producido!', msg);

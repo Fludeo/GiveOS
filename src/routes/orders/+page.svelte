@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { replaceState } from '$app/navigation';
+	import { page } from '$app/state';
 	import type { PageProps } from './$types';
 	import type { Item } from '#lib/features/items/domain/item.entity';
 	import type { OrderWithItems } from '#lib/features/orders/domain/order.entity';
@@ -28,16 +29,26 @@
 
 	let { data }: PageProps = $props();
 
+	type TabType = 'orders' | 'upcoming' | 'forecast' | 'loop';
 	// Pestaña activa: 'orders' | 'upcoming' | 'forecast' | 'loop'
-	let activeTab = $state<'orders' | 'upcoming' | 'forecast' | 'loop' | null>(null);
+	let activeTab = $state<TabType | null>(null);
+
+	let lastUrlTab = $state<string | null>(null);
 	$effect(() => {
-		activeTab = data.initialTab;
+		const currentUrlTab = page.url.searchParams.get('tab');
+		if (currentUrlTab !== lastUrlTab) {
+			lastUrlTab = currentUrlTab;
+			if (currentUrlTab && ['orders', 'upcoming', 'forecast', 'loop'].includes(currentUrlTab)) {
+				activeTab = currentUrlTab as TabType;
+			}
+		}
 	});
-	const currentTab = $derived<'orders' | 'upcoming' | 'forecast' | 'loop'>(
-		activeTab ?? data.initialTab ?? 'orders'
+
+	const currentTab = $derived<TabType>(
+		activeTab ?? (data.initialTab as TabType) ?? 'orders'
 	);
 
-	function switchTab(tab: 'orders' | 'upcoming' | 'forecast' | 'loop') {
+	function switchTab(tab: TabType) {
 		activeTab = tab;
 		if (typeof window !== 'undefined') {
 			const url = new URL(window.location.href);

@@ -65,9 +65,17 @@
 			<form
 				method="POST"
 				action="?/confirmOrder"
-				use:enhance={() => {
+				use:enhance={({ action }) => {
+					if (typeof window !== 'undefined') {
+						const currentUrl = new URL(window.location.href);
+						for (const [k, v] of currentUrl.searchParams.entries()) {
+							if (!action.searchParams.has(k)) {
+								action.searchParams.set(k, v);
+							}
+						}
+					}
 					return async ({ update }) => {
-						await update();
+						await update({ reset: false });
 						onClose();
 					};
 				}}
