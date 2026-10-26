@@ -33,12 +33,14 @@
 	let selectedIds = $state<string[]>([]);
 	let useDisplayStock = $state(false);
 	let isSubmitting = $state(false);
+	let customProducedByProduct = $state<Record<string, number>>({});
 
 	$effect(() => {
 		if (orders && orders.length > 0) {
 			selectedIds = orders.map((o) => o.id);
 			useDisplayStock = false;
 			isSubmitting = false;
+			customProducedByProduct = {};
 		}
 	});
 
@@ -69,6 +71,8 @@
 				totalQty: number;
 				ordersCount: number;
 				availableDisplayStock: number | null;
+				itemId: string | null;
+				componentMultiplier: number;
 			}
 		>();
 
@@ -84,24 +88,62 @@
 				} else {
 					const sp = spMap.get(line.salesProductId);
 					let displayStock: number | null = null;
+					let itemId: string | null = null;
+					let componentMultiplier = 1;
 					if (sp && sp.components.length === 1 && sp.components[0].item) {
 						const comp = sp.components[0];
+						const compItem = comp.item!;
+						componentMultiplier = comp.quantity || 1;
 						displayStock = Math.floor(
-							(comp.item?.currentStock ?? 0) / (comp.quantity || 1)
+							(compItem.currentStock ?? 0) / componentMultiplier
 						);
+						if (compItem.type === 'prepared') {
+							itemId = compItem.id;
+						}
 					}
 					map.set(line.salesProductId, {
 						salesProductId: line.salesProductId,
 						productName: line.productName,
 						totalQty: line.quantity,
 						ordersCount: 1,
-						availableDisplayStock: displayStock
+						availableDisplayStock: displayStock,
+						itemId,
+						componentMultiplier
 					});
 				}
 			}
 		}
 
 		return Array.from(map.values());
+	});
+
+	function getProducedQty(salesProductId: string, minQty: number): number {
+		const custom = customProducedByProduct[salesProductId];
+		if (custom === undefined || Number.isNaN(custom) || custom < minQty) {
+			return minQty;
+		}
+		return custom;
+	}
+
+	function setProducedQty(salesProductId: string, minQty: number, val: number) {
+		const clamped = Math.max(minQty, Number.isFinite(val) ? val : minQty);
+		customProducedByProduct = {
+			...customProducedByProduct,
+			[salesProductId]: clamped
+		};
+	}
+
+	const extraStockMap = $derived.by(() => {
+		const extra: Record<string, number> = {};
+		for (const prod of consolidatedProducts) {
+			if (!prod.itemId) continue;
+			const actual = getProducedQty(prod.salesProductId, prod.totalQty);
+			const diff = actual - prod.totalQty;
+			if (diff > 0) {
+				extra[prod.itemId] = (extra[prod.itemId] ?? 0) + diff * prod.componentMultiplier;
+			}
+		}
+		return extra;
 	});
 </script>
 
@@ -199,9 +241,11 @@
 
 				<!-- 2. Consolidado de Productos a Terminar -->
 				<div class="space-y-2.5">
-					<span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
-						2. Consolidado de Productos a Elaborar
-					</span>
+					<div class="flex items-center justify-between gap-2">
+						<span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+							2. Cantidad a Producir (Base = Pedidos, Excedente → Stock)
+						</span>
+					</div>
 
 					{#if consolidatedProducts.length === 0}
 						<div class="rounded-xl border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
@@ -210,20 +254,65 @@
 					{:else}
 						<div class="divide-y divide-border/60 rounded-xl border border-border bg-card">
 							{#each consolidatedProducts as prod (prod.salesProductId)}
-								<div class="flex items-center justify-between gap-3 px-3.5 py-2.5 text-xs">
+								{@const actualQty = getProducedQty(prod.salesProductId, prod.totalQty)}
+								{@const extraQty = actualQty - prod.totalQty}
+								<div class="flex flex-wrap items-center justify-between gap-3 px-3.5 py-2.5 text-xs">
 									<div class="flex items-center gap-2 min-w-0">
-										<span class="rounded bg-primary/10 px-2 py-0.5 font-mono font-bold text-primary shrink-0">
-											{prod.totalQty}x
+										<span class="rounded bg-primary/10 px-2 py-0.5 font-mono font-bold text-primary shrink-0" title="Cantidad requerida por los pedidos seleccionados">
+											Pedidos: {prod.totalQty}
 										</span>
 										<span class="font-semibold text-foreground truncate">
 											{prod.productName}
 										</span>
+										{#if prod.availableDisplayStock !== null && prod.availableDisplayStock > 0}
+											<span class="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground shrink-0">
+												Vidriera: {prod.availableDisplayStock}
+											</span>
+										{/if}
 									</div>
-									{#if prod.availableDisplayStock !== null && prod.availableDisplayStock > 0}
-										<span class="rounded bg-muted px-2 py-0.5 font-mono text-[10px] text-muted-foreground shrink-0">
-											En estantería: {prod.availableDisplayStock}
-										</span>
-									{/if}
+
+									<div class="flex items-center gap-2 shrink-0">
+										{#if extraQty > 0}
+											<span class="rounded-md bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 font-mono text-[10px] font-bold text-emerald-700 dark:text-emerald-400">
+												+{extraQty} a stock
+											</span>
+										{/if}
+
+										{#if prod.itemId}
+											<div class="inline-flex items-center rounded-lg border border-border bg-background">
+												<button
+													type="button"
+													onclick={() => setProducedQty(prod.salesProductId, prod.totalQty, actualQty - 1)}
+													disabled={actualQty <= prod.totalQty}
+													class="px-2 py-1 text-xs font-bold text-muted-foreground hover:text-foreground disabled:opacity-40 cursor-pointer"
+												>
+													-
+												</button>
+												<input
+													type="number"
+													min={prod.totalQty}
+													step="1"
+													value={actualQty}
+													oninput={(e) =>
+														setProducedQty(
+															prod.salesProductId,
+															prod.totalQty,
+															Number((e.currentTarget as HTMLInputElement).value)
+														)}
+													class="w-12 border-x border-border bg-transparent py-1 text-center font-mono text-xs font-bold text-foreground focus:outline-none"
+												/>
+												<button
+													type="button"
+													onclick={() => setProducedQty(prod.salesProductId, prod.totalQty, actualQty + 1)}
+													class="px-2 py-1 text-xs font-bold text-muted-foreground hover:text-foreground cursor-pointer"
+												>
+													+
+												</button>
+											</div>
+										{:else}
+											<span class="font-mono font-bold text-foreground">{prod.totalQty} u.</span>
+										{/if}
+									</div>
 								</div>
 							{/each}
 						</div>
@@ -284,6 +373,7 @@
 				>
 					<input type="hidden" name="businessId" value={businessId} />
 					<input type="hidden" name="orderIdsJson" value={JSON.stringify(selectedIds)} />
+					<input type="hidden" name="extraStockJson" value={JSON.stringify(extraStockMap)} />
 					<input type="hidden" name="useDisplayStock" value={useDisplayStock ? 'true' : 'false'} />
 
 					<Button

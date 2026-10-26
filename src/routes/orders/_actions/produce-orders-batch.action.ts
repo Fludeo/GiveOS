@@ -9,9 +9,10 @@ export async function produceOrdersBatchAction({ request, locals, url }: Request
 		String(formData.get('businessId') ?? '') || url.searchParams.get('business');
 	const { activeBusiness } = await resolveBusinessOrRedirect(locals.user.id, businessIdParam);
 
-	const { orderService } = getServices();
+	const { orderService, recipeService } = getServices();
 	const singleOrderId = String(formData.get('orderId') ?? '').trim();
 	const orderIdsJson = String(formData.get('orderIdsJson') ?? '[]');
+	const extraStockJson = String(formData.get('extraStockJson') ?? '{}');
 	const useDisplayStock =
 		formData.get('useDisplayStock') === 'true' || formData.get('useDisplayStock') === 'on';
 
@@ -40,12 +41,34 @@ export async function produceOrdersBatchAction({ request, locals, url }: Request
 			useDisplayStock
 		);
 
+		let extraBatchesCount = 0;
+		try {
+			const extraMap = JSON.parse(extraStockJson) as Record<string, number>;
+			if (extraMap && typeof extraMap === 'object') {
+				for (const [itemIdStr, extraQtyVal] of Object.entries(extraMap)) {
+					const extraQty = Number(extraQtyVal);
+					if (itemIdStr && Number.isFinite(extraQty) && extraQty > 0) {
+						await recipeService.produceItemBatch(activeBusiness.id, itemIdStr, extraQty);
+						extraBatchesCount++;
+					}
+				}
+			}
+		} catch {
+			// Ignorar si no se enviaron excedentes válidos
+		}
+
+		const extraSuffix =
+			extraBatchesCount > 0
+				? ` Además se sumaron ${extraBatchesCount} ${extraBatchesCount === 1 ? 'excedente' : 'excedentes'} al stock libre.`
+				: '';
+
 		return {
 			success: true,
 			message:
-				processedOrdersCount === 1
+				(processedOrdersCount === 1
 					? `Pedido producido y marcado como Listo para entregar (${processedLinesCount} ${processedLinesCount === 1 ? 'ítem' : 'ítems'} descontados de inventario).`
-					: `${processedOrdersCount} pedidos producidos y marcados como Listos para entregar (${processedLinesCount} ítems descontados de inventario).`
+					: `${processedOrdersCount} pedidos producidos y marcados como Listos para entregar (${processedLinesCount} ítems descontados de inventario).`) +
+				extraSuffix
 		};
 	} catch (e) {
 		return fail(400, {

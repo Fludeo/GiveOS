@@ -852,12 +852,13 @@
 									<form
 										method="POST"
 										action="?/produceForecastItem"
+										class="inline-flex items-center gap-1"
 										use:enhance={() => {
 											return async ({ result, update }) => {
 												await update();
 												if (result.type === 'success') {
 													const msg = (result.data as { message?: string })?.message ?? 'Lote producido.';
-													toast.success('¡Faltante producido!', msg);
+													toast.success('¡Lote producido!', msg);
 												} else if (result.type === 'failure') {
 													const err = (result.data as { error?: string })?.error ?? 'Error al producir.';
 													toast.error('Error', err);
@@ -867,14 +868,22 @@
 									>
 										<input type="hidden" name="businessId" value={businessId} />
 										<input type="hidden" name="itemId" value={item.id} />
-										<input type="hidden" name="quantity" value={item.deficitQuantity} />
+										<input
+											type="number"
+											name="quantity"
+											min="0.01"
+											step="any"
+											value={Number(item.deficitQuantity.toFixed(2))}
+											class="w-16 rounded-lg border border-border bg-background px-1.5 py-1 text-center font-mono text-[11px] font-bold text-foreground focus:border-primary focus:outline-none"
+											title="Cantidad a producir (por defecto lo que falta, puedes cambiarlo para producir más)"
+										/>
 										<button
 											type="submit"
 											class="inline-flex items-center gap-1 rounded-lg bg-primary px-2.5 py-1 font-sans text-[11px] font-semibold text-primary-foreground shadow-2xs hover:bg-primary/90 cursor-pointer"
-											title="Producir este faltante en 1 clic descontando sus insumos"
+											title="Producir la cantidad indicada descontando sus insumos"
 										>
 											<ChefHat class="size-3" />
-											<span>+ Producir ({formatNum(item.deficitQuantity)})</span>
+											<span>+ Producir</span>
 										</button>
 									</form>
 								{/if}
@@ -1010,18 +1019,59 @@
 									<!-- Tiempo de Trabajo / Acción -->
 									<td class="py-3 px-3 align-middle text-right whitespace-nowrap font-mono">
 										{#if isFabricable}
-											{#if item.isShortage}
-												{#if (item.laborMinutesForDeficit ?? 0) > 0}
-													<span class="inline-flex items-center gap-1 rounded bg-secondary/15 px-2 py-0.5 text-[11px] font-bold text-secondary dark:text-secondary-foreground">
-														<Clock class="size-3" />
-														{formatHoursAndMinutes(item.laborMinutesForDeficit ?? 0)}
-													</span>
+											<div class="inline-flex items-center justify-end gap-2">
+												{#if item.isShortage}
+													{#if (item.laborMinutesForDeficit ?? 0) > 0}
+														<span class="inline-flex items-center gap-1 rounded bg-secondary/15 px-2 py-0.5 text-[11px] font-bold text-secondary dark:text-secondary-foreground">
+															<Clock class="size-3" />
+															{formatHoursAndMinutes(item.laborMinutesForDeficit ?? 0)}
+														</span>
+													{:else}
+														<span class="text-[10px] text-muted-foreground italic">0 min</span>
+													{/if}
 												{:else}
-													<span class="text-[10px] text-muted-foreground italic">0 min</span>
+													<span class="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">0 min</span>
 												{/if}
-											{:else}
-												<span class="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">0 min</span>
-											{/if}
+
+												{#if item.deficitQuantity > 0 && !item.isMakeToOrder && businessId}
+													<form
+														method="POST"
+														action="?/produceForecastItem"
+														class="inline-flex items-center gap-1"
+														use:enhance={() => {
+															return async ({ result, update }) => {
+																await update();
+																if (result.type === 'success') {
+																	const msg = (result.data as { message?: string })?.message ?? 'Lote producido.';
+																	toast.success('¡Lote producido!', msg);
+																} else if (result.type === 'failure') {
+																	const err = (result.data as { error?: string })?.error ?? 'Error al producir.';
+																	toast.error('Error', err);
+																}
+															};
+														}}
+													>
+														<input type="hidden" name="businessId" value={businessId} />
+														<input type="hidden" name="itemId" value={item.id} />
+														<input
+															type="number"
+															name="quantity"
+															min="0.01"
+															step="any"
+															value={Number(item.deficitQuantity.toFixed(2))}
+															class="w-14 rounded-lg border border-border bg-background px-1.5 py-0.5 text-center font-mono text-[11px] font-bold text-foreground focus:border-primary focus:outline-none"
+															title="Cantidad a producir (por defecto lo que falta)"
+														/>
+														<button
+															type="submit"
+															class="inline-flex items-center gap-1 rounded-lg bg-primary px-2 py-0.5 font-sans text-[11px] font-semibold text-primary-foreground shadow-2xs hover:bg-primary/90 cursor-pointer"
+														>
+															<ChefHat class="size-3" />
+															<span>+ Producir</span>
+														</button>
+													</form>
+												{/if}
+											</div>
 										{:else}
 											{#if item.isShortage}
 												<span class="inline-flex items-center gap-1 rounded bg-red-500/15 px-2 py-0.5 text-[11px] font-bold text-red-700 dark:text-red-400">
