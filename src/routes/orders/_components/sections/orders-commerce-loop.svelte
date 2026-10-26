@@ -744,9 +744,9 @@
 		</div>
 	</div>
 
-	<!-- Botonera Flotante Mobile (Abajo a la derecha) para cambiar entre las 3 secciones -->
+	<!-- Botonera Flotante Mobile (Abajo a la derecha) para cambiar entre las 3 secciones (sin dock) -->
 	<div
-		class="fixed bottom-20 right-4 z-30 flex items-center gap-1.5 rounded-2xl border border-border bg-card/95 p-1.5 shadow-xl backdrop-blur-md lg:hidden"
+		class="fixed bottom-5 right-4 z-30 flex items-center gap-1.5 rounded-2xl border border-border bg-card/95 p-1.5 shadow-xl backdrop-blur-md lg:hidden"
 	>
 		<button
 			type="button"

@@ -36,6 +36,7 @@
 		title,
 		description,
 		headerActions,
+		hideMobileDock = false,
 		children
 	}: {
 		user: AuthUser;
@@ -45,6 +46,7 @@
 		title: string;
 		description: string;
 		headerActions?: Snippet;
+		hideMobileDock?: boolean;
 		children: Snippet;
 	} = $props();
 
@@ -74,6 +76,10 @@
 	const openStatus = $derived(getBusinessOpenStatus(activeBusiness.openingHours));
 	const parsedSchedule = $derived(parseWeeklySchedule(activeBusiness.openingHours));
 	const isNewOrderRoute = $derived(page.url.pathname.startsWith('/orders/new'));
+	const isLoopRoute = $derived(
+		hideMobileDock ||
+		(page.url.pathname === '/orders' && page.url.searchParams.get('tab') === 'loop')
+	);
 
 	const navItems = $derived([
 		{
@@ -410,17 +416,18 @@
 		</header>
 
 		<!-- Contenido principal de la página (con espaciado inferior para el Bottom Dock en mobile) -->
-		<main class="w-full flex-1 space-y-6 px-4 pt-4 pb-28 sm:px-6 sm:pt-5 lg:px-8 lg:py-6">
+		<main class="w-full flex-1 space-y-6 px-4 pt-4 {isLoopRoute ? 'pb-8' : 'pb-28'} sm:px-6 sm:pt-5 lg:px-8 lg:py-6">
 			{@render children()}
 		</main>
 	</div>
 
-	<!-- Bottom Dock de Navegación Mobile (< lg): 2 secciones + Botón Central + 2 secciones -->
-	<nav
-		aria-label="Navegación principal móvil"
-		class="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.08)] lg:hidden"
-	>
-		<div class="mx-auto grid h-16 max-w-lg grid-cols-5 items-center px-2">
+	<!-- Bottom Dock de Navegación Mobile (< lg): oculto en Modo Loop -->
+	{#if !isLoopRoute}
+		<nav
+			aria-label="Navegación principal móvil"
+			class="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.08)] lg:hidden"
+		>
+			<div class="mx-auto grid h-16 max-w-lg grid-cols-5 items-center px-2">
 			<!-- 2 Ítems Izquierdos (Inicio, Órdenes) -->
 			{#each leftDockItems as item (item.id)}
 				{@const Icon = item.icon}
@@ -494,6 +501,7 @@
 			{/each}
 		</div>
 	</nav>
+	{/if}
 </div>
 
 <!-- Modal de Horarios de Atención -->

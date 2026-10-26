@@ -113,6 +113,7 @@
 	currentSection="orders"
 	title="Órdenes de Compra"
 	description="Gestión de pedidos de mostrador, agenda de próximas entregas y previsión de demanda de insumos"
+	hideMobileDock={currentTab === 'loop'}
 >
 	{#if currentTab !== 'loop'}
 		<!-- Barra de Pestañas Unificada de Órdenes (Segmented Control 3 columnas en mobile) -->
