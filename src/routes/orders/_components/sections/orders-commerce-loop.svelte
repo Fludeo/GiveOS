@@ -339,7 +339,7 @@
 		<!-- SECCIÓN 1: INSUMOS (ABASTECER)                            -->
 		<!-- ========================================================= -->
 		<div
-			class="rounded-2xl border border-border bg-card p-4 shadow-xs space-y-3 {mobileStep === 1
+			class="rounded-2xl border border-border bg-card p-4 shadow-xs space-y-3 overflow-hidden {mobileStep === 1
 				? 'block'
 				: 'hidden lg:block'}"
 		>
@@ -381,14 +381,14 @@
 						{@const isShort = (raw.deficitQuantity ?? 0) > 0}
 						{@const isLow = !isShort && raw.isBelowMinStock}
 						<div
-							class="flex items-center justify-between gap-2 rounded-xl border px-3 py-2 text-xs transition-colors {isShort
+							class="flex items-center justify-between gap-2 rounded-xl border px-3 py-2 text-xs transition-colors overflow-hidden {isShort
 								? 'border-red-500/30 bg-red-500/5'
 								: isLow
 									? 'border-amber-500/30 bg-amber-500/5'
 									: 'border-border bg-background'}"
 						>
-							<div class="min-w-0 space-y-1">
-								<div class="flex items-center gap-1.5">
+							<div class="min-w-0 flex-1 space-y-1">
+								<div class="flex items-center gap-1.5 min-w-0">
 									<span
 										class="size-2 shrink-0 rounded-full {isShort
 											? 'bg-red-500 animate-pulse'
@@ -424,7 +424,7 @@
 								type="button"
 								size="sm"
 								variant={isShort ? 'default' : 'outline'}
-								class="h-8 px-2.5 gap-1 text-xs font-semibold shrink-0 cursor-pointer"
+								class="h-7 px-2 sm:px-2.5 gap-1 text-xs font-semibold shrink-0 cursor-pointer"
 								title="Cargar lote de compra en esta pantalla"
 								onclick={() =>
 									handleOpenRawStockModal(
@@ -446,7 +446,7 @@
 		<!-- SECCIÓN 2: PRODUCCIÓN (MÚLTIPLOS DE RECETA + MODAL)       -->
 		<!-- ========================================================= -->
 		<div
-			class="rounded-2xl border border-border bg-card p-4 shadow-xs space-y-3 {mobileStep === 2
+			class="rounded-2xl border border-border bg-card p-4 shadow-xs space-y-3 overflow-hidden {mobileStep === 2
 				? 'block'
 				: 'hidden lg:block'}"
 		>
@@ -510,7 +510,7 @@
 						{@const isShort = item.deficitQty > 0}
 
 						<div
-							class="rounded-xl border p-2.5 space-y-2 text-xs transition-colors {isShort
+							class="rounded-xl border p-2.5 space-y-2 text-xs transition-colors overflow-hidden {isShort
 								? 'border-red-500/30 bg-red-500/5'
 								: 'border-border bg-background'}"
 						>
@@ -536,9 +536,9 @@
 								</span>
 							</div>
 
-							<div class="flex flex-wrap items-center justify-between gap-2">
+							<div class="flex items-center justify-between gap-2 pt-1 border-t border-border/40">
 								<!-- Estado en Iconos: Stock · Demanda · Falta -->
-								<div class="flex items-center gap-2 font-mono text-[11px]">
+								<div class="flex items-center gap-2 font-mono text-[11px] shrink-0">
 									<span class="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400 font-semibold" title="Stock actual">
 										<Package class="size-3" />
 										{formatNum(item.currentStock)}
@@ -556,7 +556,7 @@
 								</div>
 
 								<!-- Selector de Múltiplos de Receta + Botón que abre el Modal de Carga -->
-								<div class="flex items-center gap-1.5">
+								<div class="flex items-center gap-1.5 shrink-0">
 									<div
 										class="inline-flex items-center rounded-lg border border-border bg-card"
 										title="Cambiar entre múltiplos de la receta ({batches} {batches === 1 ? 'tanda' : 'tandas'} = {totalProduceQty} {formatUnit(item.baseUnit)})"
@@ -565,18 +565,18 @@
 											type="button"
 											onclick={() => setBatches(item.id, batches - 1)}
 											disabled={batches <= 1}
-											class="px-2 py-1 font-mono text-xs font-bold text-muted-foreground hover:text-foreground disabled:opacity-35 cursor-pointer"
+											class="px-1.5 py-1 font-mono text-xs font-bold text-muted-foreground hover:text-foreground disabled:opacity-35 cursor-pointer"
 										>
 											-
 										</button>
-										<span class="px-1.5 py-1 font-mono text-xs font-bold text-foreground min-w-[3.2rem] text-center">
+										<span class="px-1 py-1 font-mono text-[11px] font-bold text-foreground min-w-[2.8rem] text-center">
 											{totalProduceQty}
-											<span class="text-[10px] font-normal text-muted-foreground">({batches}x)</span>
+											<span class="text-[9px] font-normal text-muted-foreground">({batches}x)</span>
 										</span>
 										<button
 											type="button"
 											onclick={() => setBatches(item.id, batches + 1)}
-											class="px-2 py-1 font-mono text-xs font-bold text-muted-foreground hover:text-foreground cursor-pointer"
+											class="px-1.5 py-1 font-mono text-xs font-bold text-muted-foreground hover:text-foreground cursor-pointer"
 										>
 											+
 										</button>
@@ -585,12 +585,12 @@
 									<Button
 										type="button"
 										size="sm"
-										class="h-7 px-2.5 gap-1 text-xs font-semibold cursor-pointer"
+										class="h-7 px-2 sm:px-2.5 gap-1 text-xs font-semibold cursor-pointer shrink-0"
 										title="Abrir modal de producción con {totalProduceQty} {formatUnit(item.baseUnit)} ({batches}x receta)"
 										onclick={() => handleOpenPreparedStockModal(item.id, totalProduceQty)}
 									>
 										<ChefHat class="size-3.5" />
-										<span>Producir</span>
+										<span class="hidden sm:inline">Producir</span>
 									</Button>
 								</div>
 							</div>
@@ -604,7 +604,7 @@
 		<!-- SECCIÓN 3: ENTREGAS (AL ENTREGAR SE ASUME PAGADA)         -->
 		<!-- ========================================================= -->
 		<div
-			class="rounded-2xl border border-border bg-card p-4 shadow-xs space-y-3 {mobileStep === 3
+			class="rounded-2xl border border-border bg-card p-4 shadow-xs space-y-3 overflow-hidden {mobileStep === 3
 				? 'block'
 				: 'hidden lg:block'}"
 		>
@@ -639,7 +639,7 @@
 							order.status === 'pending' && order.items.some((i) => i.status === 'pending_delivery')}
 
 						<div
-							class="rounded-xl border p-3 space-y-2 transition-all {isReady
+							class="rounded-xl border p-2.5 sm:p-3 space-y-2 transition-all overflow-hidden {isReady
 								? 'border-emerald-500/40 bg-emerald-500/5'
 								: 'border-border bg-background'}"
 						>
@@ -681,7 +681,7 @@
 									<button
 										type="button"
 										onclick={() => onViewOrder(order)}
-										class="text-muted-foreground hover:text-foreground p-1 cursor-pointer"
+										class="text-muted-foreground hover:text-foreground p-0.5 cursor-pointer"
 										title="Ver detalle"
 									>
 										<Eye class="size-3.5" />
@@ -705,10 +705,11 @@
 											type="button"
 											size="sm"
 											variant="secondary"
-											class="h-7 px-2.5 text-xs font-semibold cursor-pointer"
+											class="h-7 px-2 sm:px-2.5 text-xs font-semibold cursor-pointer gap-1"
 											onclick={() => onConfirmOrder(order)}
 										>
-											Confirmar
+											<Check class="size-3.5" />
+											<span class="hidden sm:inline">Confirmar</span>
 										</Button>
 									{:else}
 										{#if canProduceSingle}
@@ -727,7 +728,7 @@
 											type="button"
 											size="sm"
 											variant="default"
-											class="h-7 px-2.5 text-xs font-semibold gap-1 cursor-pointer"
+											class="h-7 px-2 sm:px-2.5 text-xs font-semibold gap-1 cursor-pointer shrink-0"
 											onclick={() => onDeliverOrder(order)}
 											title="Entregar orden (se registra entregada y cobrada)"
 										>

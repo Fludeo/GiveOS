@@ -274,7 +274,7 @@
 					<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
 						{#each paginatedOrders as order (order.id)}
 							<div
-								class="flex flex-col justify-between rounded-xl border border-border bg-card p-4 transition-all duration-150 hover:border-primary/40 hover:shadow-sm"
+								class="flex flex-col justify-between rounded-xl border border-border bg-card p-4 transition-all duration-150 hover:border-primary/40 hover:shadow-sm overflow-hidden"
 							>
 								<!-- Encabezado de la Tarjeta -->
 								<div class="space-y-2.5">
@@ -486,69 +486,69 @@
 									</div>
 
 									{#if order.status === 'unconfirmed'}
-										<div class="flex items-center gap-2 pt-1">
+										<div class="flex items-center gap-1.5 pt-1">
 											<Button
 												type="button"
 												size="sm"
 												variant="outline"
-												class="h-9 gap-1 px-2.5 text-xs font-medium text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/30"
-												title="Cancelar / Rechazar orden"
+												class="h-9 w-9 p-0 shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/30"
+												title="Rechazar / Cancelar orden"
+												aria-label="Rechazar"
 												onclick={() => onCancelOrder(order)}
 											>
-												<X class="size-3.5" />
-												<span>Rechazar</span>
+												<X class="size-4" />
 											</Button>
 
 											<Button
 												type="button"
 												size="sm"
 												variant="outline"
-												class="h-9 gap-1 px-2.5 text-xs font-medium"
+												class="h-9 w-9 p-0 shrink-0"
 												title="Ver listado de ítems y detalle"
+												aria-label="Ver orden"
 												onclick={() => onViewOrder(order)}
 											>
-												<Eye class="size-3.5" />
-												<span>Ver</span>
+												<Eye class="size-4" />
 											</Button>
 
 											<Button
 												type="button"
 												variant="secondary"
 												size="sm"
-												class="flex-1 h-9 gap-1.5 text-xs font-bold shadow-xs"
+												class="flex-1 h-9 gap-1.5 text-xs font-bold shadow-xs truncate"
 												title="Confirmar orden por caja/encargado"
 												onclick={() => onConfirmOrder(order)}
 											>
-												<Check class="size-3.5" />
+												<Check class="size-4 shrink-0" />
 												<span>Confirmar Pedido</span>
 											</Button>
 										</div>
 									{:else if order.status === 'pending'}
 										{@const canProduce =
 											order.items.some((i) => i.status === 'pending_delivery') && Boolean(onProduceOrders)}
-										<div class="flex items-center gap-2 pt-1">
+										<div class="flex items-center gap-1.5 pt-1">
 											<Button
 												type="button"
 												size="sm"
 												variant="outline"
-												class="h-9 gap-1 px-2.5 text-xs font-medium text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/30"
+												class="h-9 w-9 p-0 shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/30"
 												title="Cancelar orden"
+												aria-label="Cancelar"
 												onclick={() => onCancelOrder(order)}
 											>
-												<X class="size-3.5" />
-												<span>Cancelar</span>
+												<X class="size-4" />
 											</Button>
 
 											<Button
 												type="button"
 												size="sm"
 												variant="outline"
-												class="h-9 gap-1 px-2.5 text-xs font-medium"
+												class="h-9 w-9 p-0 shrink-0"
 												title="Ver listado de ítems y detalle de la orden"
+												aria-label="Ver orden"
 												onclick={() => onViewOrder(order)}
 											>
-												<Eye class="size-3.5" />
-												<span>Ver</span>
+												<Eye class="size-4" />
 											</Button>
 
 											{#if canProduce}
@@ -556,23 +556,23 @@
 													type="button"
 													size="sm"
 													variant="outline"
-													class="flex-1 h-9 gap-1 text-xs font-semibold border-primary/30 text-primary hover:bg-primary/10"
+													class="h-9 px-2 sm:px-3 gap-1 text-xs font-semibold border-primary/30 text-primary hover:bg-primary/10 shrink-0"
 													title="Marcar pedido como Listo y descontar insumos"
 													onclick={() => onProduceOrders?.([order], order.orderNumber)}
 												>
-													<ChefHat class="size-3.5" />
-													<span>Listo</span>
+													<ChefHat class="size-4 shrink-0" />
+													<span class="hidden sm:inline">Listo</span>
 												</Button>
 											{/if}
 
 											<Button
 												type="button"
 												size="sm"
-												class="flex-1 h-9 gap-1.5 text-xs font-semibold"
+												class="flex-1 h-9 gap-1.5 text-xs font-semibold truncate"
 												title="Entregar orden y marcar como finalizada"
 												onclick={() => onDeliverOrder(order)}
 											>
-												<Check class="size-3.5" />
+												<Check class="size-4 shrink-0" />
 												<span>Entregar</span>
 											</Button>
 										</div>

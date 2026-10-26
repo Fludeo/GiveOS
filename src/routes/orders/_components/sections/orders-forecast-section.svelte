@@ -689,7 +689,7 @@
 						{@const demandHeightPct = Math.min(100, Math.round(((item.requiredQuantity || 0) / maxVal) * 100))}
 
 						<div
-							class="rounded-xl border p-4 transition-all flex flex-col justify-between gap-3.5 {item.isShortage
+							class="rounded-xl border p-4 transition-all flex flex-col justify-between gap-3.5 overflow-hidden {item.isShortage
 								? 'border-red-500/30 bg-red-500/5 hover:border-red-500/40'
 								: 'border-border bg-card hover:border-primary/40 hover:shadow-2xs'}"
 						>
@@ -814,7 +814,7 @@
 							{/if}
 
 							<!-- Pie: Tiempo de trabajo o estado -->
-							<div class="flex items-center justify-between gap-2 text-[11px] pt-0.5 font-mono">
+							<div class="flex flex-wrap items-center justify-between gap-2 text-[11px] pt-0.5 font-mono">
 								{#if isFabricable && item.isShortage && (item.laborMinutesForDeficit ?? 0) > 0}
 									<div class="inline-flex items-center gap-2">
 										{#if (item.passiveTimeMinutes ?? 0) > 0}
@@ -852,7 +852,7 @@
 									<form
 										method="POST"
 										action="?/produceForecastItem"
-										class="inline-flex items-center gap-1"
+										class="inline-flex items-center gap-1 ml-auto"
 										use:enhance={() => {
 											return async ({ result, update }) => {
 												await update();
@@ -874,16 +874,17 @@
 											min="0.01"
 											step="any"
 											value={Number((item.deficitQuantity > 0 ? item.deficitQuantity : item.requiredQuantity || 1).toFixed(2))}
-											class="w-16 rounded-lg border border-border bg-background px-1.5 py-1 text-center font-mono text-[11px] font-bold text-foreground focus:border-primary focus:outline-none"
+											class="w-14 rounded-lg border border-border bg-background px-1 py-1 text-center font-mono text-[11px] font-bold text-foreground focus:border-primary focus:outline-none"
 											title="Cantidad a producir (por defecto lo que falta o la demanda; puedes cambiarlo para producir más)"
 										/>
 										<button
 											type="submit"
-											class="inline-flex items-center gap-1 rounded-lg bg-primary px-2.5 py-1 font-sans text-[11px] font-semibold text-primary-foreground shadow-2xs hover:bg-primary/90 cursor-pointer"
+											class="inline-flex items-center gap-1 rounded-lg bg-primary px-2 py-1 font-sans text-[11px] font-semibold text-primary-foreground shadow-2xs hover:bg-primary/90 cursor-pointer"
 											title="Producir la cantidad indicada descontando sus insumos"
 										>
 											<ChefHat class="size-3" />
-											<span>+ Producir</span>
+											<span class="hidden sm:inline">Producir</span>
+											<span class="sm:hidden">+</span>
 										</button>
 									</form>
 								{/if}

@@ -855,7 +855,7 @@
 						{@const isReady = isOrderReadyToDeliver(order)}
 						{@const canProduce = order.status === 'pending' && order.items.some((i) => i.status === 'pending_delivery')}
 						<div
-							class="flex flex-col justify-between rounded-xl border border-border bg-card p-4 transition-all hover:border-primary/40 hover:shadow-2xs space-y-3 {isDone
+							class="flex flex-col justify-between rounded-xl border border-border bg-card p-4 transition-all hover:border-primary/40 hover:shadow-2xs space-y-3 overflow-hidden {isDone
 								? 'opacity-60 bg-muted/10'
 								: isReady
 									? 'border-emerald-500/40 bg-emerald-500/5'
@@ -969,32 +969,33 @@
 										<Button
 											size="sm"
 											variant="outline"
-											class="h-7 px-2.5 text-xs flex-1 border-amber-500/30 text-amber-700 hover:bg-amber-500/10"
+											class="h-7 px-2.5 text-xs flex-1 border-amber-500/30 text-amber-700 hover:bg-amber-500/10 truncate gap-1"
 											onclick={() => onConfirmOrder(order)}
 										>
-											<Zap class="size-3 mr-1" />
-											Confirmar
+											<Zap class="size-3 shrink-0" />
+											<span>Confirmar</span>
 										</Button>
 									{:else if order.status === 'pending'}
 										{#if canProduce && onProduceOrders}
 											<Button
 												size="sm"
 												variant="outline"
-												class="h-7 px-2 text-xs border-primary/30 text-primary hover:bg-primary/10"
+												class="h-7 px-2 text-xs border-primary/30 text-primary hover:bg-primary/10 shrink-0 gap-1"
+												title="Marcar pedido como Listo y descontar insumos"
 												onclick={() => onProduceOrders([order], order.orderNumber)}
 											>
-												<ChefHat class="size-3 mr-1" />
-												Listo
+												<ChefHat class="size-3.5 shrink-0" />
+												<span class="hidden sm:inline">Listo</span>
 											</Button>
 										{/if}
 										<Button
 											size="sm"
 											variant="default"
-											class="h-7 px-2.5 text-xs flex-1"
+											class="h-7 px-2.5 text-xs flex-1 truncate gap-1"
 											onclick={() => onDeliverOrder(order)}
 										>
-											<Check class="size-3 mr-1" />
-											Entregar
+											<Check class="size-3.5 shrink-0" />
+											<span>Entregar</span>
 										</Button>
 									{/if}
 
@@ -1002,19 +1003,21 @@
 										<Button
 											size="sm"
 											variant="outline"
-											class="h-7 px-2 text-xs"
+											class="h-7 px-2 text-xs shrink-0 gap-1"
+											title="Registrar Cobro"
 											onclick={() => onPayOrder(order)}
 										>
-											<DollarSign class="size-3 mr-1" />
-											Cobrar
+											<DollarSign class="size-3.5 shrink-0" />
+											<span class="hidden sm:inline">Cobrar</span>
 										</Button>
 									{/if}
 
 									<Button
 										size="sm"
 										variant="ghost"
-										class="h-7 w-7 p-0"
+										class="h-7 w-7 p-0 shrink-0"
 										title="Ver Detalle"
+										aria-label="Ver detalle"
 										onclick={() => onViewOrder(order)}
 									>
 										<Eye class="size-3.5 text-muted-foreground" />
