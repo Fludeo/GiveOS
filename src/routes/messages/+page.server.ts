@@ -26,7 +26,9 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 	const dbMessages = await DatabaseChatRepository.getConversationsWithMessages(activeBusiness.id);
 	if (dbMessages.length > 0) {
 		initialWhatsAppSession.messages = dbMessages;
-		whatsAppSessionManager.syncHolderMessages(activeBusiness.id, dbMessages);
+		if (typeof whatsAppSessionManager.syncHolderMessages === 'function') {
+			whatsAppSessionManager.syncHolderMessages(activeBusiness.id, dbMessages);
+		}
 	}
 
 	// Cargar pedidos no confirmados de este negocio junto con sus ítems

@@ -858,6 +858,8 @@ const globalForWhatsApp = globalThis as unknown as {
 export function getWhatsAppSessionManager(): WhatsAppSessionManager {
 	if (!globalForWhatsApp._whatsAppSessionManager) {
 		globalForWhatsApp._whatsAppSessionManager = new WhatsAppSessionManager();
+	} else {
+		Object.setPrototypeOf(globalForWhatsApp._whatsAppSessionManager, WhatsAppSessionManager.prototype);
 	}
 	return globalForWhatsApp._whatsAppSessionManager;
 }
