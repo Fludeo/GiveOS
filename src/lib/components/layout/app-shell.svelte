@@ -40,6 +40,7 @@
 		description,
 		headerActions,
 		hideMobileDock = false,
+		unconfirmedOrdersCount = 0,
 		children
 	}: {
 		user: AuthUser;
@@ -50,6 +51,7 @@
 		description: string;
 		headerActions?: Snippet;
 		hideMobileDock?: boolean;
+		unconfirmedOrdersCount?: number;
 		children: Snippet;
 	} = $props();
 
@@ -315,9 +317,24 @@
 						? 'bg-primary text-primary-foreground shadow-xs'
 						: 'text-muted-foreground hover:bg-muted hover:text-foreground'}"
 				>
-					<Icon class="size-4 shrink-0" />
+					<div class="relative">
+						<Icon class="size-4 shrink-0" />
+						{#if item.id === 'integrations' && unconfirmedOrdersCount > 0}
+							<span
+								class="absolute -top-1.5 -right-1.5 flex size-2.5 rounded-full bg-amber-500 ring-2 ring-background animate-pulse"
+							></span>
+						{/if}
+					</div>
 					{#if !isCollapsed}
-						<span class="truncate">{item.label}</span>
+						<span class="truncate flex-1">{item.label}</span>
+						{#if item.id === 'integrations' && unconfirmedOrdersCount > 0}
+							<span
+								class="ml-auto inline-flex items-center justify-center rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300 font-bold text-[10px] px-1.5 py-0.5"
+								title={`${unconfirmedOrdersCount} pedido${unconfirmedOrdersCount > 1 ? 's' : ''} por confirmar`}
+							>
+								{unconfirmedOrdersCount}
+							</span>
+						{/if}
 					{/if}
 				</a>
 			{/each}
@@ -483,11 +500,16 @@
 						: 'text-muted-foreground hover:text-foreground'}"
 				>
 					<div
-						class="flex h-7 w-11 items-center justify-center rounded-full transition-colors {active
+						class="relative flex h-7 w-11 items-center justify-center rounded-full transition-colors {active
 							? 'bg-primary/12 text-primary'
 							: 'group-hover:bg-muted/60'}"
 					>
 						<Icon class="size-4.5 shrink-0" />
+						{#if item.id === 'integrations' && unconfirmedOrdersCount > 0}
+							<span
+								class="absolute top-0.5 right-1.5 flex size-2 rounded-full bg-amber-500 ring-2 ring-background animate-pulse"
+							></span>
+						{/if}
 					</div>
 					<span class="text-[10px] leading-none {active ? 'font-bold' : 'font-medium'}">
 						{item.mobileLabel}
@@ -538,11 +560,16 @@
 						: 'text-muted-foreground hover:text-foreground'}"
 				>
 					<div
-						class="flex h-7 w-11 items-center justify-center rounded-full transition-colors {active
+						class="relative flex h-7 w-11 items-center justify-center rounded-full transition-colors {active
 							? 'bg-primary/12 text-primary'
 							: 'group-hover:bg-muted/60'}"
 					>
 						<Icon class="size-4.5 shrink-0" />
+						{#if item.id === 'integrations' && unconfirmedOrdersCount > 0}
+							<span
+								class="absolute top-0.5 right-1.5 flex size-2 rounded-full bg-amber-500 ring-2 ring-background animate-pulse"
+							></span>
+						{/if}
 					</div>
 					<span class="text-[10px] leading-none {active ? 'font-bold' : 'font-medium'}">
 						{item.mobileLabel}

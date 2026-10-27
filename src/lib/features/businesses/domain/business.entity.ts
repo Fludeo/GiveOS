@@ -28,6 +28,11 @@ export interface BusinessSettings {
 			connectedAt?: string | null;
 			disconnectedAt?: string | null;
 		};
+		bot?: {
+			enabled: boolean;
+			systemPrompt?: string;
+			updatedAt?: string;
+		};
 	};
 }
 

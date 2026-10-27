@@ -15,6 +15,7 @@ import {
 	getAllActiveSessionBusinessIds
 } from '../infrastructure/database-auth-state';
 import { DatabaseChatRepository } from '../infrastructure/database-chat-repository';
+import { getEcommerceBotService } from '#lib/features/ai/application/ecommerce-bot.service';
 import type {
 	WhatsAppMessage,
 	WhatsAppMessageKey,
@@ -313,6 +314,11 @@ export class WhatsAppSessionManager {
 							continue;
 						}
 
+						// Evitar procesar mensajes duplicados de Baileys
+						if (m.key.id && holder.messages.some((msg) => msg.id === m.key.id)) {
+							continue;
+						}
+
 						const cleanFrom = remoteJid.replace('@s.whatsapp.net', '').replace(/:\d+/, '');
 						const senderName = m.pushName || cleanFrom;
 						const timestamp = typeof m.messageTimestamp === 'number' ? m.messageTimestamp * 1000 : Date.now();
@@ -342,6 +348,76 @@ export class WhatsAppSessionManager {
 							businessId,
 							message: newMsg
 						});
+
+						// Si el mensaje viene del cliente, evaluar si el bot de IA debe intervenir
+						if (!m.key.fromMe) {
+							(async () => {
+								try {
+									const db = getDb();
+									const biz = await db.query.businesses.findFirst({
+										where: eq(businesses.id, businessId)
+									});
+									const botConfig = biz?.settings?.integrations?.bot;
+
+									if (botConfig?.enabled) {
+										const normalized = text.trim().toLowerCase();
+
+										// Simulación de comprobante enviado
+										if (
+											normalized.includes('comprobante enviado') ||
+											normalized === 'comprobante' ||
+											normalized === 'ya transferí' ||
+											normalized === 'transferido'
+										) {
+											const reply = `¡Muchas gracias ${senderName}! 🍰 Recibimos tu aviso de pago. Un encargado de la pastelería está verificando la transferencia en la cuenta para confirmar tu pedido en breve.`;
+											await this.sendMessage(businessId, cleanFrom, reply);
+
+											this.broadcast(holder, {
+												type: 'whatsapp:proof_submitted',
+												businessId,
+												phone: cleanFrom
+											} as any);
+											return;
+										}
+
+										// Obtener historial reciente del chat con este cliente
+										const history = holder.messages
+											.filter((msg) => msg.from === cleanFrom)
+											.slice(0, 10)
+											.reverse()
+											.map((msg) => ({
+												role: msg.fromMe ? ('assistant' as const) : ('user' as const),
+												text: msg.text
+											}));
+
+										const botService = getEcommerceBotService();
+										const botOutput = await botService.processMessage({
+											businessId,
+											customerPhone: cleanFrom,
+											customerName: senderName,
+											messageText: text,
+											chatHistory: history,
+											customSystemPrompt: botConfig.systemPrompt
+										});
+
+										if (botOutput.replyText) {
+											await this.sendMessage(businessId, cleanFrom, botOutput.replyText);
+										}
+
+										if (botOutput.orderCreated) {
+											this.broadcast(holder, {
+												type: 'whatsapp:unconfirmed_order_created',
+												businessId,
+												phone: cleanFrom,
+												order: botOutput.orderCreated
+											} as any);
+										}
+									}
+								} catch (botErr) {
+									console.error('[WhatsAppSessionManager] Error ejecutando bot de IA:', botErr);
+								}
+							})();
+						}
 					}
 				});
 			} catch (err) {

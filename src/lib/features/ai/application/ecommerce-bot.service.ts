@@ -2,7 +2,7 @@ import { getServices } from '#lib/server/container';
 import { getAiProvider } from './ai-provider-factory';
 import type { AiMessage, AiTool } from '../domain/ai-provider.interface';
 import { getDb } from '#lib/server/db/index';
-import { businesses, salesProducts } from '#lib/server/db/schema';
+import { businesses, salesProducts, orders } from '#lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 
 export interface BotProcessInput {
@@ -11,7 +11,11 @@ export interface BotProcessInput {
 	customerName?: string;
 	messageText: string;
 	chatHistory: Array<{ role: 'user' | 'assistant'; text: string }>;
+	customSystemPrompt?: string;
 }
+
+import { DEFAULT_BOT_PROMPT } from '../domain/bot-prompt.constants';
+export { DEFAULT_BOT_PROMPT };
 
 export interface BotProcessOutput {
 	replyText: string;
@@ -99,18 +103,9 @@ export class EcommerceBotService {
 		const businessName = business?.name || 'la pastelería';
 		const currency = business?.settings?.currencySymbol || '$';
 
-		const systemPrompt = `Eres el asistente virtual por WhatsApp de "${businessName}". Tu misión es atender a los clientes con calidez, responder dudas del menú y tomar pedidos.
-
-REGLAS DE CONDUCTA:
-1. Idioma y tono: Español rioplatense (amigable, profesional, cercano).
-2. Consulta de productos: Si el cliente pregunta qué vendes, precios o qué tortas hay, consulta siempre la herramienta "get_catalog".
-3. Toma de pedidos: 
-   - Pregunta qué desea encargar y las cantidades.
-   - Pide el nombre de quien retira y la fecha/hora de entrega.
-   - Cuando el cliente te dé los datos, ejecuta la función "create_unconfirmed_order".
-   - Al registrar el pedido, dale el monto total y los datos de transferencia, aclarando que "el pedido se confirma una vez enviado el comprobante de pago".
-4. Si necesitas información de pago o de horarios, utiliza "get_business_info".
-5. NUNCA inventes productos ni precios que no estén en el catálogo.`;
+		const rawPrompt = input.customSystemPrompt?.trim() || DEFAULT_BOT_PROMPT;
+		const systemPrompt = `Nombre del negocio: "${businessName}". Símbolo de moneda: "${currency}".
+${rawPrompt}`;
 
 		// 2. Construir historial de mensajes
 		const messages: AiMessage[] = [
@@ -203,6 +198,12 @@ REGLAS DE CONDUCTA:
 							notes: `[Bot WhatsApp ${input.customerPhone}] ${args.notes || ''}`.trim(),
 							lines
 						});
+
+						// Asociar teléfono del cliente en transactionId para cruce rápido con el chat
+						await db
+							.update(orders)
+							.set({ transactionId: input.customerPhone })
+							.where(eq(orders.id, created.id));
 
 						orderCreated = {
 							orderId: created.id,

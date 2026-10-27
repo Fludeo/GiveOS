@@ -78,6 +78,26 @@ export class DatabaseChatRepository {
 		const sessionId = await this.getOrCreateSession(input.businessId, cleanPhone, input.senderName);
 
 		const msgId = input.messageId || uuidv7();
+
+		if (input.messageId) {
+			const existingMsg = await db.query.chatMessages.findFirst({
+				where: eq(chatMessages.id, input.messageId)
+			});
+			if (existingMsg) {
+				return {
+					id: existingMsg.id,
+					businessId: existingMsg.businessId,
+					from: cleanPhone,
+					senderName: existingMsg.senderName,
+					text: existingMsg.text,
+					fromMe: existingMsg.fromMe,
+					timestamp: existingMsg.timestamp.getTime(),
+					isRead: existingMsg.isRead,
+					key: existingMsg.rawKey as any
+				};
+			}
+		}
+
 		const msgDate = new Date(input.timestamp);
 
 		await db.insert(chatMessages).values({

@@ -19,7 +19,12 @@
 	import Search from '@lucide/svelte/icons/search';
 	import ShoppingBag from '@lucide/svelte/icons/shopping-bag';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import Bot from '@lucide/svelte/icons/bot';
+	import Settings2 from '@lucide/svelte/icons/settings-2';
+	import AlertCircle from '@lucide/svelte/icons/alert-circle';
+	import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
 	import { toast } from '#lib/components/ui/toast';
+	import { DEFAULT_BOT_PROMPT } from '#lib/features/ai/domain/bot-prompt.constants';
 	import type {
 		WhatsAppMessage,
 		WhatsAppSessionStatus
@@ -48,6 +53,21 @@
 	let showNewChatInput = $state(false);
 	let newChatPhone = $state('');
 
+	// Estado del Bot de Ventas IA y Pedidos No Confirmados
+	let botEnabled = $state(false);
+	let botPrompt = $state(DEFAULT_BOT_PROMPT);
+	let showBotPromptModal = $state(false);
+	let isSavingBotSettings = $state(false);
+
+	let unconfirmedOrders = $state<any[]>([]);
+	let showConfirmOrderModal = $state(false);
+	let selectedOrderToConfirm = $state<any | null>(null);
+	let confirmPaidAmount = $state<number>(0);
+	let sendWhatsAppConfirm = $state(true);
+	let isConfirmingOrder = $state(false);
+
+	const unconfirmedCount = $derived(unconfirmedOrders.length);
+
 	// Sincronizar estado inicial desde el servidor
 	$effect(() => {
 		if (data.initialWhatsAppSession) {
@@ -55,7 +75,23 @@
 			phone = data.initialWhatsAppSession.phone || null;
 			pushName = data.initialWhatsAppSession.pushName || null;
 			qrCodeData = data.initialWhatsAppSession.qr || null;
-			messages = data.initialWhatsAppSession.messages || [];
+
+			// Deduplicar mensajes iniciales por id
+			const seen = new Set<string>();
+			messages = (data.initialWhatsAppSession.messages || []).filter((m) => {
+				if (!m.id || seen.has(m.id)) return false;
+				seen.add(m.id);
+				return true;
+			});
+		}
+		if (data.botSettings) {
+			botEnabled = data.botSettings.enabled;
+			if (data.botSettings.systemPrompt) {
+				botPrompt = data.botSettings.systemPrompt;
+			}
+		}
+		if (data.unconfirmedOrders) {
+			unconfirmedOrders = data.unconfirmedOrders;
 		}
 	});
 
@@ -105,6 +141,32 @@
 			} catch (_) {}
 		});
 
+		es.addEventListener('whatsapp:unconfirmed_order_created', (e) => {
+			try {
+				const payload = JSON.parse(e.data);
+				if (payload.order) {
+					unconfirmedOrders = [
+						payload.order,
+						...unconfirmedOrders.filter((o: any) => o.id !== payload.order.id)
+					];
+					toast.info(
+						'Nuevo Pedido de WhatsApp',
+						`El bot tomó el pedido #${payload.order.orderNumber}. Esperando comprobante de pago.`
+					);
+				}
+			} catch (_) {}
+		});
+
+		es.addEventListener('whatsapp:proof_submitted', (e) => {
+			try {
+				const payload = JSON.parse(e.data);
+				toast.warning(
+					'Comprobante enviado',
+					`El cliente +${payload.phone} notificó que envió el comprobante. Por favor verifícalo.`
+				);
+			} catch (_) {}
+		});
+
 		return () => {
 			es.close();
 		};
@@ -121,11 +183,13 @@
 
 	const conversations = $derived.by<Conversation[]>(() => {
 		const map = new Map<string, Conversation>();
+		const seenMsgIdsByConv = new Map<string, Set<string>>();
 
 		for (const msg of messages) {
 			const phoneKey = msg.from;
 			let conv = map.get(phoneKey);
-			if (!conv) {
+			let seenIds = seenMsgIdsByConv.get(phoneKey);
+			if (!conv || !seenIds) {
 				conv = {
 					phone: phoneKey,
 					contactName: msg.fromMe ? phoneKey : msg.senderName || phoneKey,
@@ -134,6 +198,16 @@
 					messages: []
 				};
 				map.set(phoneKey, conv);
+				seenIds = new Set<string>();
+				seenMsgIdsByConv.set(phoneKey, seenIds);
+			}
+
+			// Evitar mensajes duplicados por ID dentro de la conversación
+			if (msg.id && seenIds.has(msg.id)) {
+				continue;
+			}
+			if (msg.id) {
+				seenIds.add(msg.id);
 			}
 
 			if (!msg.fromMe && msg.senderName && conv.contactName === conv.phone) {
@@ -174,12 +248,117 @@
 		conversations.find((c) => c.phone === selectedRecipient) ?? conversations[0] ?? null
 	);
 
+	// Pedido pendiente de confirmación correspondiente al chat activo
+	const activeUnconfirmedOrder = $derived.by<any | null>(() => {
+		if (!activeConversation) return null;
+		const cleanActive = activeConversation.phone.replace(/\D/g, '');
+		return (
+			unconfirmedOrders.find((ord: any) => {
+				const ordPhone = (ord.transactionId || '').replace(/\D/g, '');
+				return ordPhone && (cleanActive.endsWith(ordPhone) || ordPhone.endsWith(cleanActive));
+			}) ?? null
+		);
+	});
+
 	// Mantener sincronizado selectedRecipient si hay conversaciones
 	$effect(() => {
 		if (!selectedRecipient && conversations.length > 0) {
 			selectedRecipient = conversations[0].phone;
 		}
 	});
+
+	async function handleToggleBot() {
+		const newStatus = !botEnabled;
+		botEnabled = newStatus;
+		isSavingBotSettings = true;
+		try {
+			const res = await fetch('/api/integrations/whatsapp/bot/settings', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					businessId: data.activeBusiness.id,
+					enabled: newStatus,
+					systemPrompt: botPrompt
+				})
+			});
+			const result = await res.json();
+			if (result.success) {
+				toast.success(
+					newStatus ? 'Bot activado' : 'Bot desactivado',
+					newStatus
+						? 'El bot responderá automáticamente a los mensajes de WhatsApp.'
+						: 'El bot fue pausado.'
+				);
+			} else {
+				botEnabled = !newStatus;
+				toast.error('Error al actualizar bot', result.error || 'No se pudo guardar la configuración.');
+			}
+		} catch (e: any) {
+			botEnabled = !newStatus;
+			toast.error('Error de red', e.message || 'No se pudo conectar con el servidor.');
+		} finally {
+			isSavingBotSettings = false;
+		}
+	}
+
+	async function handleSavePrompt() {
+		isSavingBotSettings = true;
+		try {
+			const res = await fetch('/api/integrations/whatsapp/bot/settings', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					businessId: data.activeBusiness.id,
+					enabled: botEnabled,
+					systemPrompt: botPrompt
+				})
+			});
+			const result = await res.json();
+			if (result.success) {
+				toast.success('Prompt actualizado', 'Las instrucciones del bot fueron guardadas correctamente.');
+				showBotPromptModal = false;
+			} else {
+				toast.error('Error al guardar prompt', result.error || 'No se pudo guardar.');
+			}
+		} catch (e: any) {
+			toast.error('Error de red', e.message || 'No se pudo conectar.');
+		} finally {
+			isSavingBotSettings = false;
+		}
+	}
+
+	async function handleConfirmOrder() {
+		if (!selectedOrderToConfirm) return;
+		isConfirmingOrder = true;
+		try {
+			const res = await fetch('/api/integrations/whatsapp/orders/confirm', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					businessId: data.activeBusiness.id,
+					orderId: selectedOrderToConfirm.id,
+					paidAmount: Number(confirmPaidAmount),
+					sendWhatsApp: sendWhatsAppConfirm
+				})
+			});
+			const result = await res.json();
+			if (result.success) {
+				unconfirmedOrders = unconfirmedOrders.filter((o: any) => o.id !== selectedOrderToConfirm.id);
+				toast.success(
+					'¡Pedido confirmado!',
+					`El pedido #${selectedOrderToConfirm.orderNumber} fue confirmado e ingresó a producción.`
+				);
+				showConfirmOrderModal = false;
+				selectedOrderToConfirm = null;
+			} else {
+				toast.error('Error al confirmar pedido', result.error || 'No se pudo confirmar.');
+			}
+		} catch (e: any) {
+			toast.error('Error al confirmar pedido', e.message || 'Error de red.');
+		} finally {
+			isConfirmingOrder = false;
+		}
+	}
 
 	async function handleStartConnect() {
 		isConnecting = true;
@@ -336,6 +515,7 @@
 	currentSection="integrations"
 	title="Integraciones"
 	description="Conecta GiveOS con tus canales de mensajería y servicios externos."
+	unconfirmedOrdersCount={unconfirmedCount}
 >
 	<div class="mx-auto max-w-5xl space-y-6">
 		<!-- TARJETA ÚNICA DE WHATSAPP -->
@@ -421,6 +601,72 @@
 					{/if}
 				</div>
 			</div>
+
+			<!-- SUB-BARRA: BOT DE VENTAS IA (GEMMA 4) -->
+			<div
+				class="border-t border-border/80 bg-muted/20 px-5 sm:px-6 py-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
+			>
+				<div class="flex items-center gap-3 min-w-0">
+					<div
+						class="flex size-9 shrink-0 items-center justify-center rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 font-semibold shadow-2xs"
+					>
+						<Bot class="size-4.5" />
+					</div>
+					<div>
+						<div class="flex items-center gap-2">
+							<span class="text-xs font-bold text-foreground">Bot de Ventas IA (Gemma 4)</span>
+							{#if botEnabled}
+								<span
+									class="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-400"
+								>
+									<span class="size-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+									Activo
+								</span>
+							{:else}
+								<span
+									class="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground border border-border"
+								>
+									Inactivo
+								</span>
+							{/if}
+						</div>
+						<p class="text-[11px] text-muted-foreground">
+							Atiende a los clientes, toma los datos del pedido paso a paso y solicita comprobante de pago.
+						</p>
+					</div>
+				</div>
+
+				<div class="flex items-center gap-2.5 shrink-0 self-end sm:self-center">
+					<Button
+						type="button"
+						variant="outline"
+						size="sm"
+						onclick={() => (showBotPromptModal = true)}
+						class="h-8 text-xs gap-1.5 font-medium"
+					>
+						<Settings2 class="size-3.5" />
+						<span>Configurar Prompt</span>
+					</Button>
+
+					<button
+						type="button"
+						role="switch"
+						aria-checked={botEnabled}
+						onclick={handleToggleBot}
+						disabled={isSavingBotSettings}
+						class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none {botEnabled
+							? 'bg-emerald-600'
+							: 'bg-muted-foreground/30'}"
+						title={botEnabled ? 'Desactivar bot' : 'Activar bot'}
+					>
+						<span
+							class="pointer-events-none inline-block size-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {botEnabled
+								? 'translate-x-5'
+								: 'translate-x-0'}"
+						></span>
+					</button>
+				</div>
+			</div>
 		</Card>
 
 		<!-- SECCIÓN MENSAJES (SÓLO SI ESTÁ HABILITADO / CONECTADO) -->
@@ -497,6 +743,10 @@
 							{:else}
 								{#each filteredConversations as conv (conv.phone)}
 									{@const isSelected = activeConversation?.phone === conv.phone}
+									{@const hasUnconfirmed = unconfirmedOrders.some((ord: any) => {
+										const ordPhone = (ord.transactionId || '').replace(/\D/g, '');
+										return ordPhone && (conv.phone.endsWith(ordPhone) || ordPhone.endsWith(conv.phone));
+									})}
 									<button
 										type="button"
 										onclick={() => {
@@ -518,9 +768,18 @@
 
 										<div class="flex-1 min-w-0 space-y-0.5">
 											<div class="flex items-center justify-between gap-1">
-												<span class="text-xs font-bold text-foreground truncate">
-													{conv.contactName}
-												</span>
+												<div class="flex items-center gap-1.5 min-w-0">
+													<span class="text-xs font-bold text-foreground truncate">
+														{conv.contactName}
+													</span>
+													{#if hasUnconfirmed}
+														<span
+															class="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30 shrink-0"
+														>
+															Pedido
+														</span>
+													{/if}
+												</div>
 												<span class="text-[10px] text-muted-foreground shrink-0 font-mono">
 													{formatTime(conv.lastMessage.timestamp)}
 												</span>
@@ -608,9 +867,52 @@
 								</div>
 							</div>
 
+							<!-- Banner de Pedido Pendiente de Confirmación -->
+							{#if activeUnconfirmedOrder}
+								<div
+									class="px-4 py-2.5 bg-amber-500/10 border-b border-amber-500/25 flex flex-wrap items-center justify-between gap-3 shrink-0 animate-in fade-in"
+								>
+									<div class="flex items-center gap-2.5 min-w-0">
+										<div
+											class="flex size-7 shrink-0 items-center justify-center rounded-lg bg-amber-500/20 text-amber-700 dark:text-amber-400"
+										>
+											<AlertCircle class="size-4" />
+										</div>
+										<div class="min-w-0">
+											<div class="flex items-center gap-2">
+												<span class="text-xs font-bold text-amber-900 dark:text-amber-200">
+													Pedido #{activeUnconfirmedOrder.orderNumber} por confirmar
+												</span>
+												<span class="font-mono text-xs font-bold text-emerald-700 dark:text-emerald-400">
+													${activeUnconfirmedOrder.totalAmount?.toLocaleString('es-AR')}
+												</span>
+											</div>
+											<p class="text-[11px] text-amber-800/80 dark:text-amber-300/80 truncate">
+												{activeUnconfirmedOrder.notes || 'El cliente envió aviso de comprobante de pago.'}
+											</p>
+										</div>
+									</div>
+
+									<Button
+										type="button"
+										size="sm"
+										class="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold gap-1.5 shadow-xs"
+										onclick={() => {
+											selectedOrderToConfirm = activeUnconfirmedOrder;
+											confirmPaidAmount = activeUnconfirmedOrder.totalAmount || 0;
+											sendWhatsAppConfirm = true;
+											showConfirmOrderModal = true;
+										}}
+									>
+										<Check class="size-3.5" />
+										<span>Confirmar Pedido</span>
+									</Button>
+								</div>
+							{/if}
+
 							<!-- Flujo de Mensajes (Scrollable) -->
 							<div class="flex-1 overflow-y-auto p-4 space-y-2.5 bg-muted/15 flex flex-col justify-end">
-								{#each activeConversation.messages as msg (msg.id)}
+								{#each activeConversation.messages as msg, i (msg.id ? `${msg.id}_${i}` : `msg_${i}`)}
 									<div class="flex {msg.fromMe ? 'justify-end' : 'justify-start'}">
 										<div
 											class="relative max-w-[82%] sm:max-w-[70%] rounded-2xl px-3.5 py-2 text-xs shadow-2xs leading-relaxed {msg.fromMe
@@ -943,6 +1245,224 @@
 						{:else}
 							<Trash2 class="size-3.5 mr-1" />
 							<span>Sí, borrar historial</span>
+						{/if}
+					</Button>
+				</div>
+			</div>
+		</div>
+	{/if}
+
+	<!-- MODAL: CONFIGURAR PROMPT DEL BOT DE VENTAS -->
+	{#if showBotPromptModal}
+		<div
+			class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-foreground/40 p-0 sm:p-4 backdrop-blur-[1px] animate-in fade-in"
+			role="dialog"
+			aria-modal="true"
+		>
+			<div
+				class="w-full max-w-full sm:max-w-2xl overflow-hidden rounded-t-2xl sm:rounded-2xl border-t sm:border border-border bg-card shadow-2xl animate-in zoom-in-95 max-h-[90vh] flex flex-col"
+			>
+				<div class="flex items-center justify-between border-b border-border bg-card/95 p-5 shrink-0">
+					<div class="flex items-center gap-2.5">
+						<div
+							class="flex size-9 items-center justify-center rounded-xl bg-purple-500/15 text-purple-600 dark:text-purple-400"
+						>
+							<Bot class="size-5" />
+						</div>
+						<div>
+							<h3 class="text-sm font-bold text-foreground">Configurar Bot de Ventas</h3>
+							<p class="text-xs text-muted-foreground">Instrucciones y comportamiento de Gemma 4</p>
+						</div>
+					</div>
+					<Button
+						type="button"
+						size="icon"
+						variant="ghost"
+						class="size-8"
+						onclick={() => (showBotPromptModal = false)}
+						disabled={isSavingBotSettings}
+					>
+						<X class="size-4" />
+					</Button>
+				</div>
+
+				<div class="p-6 space-y-4 overflow-y-auto flex-1">
+					<div class="space-y-1.5">
+						<div class="flex items-center justify-between">
+							<label for="bot-prompt-input" class="text-xs font-bold text-foreground">
+								Prompt del Sistema (Instrucciones)
+							</label>
+							<Button
+								type="button"
+								variant="ghost"
+								size="sm"
+								class="h-6 text-[11px] gap-1 text-muted-foreground hover:text-foreground"
+								onclick={() => (botPrompt = DEFAULT_BOT_PROMPT)}
+							>
+								<RotateCcw class="size-3" />
+								<span>Restaurar por defecto</span>
+							</Button>
+						</div>
+						<textarea
+							id="bot-prompt-input"
+							bind:value={botPrompt}
+							rows="14"
+							class="w-full rounded-xl border border-input bg-background p-3.5 text-xs font-mono leading-relaxed placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y"
+							placeholder="Escribe el prompt del sistema..."
+						></textarea>
+					</div>
+
+					<div class="rounded-xl border border-border bg-muted/30 p-3 text-xs text-muted-foreground space-y-1">
+						<p class="font-semibold text-foreground">🛠️ Herramientas disponibles para el modelo:</p>
+						<ul class="list-disc list-inside space-y-0.5 text-[11px]">
+							<li><code class="font-mono text-foreground font-semibold">get_catalog()</code>: Consulta productos activos y precios.</li>
+							<li><code class="font-mono text-foreground font-semibold">get_business_info()</code>: Consulta CBU, Alias y datos del negocio.</li>
+							<li><code class="font-mono text-foreground font-semibold">create_unconfirmed_order(items, customerName, notes, deliveryDate)</code>: Registra la orden pendiente.</li>
+						</ul>
+					</div>
+				</div>
+
+				<div class="flex items-center justify-end gap-2 border-t border-border bg-muted/20 px-5 py-3 shrink-0">
+					<Button
+						type="button"
+						size="sm"
+						variant="outline"
+						onclick={() => (showBotPromptModal = false)}
+						disabled={isSavingBotSettings}
+					>
+						Cancelar
+					</Button>
+					<Button
+						type="button"
+						size="sm"
+						class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+						disabled={isSavingBotSettings}
+						onclick={handleSavePrompt}
+					>
+						{#if isSavingBotSettings}
+							<RefreshCw class="size-3.5 animate-spin mr-1" />
+							<span>Guardando...</span>
+						{:else}
+							<Check class="size-3.5 mr-1" />
+							<span>Guardar Configuración</span>
+						{/if}
+					</Button>
+				</div>
+			</div>
+		</div>
+	{/if}
+
+	<!-- MODAL: CONFIRMACIÓN MANUAL DE PEDIDO -->
+	{#if showConfirmOrderModal && selectedOrderToConfirm}
+		<div
+			class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-foreground/40 p-0 sm:p-4 backdrop-blur-[1px] animate-in fade-in"
+			role="dialog"
+			aria-modal="true"
+		>
+			<div
+				class="w-full max-w-full sm:max-w-md overflow-hidden rounded-t-2xl sm:rounded-2xl border-t sm:border border-border bg-card shadow-2xl animate-in zoom-in-95"
+			>
+				<div class="flex items-center justify-between border-b border-border bg-card/95 p-5">
+					<div class="flex items-center gap-2.5">
+						<div
+							class="flex size-9 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+						>
+							<ShoppingBag class="size-5" />
+						</div>
+						<div>
+							<h3 class="text-sm font-bold text-foreground">
+								Confirmar Pedido #{selectedOrderToConfirm.orderNumber}
+							</h3>
+							<p class="text-xs text-muted-foreground">Verificación de comprobante bancario</p>
+						</div>
+					</div>
+					<Button
+						type="button"
+						size="icon"
+						variant="ghost"
+						class="size-8"
+						onclick={() => (showConfirmOrderModal = false)}
+						disabled={isConfirmingOrder}
+					>
+						<X class="size-4" />
+					</Button>
+				</div>
+
+				<div class="p-6 space-y-4">
+					<div class="rounded-xl border border-border bg-muted/30 p-3.5 space-y-2 text-xs">
+						<div class="flex justify-between items-center">
+							<span class="text-muted-foreground">Cliente:</span>
+							<strong class="text-foreground">{selectedOrderToConfirm.customerName}</strong>
+						</div>
+						<div class="flex justify-between items-center">
+							<span class="text-muted-foreground">Teléfono:</span>
+							<span class="font-mono text-foreground">+{selectedOrderToConfirm.transactionId}</span>
+						</div>
+						<div class="flex justify-between items-center border-t border-border/60 pt-2">
+							<span class="text-muted-foreground">Total del pedido:</span>
+							<strong class="text-sm font-mono text-emerald-600 dark:text-emerald-400">
+								${selectedOrderToConfirm.totalAmount?.toLocaleString('es-AR')}
+							</strong>
+						</div>
+						{#if selectedOrderToConfirm.notes}
+							<div class="border-t border-border/60 pt-2">
+								<span class="text-muted-foreground">Detalles / Notas:</span>
+								<p class="mt-0.5 text-foreground leading-relaxed">{selectedOrderToConfirm.notes}</p>
+							</div>
+						{/if}
+					</div>
+
+					<div class="space-y-1.5">
+						<label for="confirm-paid-amount" class="text-xs font-bold text-foreground">
+							Monto recibido según comprobante ($)
+						</label>
+						<Input
+							id="confirm-paid-amount"
+							type="number"
+							min="0"
+							step="0.01"
+							bind:value={confirmPaidAmount}
+							class="h-9.5 text-xs font-mono"
+							placeholder="Monto transferido..."
+						/>
+						<p class="text-[11px] text-muted-foreground">
+							Si el monto coincide con el total, el estado de pago quedará como pagado.
+						</p>
+					</div>
+
+					<label class="flex items-center gap-2 cursor-pointer text-xs text-foreground select-none">
+						<input
+							type="checkbox"
+							bind:checked={sendWhatsAppConfirm}
+							class="size-4 rounded border-border text-emerald-600 focus:ring-emerald-500"
+						/>
+						<span>Enviar mensaje automático de confirmación por WhatsApp</span>
+					</label>
+				</div>
+
+				<div class="flex items-center justify-end gap-2 border-t border-border bg-muted/20 px-5 py-3">
+					<Button
+						type="button"
+						size="sm"
+						variant="outline"
+						onclick={() => (showConfirmOrderModal = false)}
+						disabled={isConfirmingOrder}
+					>
+						Cancelar
+					</Button>
+					<Button
+						type="button"
+						size="sm"
+						class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+						disabled={isConfirmingOrder}
+						onclick={handleConfirmOrder}
+					>
+						{#if isConfirmingOrder}
+							<RefreshCw class="size-3.5 animate-spin mr-1" />
+							<span>Confirmando...</span>
+						{:else}
+							<Check class="size-3.5 mr-1" />
+							<span>Confirmar y Notificar</span>
 						{/if}
 					</Button>
 				</div>
