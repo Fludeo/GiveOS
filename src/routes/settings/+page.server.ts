@@ -2,7 +2,7 @@ import { redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { resolveBusinessOrRedirect } from '#lib/server/business-resolver';
 import { getServices } from '#lib/server/container';
-import { DEFAULT_BOT_PROMPT } from '#lib/features/ai/domain/bot-prompt.constants';
+import { DEFAULT_BOT_CONFIG, type BotSettingsConfig } from '#lib/features/ai/domain/bot-config.entity';
 import * as settingsActions from './_actions';
 
 export const load: PageServerLoad = async ({ url, locals }) => {
@@ -19,9 +19,10 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 	const { whatsAppSessionManager } = getServices();
 	const initialWhatsAppSession = whatsAppSessionManager.getSessionInfo(activeBusiness.id);
 
-	const botSettings = {
-		enabled: activeBusiness.settings?.integrations?.bot?.enabled ?? false,
-		systemPrompt: activeBusiness.settings?.integrations?.bot?.systemPrompt || DEFAULT_BOT_PROMPT
+	const savedBot = activeBusiness.settings?.integrations?.bot || {};
+	const botSettings: BotSettingsConfig = {
+		...DEFAULT_BOT_CONFIG,
+		...savedBot
 	};
 
 	return {

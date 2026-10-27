@@ -5,6 +5,9 @@ import { getDb } from '#lib/server/db/index';
 import { businesses, salesProducts, orders } from '#lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 
+import type { BotSettingsConfig } from '../domain/bot-config.entity';
+import { buildBotSystemPrompt, DEFAULT_BOT_CONFIG } from '../domain/bot-config.entity';
+
 export interface BotProcessInput {
 	businessId: string;
 	customerPhone: string;
@@ -12,10 +15,12 @@ export interface BotProcessInput {
 	messageText: string;
 	chatHistory: Array<{ role: 'user' | 'assistant'; text: string }>;
 	customSystemPrompt?: string;
+	botConfig?: Partial<BotSettingsConfig>;
 }
 
 import { DEFAULT_BOT_PROMPT } from '../domain/bot-prompt.constants';
-export { DEFAULT_BOT_PROMPT };
+export { DEFAULT_BOT_PROMPT, buildBotSystemPrompt, DEFAULT_BOT_CONFIG };
+export type { BotSettingsConfig };
 export { getHumanDelaySeconds, getHumanDelayMs, waitHumanDelay } from '../domain/human-delay.utils';
 
 export interface BotProcessOutput {
@@ -98,7 +103,7 @@ export class EcommerceBotService {
 		const aiProvider = getAiProvider();
 		const db = getDb();
 
-		// 1. Obtener datos del negocio para contextualizar al modelo
+		// 1. Obtener datos del negocio y configuración para contextualizar al modelo
 		const business = await db.query.businesses.findFirst({
 			where: eq(businesses.id, input.businessId)
 		});
@@ -106,9 +111,27 @@ export class EcommerceBotService {
 		const businessName = business?.name || 'la pastelería';
 		const currency = business?.settings?.currencySymbol || '$';
 
-		const rawPrompt = input.customSystemPrompt?.trim() || DEFAULT_BOT_PROMPT;
-		const systemPrompt = `Nombre del negocio: "${businessName}". Símbolo de moneda: "${currency}".
-${rawPrompt}`;
+		const savedBotConfig = (business?.settings?.integrations?.bot || {}) as Partial<BotSettingsConfig>;
+		const activeBotConfig: BotSettingsConfig = {
+			...DEFAULT_BOT_CONFIG,
+			...savedBotConfig,
+			...(input.botConfig || {})
+		};
+
+		let systemPrompt = '';
+		if (input.customSystemPrompt && !input.botConfig) {
+			systemPrompt = input.customSystemPrompt.trim();
+		} else {
+			systemPrompt = buildBotSystemPrompt(
+				{
+					name: businessName,
+					description: business?.description,
+					openingHours: business?.openingHours,
+					currencySymbol: currency
+				},
+				activeBotConfig
+			);
+		}
 
 		// 2. Construir historial de mensajes
 		const messages: AiMessage[] = [
@@ -156,12 +179,15 @@ ${rawPrompt}`;
 			} else if (toolCall.name === 'get_business_info') {
 				toolResultContent = JSON.stringify({
 					negocio: businessName,
+					descripcion: business?.description || 'Pastelería y repostería artesanal',
 					horarios: business?.openingHours || 'Consultar por mensaje',
 					whatsapp: business?.whatsapp || '',
 					pago: {
 						metodo: 'Transferencia bancaria',
-						alias: 'PASTELERIA.SWEET.CAKES',
-						titular: businessName
+						datos: activeBotConfig.bankTransferInfo,
+						seña_requerida: activeBotConfig.depositRequired
+							? `Sí (${activeBotConfig.depositNotes || '50%'})`
+							: 'No se requiere seña obligatoria'
 					}
 				});
 			} else if (toolCall.name === 'create_unconfirmed_order') {

@@ -2,6 +2,8 @@
 	import { Button } from '#lib/components/ui/button';
 	import { Badge } from '#lib/components/ui/badge';
 	import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '#lib/components/ui/card';
+	import { Switch } from '#lib/components/ui/switch';
+	import { Input } from '#lib/components/ui/input';
 	import QrCode from '@lucide/svelte/icons/qr-code';
 	import ShieldCheck from '@lucide/svelte/icons/shield-check';
 	import RefreshCw from '@lucide/svelte/icons/refresh-cw';
@@ -14,24 +16,40 @@
 	import Check from '@lucide/svelte/icons/check';
 	import ExternalLink from '@lucide/svelte/icons/external-link';
 	import MessageSquare from '@lucide/svelte/icons/message-square';
+	import Building2 from '@lucide/svelte/icons/building-2';
+	import Clock from '@lucide/svelte/icons/clock';
+	import CreditCard from '@lucide/svelte/icons/credit-card';
+	import ChevronDown from '@lucide/svelte/icons/chevron-down';
+	import ChevronUp from '@lucide/svelte/icons/chevron-up';
+	import Copy from '@lucide/svelte/icons/copy';
 	import { toast } from '#lib/components/ui/toast';
-	import { DEFAULT_BOT_PROMPT } from '#lib/features/ai/domain/bot-prompt.constants';
 	import type { WhatsAppSessionStatus } from '../domain/whatsapp.entity';
+	import {
+		type BotSettingsConfig,
+		type BotTone,
+		BOT_TONES,
+		DEFAULT_BOT_CONFIG,
+		buildBotSystemPrompt
+	} from '#lib/features/ai/domain/bot-config.entity';
 
 	interface Props {
 		businessId: string;
+		business?: {
+			name?: string | null;
+			description?: string | null;
+			openingHours?: string | null;
+			currencySymbol?: string | null;
+		};
 		initialStatus?: WhatsAppSessionStatus;
 		initialPhone?: string | null;
 		initialPushName?: string | null;
 		initialQr?: string | null;
-		initialBotSettings?: {
-			enabled: boolean;
-			systemPrompt: string;
-		};
+		initialBotSettings?: Partial<BotSettingsConfig>;
 	}
 
 	let {
 		businessId,
+		business,
 		initialStatus = 'disconnected',
 		initialPhone = null,
 		initialPushName = null,
@@ -49,9 +67,24 @@
 	let isConnecting = $state(false);
 	let isDisconnecting = $state(false);
 
+	// Configuración estructurada del bot
 	let botEnabled = $state(false);
-	let botPrompt = $state(DEFAULT_BOT_PROMPT);
+	let botTone = $state<BotTone>('amigable');
+	let useEmojis = $state(true);
+	let bankTransferInfo = $state(DEFAULT_BOT_CONFIG.bankTransferInfo);
+	let depositRequired = $state(true);
+	let depositNotes = $state(DEFAULT_BOT_CONFIG.depositNotes || '');
+	let specialRules = $state('');
 	let isSavingBotSettings = $state(false);
+	let showCompiledPrompt = $state(false);
+
+	const toneValues: BotTone[] = ['robot', 'frio', 'formal', 'amigable', 'informal'];
+	const toneIndex = $derived(toneValues.indexOf(botTone) !== -1 ? toneValues.indexOf(botTone) : 3);
+
+	function setToneByIndex(idx: number) {
+		const clamped = Math.max(0, Math.min(toneValues.length - 1, idx));
+		botTone = toneValues[clamped];
+	}
 
 	// Sincronizar props iniciales
 	$effect(() => {
@@ -60,12 +93,35 @@
 		if (initialPushName) pushName = initialPushName;
 		if (initialQr) qrCodeData = initialQr;
 		if (initialBotSettings) {
-			botEnabled = initialBotSettings.enabled;
-			if (initialBotSettings.systemPrompt) {
-				botPrompt = initialBotSettings.systemPrompt;
-			}
+			if (typeof initialBotSettings.enabled === 'boolean') botEnabled = initialBotSettings.enabled;
+			if (initialBotSettings.tone) botTone = initialBotSettings.tone;
+			if (typeof initialBotSettings.useEmojis === 'boolean') useEmojis = initialBotSettings.useEmojis;
+			if (initialBotSettings.bankTransferInfo !== undefined) bankTransferInfo = initialBotSettings.bankTransferInfo;
+			if (typeof initialBotSettings.depositRequired === 'boolean') depositRequired = initialBotSettings.depositRequired;
+			if (initialBotSettings.depositNotes !== undefined) depositNotes = initialBotSettings.depositNotes;
+			if (initialBotSettings.specialRules !== undefined) specialRules = initialBotSettings.specialRules;
 		}
 	});
+
+	// Prompt compilado reactivo
+	const compiledPrompt = $derived(
+		buildBotSystemPrompt(
+			{
+				name: business?.name || 'la pastelería',
+				description: business?.description,
+				openingHours: business?.openingHours,
+				currencySymbol: business?.currencySymbol || '$'
+			},
+			{
+				tone: botTone,
+				useEmojis,
+				bankTransferInfo,
+				depositRequired,
+				depositNotes,
+				specialRules
+			}
+		)
+	);
 
 	// Sincronización en tiempo real vía SSE
 	$effect(() => {
@@ -147,9 +203,8 @@
 		}
 	}
 
-	async function handleToggleBot() {
-		const newStatus = !botEnabled;
-		botEnabled = newStatus;
+	async function handleToggleBot(newVal: boolean) {
+		botEnabled = newVal;
 		isSavingBotSettings = true;
 		try {
 			const res = await fetch('/api/integrations/whatsapp/bot/settings', {
@@ -157,31 +212,37 @@
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
 					businessId,
-					enabled: newStatus,
-					systemPrompt: botPrompt
+					enabled: newVal,
+					tone: botTone,
+					useEmojis,
+					bankTransferInfo,
+					depositRequired,
+					depositNotes,
+					specialRules,
+					systemPrompt: compiledPrompt
 				})
 			});
 			const result = await res.json();
 			if (result.success) {
 				toast.success(
-					newStatus ? 'Bot activado' : 'Bot pausado',
-					newStatus
+					newVal ? 'Bot activado' : 'Bot pausado',
+					newVal
 						? 'El bot responderá automáticamente los mensajes de los clientes.'
 						: 'El bot ha sido pausado. Podrás responder manualmente desde Mensajes.'
 				);
 			} else {
-				botEnabled = !newStatus;
+				botEnabled = !newVal;
 				toast.error('Error al actualizar bot', result.error || 'No se pudo guardar la configuración.');
 			}
 		} catch (e: any) {
-			botEnabled = !newStatus;
+			botEnabled = !newVal;
 			toast.error('Error de red', e.message || 'No se pudo conectar con el servidor.');
 		} finally {
 			isSavingBotSettings = false;
 		}
 	}
 
-	async function handleSavePrompt() {
+	async function handleSaveBotSettings() {
 		isSavingBotSettings = true;
 		try {
 			const res = await fetch('/api/integrations/whatsapp/bot/settings', {
@@ -190,19 +251,44 @@
 				body: JSON.stringify({
 					businessId,
 					enabled: botEnabled,
-					systemPrompt: botPrompt
+					tone: botTone,
+					useEmojis,
+					bankTransferInfo,
+					depositRequired,
+					depositNotes,
+					specialRules,
+					systemPrompt: compiledPrompt
 				})
 			});
 			const result = await res.json();
 			if (result.success) {
-				toast.success('Prompt guardado', 'Las instrucciones del bot fueron actualizadas con éxito.');
+				toast.success('Configuración guardada', 'Las opciones del bot con IA fueron actualizadas con éxito.');
 			} else {
-				toast.error('Error al guardar prompt', result.error || 'No se pudo guardar.');
+				toast.error('Error al guardar', result.error || 'No se pudo guardar.');
 			}
 		} catch (e: any) {
 			toast.error('Error de red', e.message || 'Error al conectar.');
 		} finally {
 			isSavingBotSettings = false;
+		}
+	}
+
+	function resetToDefaults() {
+		botTone = DEFAULT_BOT_CONFIG.tone;
+		useEmojis = DEFAULT_BOT_CONFIG.useEmojis;
+		bankTransferInfo = DEFAULT_BOT_CONFIG.bankTransferInfo;
+		depositRequired = DEFAULT_BOT_CONFIG.depositRequired;
+		depositNotes = DEFAULT_BOT_CONFIG.depositNotes || '';
+		specialRules = '';
+		toast.info('Valores restablecidos', 'Se aplicó la configuración por defecto recomendada.');
+	}
+
+	async function copyCompiledPrompt() {
+		try {
+			await navigator.clipboard.writeText(compiledPrompt);
+			toast.success('Copiado', 'Prompt compilado copiado al portapapeles.');
+		} catch (_) {
+			toast.error('Error', 'No se pudo copiar el texto.');
 		}
 	}
 </script>
@@ -242,31 +328,34 @@
 				</div>
 
 				<div class="flex items-center gap-2">
+					<Button
+						type="button"
+						variant="outline"
+						size="sm"
+						href="/messages"
+						class="text-xs h-8 gap-1.5"
+					>
+						<MessageSquare class="size-3.5" />
+						<span>Ir al Chat</span>
+						<ExternalLink class="size-3 opacity-60" />
+					</Button>
+
 					{#if status === 'connected'}
 						<Button
 							type="button"
 							variant="outline"
 							size="sm"
-							class="text-xs h-8 text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/20 gap-1.5"
+							class="text-xs h-8 text-destructive hover:bg-destructive/10 border-destructive/30"
 							onclick={() => (showDisconnectModal = true)}
 						>
 							<LogOut class="size-3.5" />
 							<span>Desconectar</span>
 						</Button>
-						<Button
-							type="button"
-							size="sm"
-							href="/messages"
-							class="text-xs h-8 bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 font-semibold"
-						>
-							<MessageSquare class="size-3.5" />
-							<span>Ir a Mensajes</span>
-						</Button>
 					{:else}
 						<Button
 							type="button"
 							size="sm"
-							class="text-xs h-8 bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 font-semibold"
+							class="text-xs h-8 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold gap-1.5"
 							disabled={isConnecting}
 							onclick={handleStartConnect}
 						>
@@ -285,28 +374,33 @@
 
 		<CardContent class="p-5 sm:p-6 space-y-4">
 			{#if status === 'connected'}
-				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-					<div class="p-4 rounded-xl border border-border bg-muted/30 space-y-1">
-						<span class="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Número Vinculado</span>
-						<p class="text-base font-bold text-foreground font-mono">
-							+{phone || 'Registrado'}
-						</p>
-						{#if pushName}
-							<p class="text-xs text-muted-foreground">
-								Nombre público en WhatsApp: <strong class="text-foreground">{pushName}</strong>
+				<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl border border-emerald-500/20 bg-emerald-500/5">
+					<div class="flex items-center gap-3">
+						<div class="flex size-10 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
+							<ShieldCheck class="size-5" />
+						</div>
+						<div>
+							<p class="text-xs font-semibold text-foreground">
+								Número Vinculado: <span class="font-mono text-emerald-700 dark:text-emerald-400 font-bold">+{phone || ''}</span>
 							</p>
-						{/if}
+							<p class="text-xs text-muted-foreground">
+								Nombre en WhatsApp: <span class="text-foreground">{pushName || 'Sin nombre registrado'}</span>
+							</p>
+						</div>
 					</div>
 
-					<div class="p-4 rounded-xl border border-border bg-muted/30 space-y-1">
-						<span class="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Estado del Canal</span>
-						<p class="text-xs text-foreground flex items-center gap-1.5 pt-0.5">
-							<ShieldCheck class="size-4 text-emerald-600" />
-							<span>Recepción y envío en tiempo real activo.</span>
-						</p>
-						<p class="text-[11px] text-muted-foreground">
-							Los mensajes enviados o recibidos se sincronizan con GiveOS al instante.
-						</p>
+					<div class="flex items-center gap-2">
+						<Button
+							type="button"
+							size="sm"
+							variant="outline"
+							class="text-xs h-8 gap-1.5"
+							onclick={() => handleDisconnect(false)}
+							disabled={isDisconnecting}
+						>
+							<RefreshCw class="size-3.5 {isDisconnecting ? 'animate-spin' : ''}" />
+							<span>Reiniciar Socket</span>
+						</Button>
 					</div>
 				</div>
 			{:else}
@@ -333,20 +427,20 @@
 		</CardContent>
 	</Card>
 
-	<!-- 2. TARJETA DE CONFIGURACIÓN DEL BOT CON IA -->
+	<!-- 2. TARJETA DE CONFIGURACIÓN DEL BOT CON IA (TEMA PRIMARIO) -->
 	<Card class="border border-border shadow-xs">
 		<CardHeader class="p-5 sm:p-6 pb-4 border-b border-border">
 			<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
 				<div class="flex items-center gap-3">
-					<div class="flex size-10 items-center justify-center rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400">
+					<div class="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
 						<Bot class="size-5" />
 					</div>
 					<div>
 						<CardTitle class="text-base sm:text-lg flex items-center gap-2">
-							<span>Bot de Ventas con IA (Gemma 4 local)</span>
+							<span>Bot de Ventas con IA</span>
 							{#if botEnabled}
-								<Badge variant="outline" class="border-purple-500/30 bg-purple-500/10 text-purple-700 dark:text-purple-300 text-xs gap-1 py-0.5">
-									<span class="size-1.5 rounded-full bg-purple-500 animate-pulse"></span>
+								<Badge variant="outline" class="border-primary/30 bg-primary/10 text-primary text-xs gap-1 py-0.5">
+									<span class="size-1.5 rounded-full bg-primary animate-pulse"></span>
 									Bot Activo
 								</Badge>
 							{:else}
@@ -356,88 +450,288 @@
 							{/if}
 						</CardTitle>
 						<CardDescription class="text-xs mt-0.5">
-							Atiende consultas, presenta el catálogo con precios reales y registra pedidos paso a paso.
+							Configura el comportamiento del bot de manera visual: tono, emojis, seña y datos de pago.
 						</CardDescription>
 					</div>
 				</div>
 
-				<div class="flex items-center gap-2">
+				<div class="flex items-center gap-3">
 					<Button
 						type="button"
 						variant="outline"
 						size="sm"
 						href="/chat-test"
-						class="text-xs h-8 gap-1.5 border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/10"
+						class="text-xs h-8 gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
 					>
 						<Sparkles class="size-3.5" />
-						<span>Probar en Simulador</span>
+						<span>Simulador de Chat</span>
 						<ExternalLink class="size-3 opacity-60" />
 					</Button>
 
-					<Button
-						type="button"
-						size="sm"
-						class="text-xs h-8 font-semibold {botEnabled ? 'bg-zinc-800 text-white hover:bg-zinc-900 dark:bg-zinc-700' : 'bg-purple-600 hover:bg-purple-700 text-white'}"
-						disabled={isSavingBotSettings}
-						onclick={handleToggleBot}
-					>
-						{#if isSavingBotSettings}
-							<RefreshCw class="size-3.5 animate-spin" />
-						{:else}
-							<span>{botEnabled ? 'Pausar Bot' : 'Activar Bot'}</span>
-						{/if}
-					</Button>
+					<div class="flex items-center gap-2 bg-muted/40 px-3 py-1 rounded-full border border-border">
+						<span class="text-xs font-semibold {botEnabled ? 'text-primary' : 'text-muted-foreground'}">
+							{botEnabled ? 'Encendido' : 'Apagado'}
+						</span>
+						<Switch
+							checked={botEnabled}
+							disabled={isSavingBotSettings}
+							onCheckedChange={handleToggleBot}
+							aria-label="Activar o pausar bot de WhatsApp"
+						/>
+					</div>
 				</div>
 			</div>
 		</CardHeader>
 
-		<CardContent class="p-5 sm:p-6 space-y-4">
-			<div class="space-y-2">
+		<CardContent class="p-5 sm:p-6 space-y-6">
+			<!-- A. INFORMACIÓN INYECTADA DEL NEGOCIO (ESTÁTICA/AUTOMÁTICA) -->
+			<div class="rounded-xl border border-border bg-muted/20 p-4 space-y-3">
 				<div class="flex items-center justify-between">
-					<label for="bot-prompt-input" class="text-xs font-bold text-foreground flex items-center gap-1.5">
-						<Sparkles class="size-3.5 text-purple-600" />
-						<span>Instrucciones del Sistema (System Prompt)</span>
-					</label>
-					<Button
-						type="button"
-						variant="ghost"
-						size="sm"
-						class="h-6 text-[11px] text-muted-foreground hover:text-foreground gap-1"
-						onclick={() => (botPrompt = DEFAULT_BOT_PROMPT)}
-					>
-						<RotateCcw class="size-3" />
-						<span>Restablecer instrucciones</span>
-					</Button>
+					<div class="flex items-center gap-2">
+						<Building2 class="size-4 text-primary" />
+						<span class="text-xs font-bold text-foreground">Datos del Negocio Inyectados Automáticamente</span>
+					</div>
+					<Badge variant="outline" class="text-[10px] text-muted-foreground border-border bg-background">
+						Auto-sincronizado
+					</Badge>
 				</div>
-
-				<textarea
-					id="bot-prompt-input"
-					bind:value={botPrompt}
-					rows="9"
-					class="w-full rounded-xl border border-input bg-background p-3 text-xs font-mono leading-relaxed placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y"
-					placeholder="Instrucciones para el comportamiento y tono del bot..."
-				></textarea>
+				<div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+					<div class="rounded-lg bg-background p-2.5 border border-border space-y-1">
+						<span class="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block">Nombre</span>
+						<p class="font-medium text-foreground truncate">{business?.name || 'la pastelería'}</p>
+					</div>
+					<div class="rounded-lg bg-background p-2.5 border border-border space-y-1">
+						<span class="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block">Horarios</span>
+						<p class="font-medium text-foreground truncate">{business?.openingHours || 'Lunes a Sábado 09:00 a 19:00 hs'}</p>
+					</div>
+					<div class="rounded-lg bg-background p-2.5 border border-border space-y-1">
+						<span class="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block">Descripción</span>
+						<p class="font-medium text-foreground truncate">{business?.description || 'Repostería y pastelería artesanal'}</p>
+					</div>
+				</div>
 				<p class="text-[11px] text-muted-foreground">
-					El bot cuenta con retardo humano (7-10s) para que el cliente termine de escribir y herramientas automáticas para consultar el catálogo y registrar pedidos.
+					Estos datos se integran dinámicamente en las respuestas del bot. Puedes editarlos en la pestaña <em>General</em> y <em>Horarios</em>.
 				</p>
 			</div>
 
-			<div class="flex items-center justify-end gap-2 pt-1 border-t border-border">
+			<!-- B. TONO DEL BOT (SLIDER DE 5 NIVELES) -->
+			<div class="space-y-3">
+				<div class="flex items-center justify-between">
+					<div>
+						<label for="bot-tone-slider" class="text-xs font-bold text-foreground flex items-center gap-1.5">
+							<span>Tono de Respuesta del Bot</span>
+						</label>
+						<p class="text-[11px] text-muted-foreground">
+							Define la personalidad con la que el bot se comunica con tus clientes.
+						</p>
+					</div>
+					<Badge variant="outline" class="border-primary/30 bg-primary/10 text-primary text-xs font-semibold capitalize">
+						{BOT_TONES[toneIndex]?.label}: {BOT_TONES[toneIndex]?.badge}
+					</Badge>
+				</div>
+
+				<!-- Slider de 5 pasos -->
+				<div class="space-y-2 pt-1">
+					<input
+						id="bot-tone-slider"
+						type="range"
+						min="0"
+						max="4"
+						step="1"
+						value={toneIndex}
+						oninput={(e) => setToneByIndex(Number((e.target as HTMLInputElement).value))}
+						class="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
+					/>
+
+					<!-- Etiquetas y botones clicables para los 5 niveles -->
+					<div class="grid grid-cols-5 gap-1.5 pt-1">
+						{#each BOT_TONES as t, i}
+							<button
+								type="button"
+								class="flex flex-col items-center justify-center p-2 rounded-xl border text-center transition-all cursor-pointer {toneIndex === i
+									? 'border-primary bg-primary/10 text-primary shadow-xs font-semibold'
+									: 'border-border bg-background hover:bg-muted/50 text-muted-foreground hover:text-foreground'}"
+								onclick={() => setToneByIndex(i)}
+							>
+								<span class="text-xs">{t.label}</span>
+								<span class="text-[9px] opacity-75 hidden sm:inline leading-tight mt-0.5 truncate max-w-full">
+									{t.badge}
+								</span>
+							</button>
+						{/each}
+					</div>
+
+					<p class="text-[11px] text-foreground font-medium bg-muted/30 p-2 rounded-lg border border-border">
+						💡 <strong>Comportamiento:</strong> {BOT_TONES[toneIndex]?.shortDesc}
+					</p>
+				</div>
+			</div>
+
+			<!-- C. TOGGLE DE EMOJIS & SEÑA OBLIGATORIA -->
+			<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+				<!-- Toggle Emojis -->
+				<div class="rounded-xl border border-border p-4 bg-background flex items-center justify-between gap-4">
+					<div class="space-y-0.5">
+						<label for="use-emojis-switch" class="text-xs font-bold text-foreground cursor-pointer">
+							Uso de Emojis ({useEmojis ? 'Permitidos 🍰' : 'Desactivados'})
+						</label>
+						<p class="text-[11px] text-muted-foreground leading-relaxed">
+							{useEmojis
+								? 'El bot utiliza emojis simpáticos para hacer la atención amena.'
+								: 'El bot responderá de forma sobria, sin utilizar emoticones.'}
+						</p>
+					</div>
+					<Switch
+						id="use-emojis-switch"
+						checked={useEmojis}
+						onCheckedChange={(val: boolean) => (useEmojis = val)}
+					/>
+				</div>
+
+				<!-- Toggle Seña Obligatoria -->
+				<div class="rounded-xl border border-border p-4 bg-background flex items-center justify-between gap-4">
+					<div class="space-y-0.5">
+						<label for="deposit-required-switch" class="text-xs font-bold text-foreground cursor-pointer">
+							Seña Obligatoria ({depositRequired ? 'Exigida' : 'Sin seña'})
+						</label>
+						<p class="text-[11px] text-muted-foreground leading-relaxed">
+							{depositRequired
+								? 'Exige comprobante de transferencia para confirmar el pedido.'
+								: 'Registra pedidos sin exigir pago previo por adelantado.'}
+						</p>
+					</div>
+					<Switch
+						id="deposit-required-switch"
+						checked={depositRequired}
+						onCheckedChange={(val: boolean) => (depositRequired = val)}
+					/>
+				</div>
+			</div>
+
+			<!-- D. NOTAS DE SEÑA (SI ESTÁ ACTIVA) -->
+			{#if depositRequired}
+				<div class="space-y-1.5 p-3 rounded-xl border border-border bg-muted/10">
+					<label for="deposit-notes-input" class="text-xs font-bold text-foreground">
+						Regla de la seña (porcentaje o aclaración)
+					</label>
+					<Input
+						id="deposit-notes-input"
+						bind:value={depositNotes}
+						placeholder="Ej: Seña previa del 50% requerida para comenzar la elaboración."
+						class="text-xs h-8 bg-background"
+					/>
+					<p class="text-[10px] text-muted-foreground">
+						Esta nota se le comunicará al cliente al momento de informarle el total a transferir.
+					</p>
+				</div>
+			{/if}
+
+			<!-- E. INFORMACIÓN DE TRANSFERENCIA (ALIAS / CBU) -->
+			<div class="space-y-2">
+				<div class="flex items-center justify-between">
+					<label for="bank-transfer-info-input" class="text-xs font-bold text-foreground flex items-center gap-1.5">
+						<CreditCard class="size-3.5 text-primary" />
+						<span>Información para Transferencia Bancaria (Alias / CBU)</span>
+					</label>
+				</div>
+				<textarea
+					id="bank-transfer-info-input"
+					bind:value={bankTransferInfo}
+					rows="3"
+					class="w-full rounded-xl border border-input bg-background p-3 text-xs font-mono leading-relaxed placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y"
+					placeholder="Alias: PASTELERIA.SWEET.CAKES&#10;CBU: 0720123488000012345678&#10;Titular: Pastelería Dulce&#10;Banco: Santander"
+				></textarea>
+				<p class="text-[11px] text-muted-foreground">
+					Estos son los datos exactos que el bot le enviará al cliente cuando termine de armar su orden.
+				</p>
+			</div>
+
+			<!-- F. HEURÍSTICA Y REGLAS ESPECIALES -->
+			<div class="space-y-2">
+				<label for="special-rules-input" class="text-xs font-bold text-foreground flex items-center gap-1.5">
+					<Sparkles class="size-3.5 text-primary" />
+					<span>Heurística Especial y Reglas de Negocio</span>
+				</label>
+				<textarea
+					id="special-rules-input"
+					bind:value={specialRules}
+					rows="3"
+					class="w-full rounded-xl border border-input bg-background p-3 text-xs leading-relaxed placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y"
+					placeholder="Ej: Los pedidos con menos de 48hs de anticipación tienen un recargo del 10%. No tomamos pedidos para entrega los domingos después de las 13:00 hs."
+				></textarea>
+				<p class="text-[11px] text-muted-foreground">
+					Cualquier política o consideración específica que quieras que el bot respete al atender.
+				</p>
+			</div>
+
+			<!-- G. PREVISUALIZACIÓN DESPLEGABLE DEL PROMPT COMPILADO -->
+			<div class="rounded-xl border border-border bg-muted/10 overflow-hidden">
+				<button
+					type="button"
+					class="w-full flex items-center justify-between p-3 text-xs font-semibold text-muted-foreground hover:text-foreground cursor-pointer hover:bg-muted/30 transition-colors"
+					onclick={() => (showCompiledPrompt = !showCompiledPrompt)}
+				>
+					<span class="flex items-center gap-1.5">
+						<Sparkles class="size-3.5 text-primary" />
+						<span>Previsualizar Prompt compilado resultante</span>
+					</span>
+					{#if showCompiledPrompt}
+						<ChevronUp class="size-4" />
+					{:else}
+						<ChevronDown class="size-4" />
+					{/if}
+				</button>
+
+				{#if showCompiledPrompt}
+					<div class="p-3 border-t border-border bg-background space-y-2">
+						<div class="flex items-center justify-between">
+							<span class="text-[10px] text-muted-foreground">Generado automáticamente según los controles seleccionados:</span>
+							<Button
+								type="button"
+								variant="ghost"
+								size="sm"
+								class="h-6 text-[10px] gap-1 text-muted-foreground hover:text-foreground"
+								onclick={copyCompiledPrompt}
+							>
+								<Copy class="size-3" />
+								<span>Copiar</span>
+							</Button>
+						</div>
+						<pre class="w-full max-h-60 overflow-y-auto p-3 rounded-lg bg-muted/40 font-mono text-[11px] leading-relaxed whitespace-pre-wrap text-muted-foreground border border-border">{compiledPrompt}</pre>
+					</div>
+				{/if}
+			</div>
+
+			<!-- BOTONES DE ACCIÓN -->
+			<div class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-border">
 				<Button
 					type="button"
+					variant="ghost"
 					size="sm"
-					class="text-xs h-8 bg-purple-600 hover:bg-purple-700 text-white font-semibold gap-1.5"
-					disabled={isSavingBotSettings}
-					onclick={handleSavePrompt}
+					class="text-xs text-muted-foreground hover:text-foreground gap-1.5 order-2 sm:order-1"
+					onclick={resetToDefaults}
 				>
-					{#if isSavingBotSettings}
-						<RefreshCw class="size-3.5 animate-spin" />
-						<span>Guardando...</span>
-					{:else}
-						<Check class="size-3.5" />
-						<span>Guardar Instrucciones</span>
-					{/if}
+					<RotateCcw class="size-3.5" />
+					<span>Restablecer recomendados</span>
 				</Button>
+
+				<div class="flex items-center gap-2 w-full sm:w-auto order-1 sm:order-2">
+					<Button
+						type="button"
+						size="sm"
+						class="w-full sm:w-auto text-xs h-9 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold gap-1.5 shadow-xs cursor-pointer"
+						disabled={isSavingBotSettings}
+						onclick={handleSaveBotSettings}
+					>
+						{#if isSavingBotSettings}
+							<RefreshCw class="size-3.5 animate-spin" />
+							<span>Guardando...</span>
+						{:else}
+							<Check class="size-3.5" />
+							<span>Guardar Configuración del Bot</span>
+						{/if}
+					</Button>
+				</div>
 			</div>
 		</CardContent>
 	</Card>

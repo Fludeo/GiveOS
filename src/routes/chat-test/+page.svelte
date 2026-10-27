@@ -199,7 +199,7 @@
 		>
 			<div class="flex items-center gap-3">
 				<div
-					class="flex size-9 items-center justify-center rounded-xl bg-purple-500/15 text-purple-600 dark:text-purple-400 font-bold"
+					class="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary font-bold"
 				>
 					<Bot class="size-5" />
 				</div>
@@ -240,7 +240,7 @@
 					<CardHeader class="p-4 pb-2 border-b border-border">
 						<div class="flex items-center justify-between">
 							<div class="flex items-center gap-2">
-								<Sparkles class="size-4 text-purple-600" />
+								<Sparkles class="size-4 text-primary" />
 								<CardTitle class="text-xs font-bold">Prompt del Sistema</CardTitle>
 							</div>
 							<Button
@@ -275,7 +275,7 @@
 							<Button
 								type="button"
 								size="sm"
-								class="h-7 text-xs bg-purple-600 hover:bg-purple-700 text-white font-semibold gap-1.5"
+								class="h-7 text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-semibold gap-1.5"
 								disabled={isSavingPrompt}
 								onclick={handleSavePromptToBusiness}
 							>
@@ -374,7 +374,7 @@
 								{#if msg.role === 'assistant' && msg.id !== 'welcome'}
 									<div class="flex items-center justify-between gap-2 border-b border-border/40 pb-1.5 text-[10px] text-muted-foreground">
 										<div class="flex items-center gap-1.5 font-semibold text-foreground">
-											<Bot class="size-3 text-purple-600" />
+											<Bot class="size-3 text-primary" />
 											<span>Gemma 4</span>
 										</div>
 										{#if msg.durationMs}
@@ -386,9 +386,9 @@
 
 									<!-- Tarjeta de Ejecución de Tool Call -->
 									{#if msg.toolExecuted}
-										<div class="rounded-lg border border-purple-500/20 bg-purple-500/5 p-2 space-y-1.5 text-[11px]">
+										<div class="rounded-lg border border-primary/20 bg-primary/5 p-2 space-y-1.5 text-[11px]">
 											<div class="flex items-center justify-between">
-												<div class="flex items-center gap-1.5 font-bold text-purple-700 dark:text-purple-300">
+												<div class="flex items-center gap-1.5 font-bold text-primary">
 													<Wrench class="size-3" />
 													<span>Herramienta: <code>{msg.toolExecuted}()</code></span>
 												</div>
@@ -452,7 +452,7 @@
 							<div
 								class="rounded-2xl rounded-tl-xs border border-border bg-card p-3.5 text-xs text-muted-foreground flex items-center gap-2.5 shadow-2xs animate-in fade-in"
 							>
-								<RefreshCw class="size-3.5 animate-spin text-purple-600" />
+								<RefreshCw class="size-3.5 animate-spin text-primary" />
 								<span>Gemma 4 pensando y evaluando herramientas en tu GPU...</span>
 							</div>
 						</div>

@@ -66,6 +66,7 @@ export async function runMigrations() {
 							"session_id" text NOT NULL REFERENCES "chat_sessions"("id") ON DELETE CASCADE,
 							"business_id" text NOT NULL REFERENCES "businesses"("id") ON DELETE CASCADE,
 							"from_me" boolean DEFAULT false NOT NULL,
+							"is_bot" boolean DEFAULT false NOT NULL,
 							"sender_name" text DEFAULT '' NOT NULL,
 							"text" text NOT NULL,
 							"is_read" boolean DEFAULT false NOT NULL,
@@ -73,6 +74,7 @@ export async function runMigrations() {
 							"timestamp" timestamp DEFAULT now() NOT NULL,
 							"created_at" timestamp DEFAULT now() NOT NULL
 						);
+						ALTER TABLE "chat_messages" ADD COLUMN IF NOT EXISTS "is_bot" boolean DEFAULT false NOT NULL;
 						CREATE INDEX IF NOT EXISTS "chat_messages_session_idx" ON "chat_messages" ("session_id");
 						CREATE INDEX IF NOT EXISTS "chat_messages_business_idx" ON "chat_messages" ("business_id");
 						CREATE INDEX IF NOT EXISTS "chat_messages_timestamp_idx" ON "chat_messages" ("timestamp");
@@ -97,6 +99,9 @@ export async function runMigrations() {
 
 			console.log('[db:migrate] Connecting to Postgres for migrations...');
 			const migrationClient = postgres(dbUrl, { max: 1 });
+			await migrationClient`
+				ALTER TABLE IF EXISTS "chat_messages" ADD COLUMN IF NOT EXISTS "is_bot" boolean DEFAULT false NOT NULL;
+			`.catch(() => {});
 			const db = drizzlePostgres(migrationClient);
 
 			console.log('[db:migrate] Running Drizzle migrations...');

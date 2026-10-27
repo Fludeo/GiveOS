@@ -14,6 +14,7 @@ export interface WhatsAppMessage {
 	senderName: string;
 	text: string;
 	fromMe: boolean;
+	isBot?: boolean;
 	timestamp: number;
 	isRead: boolean;
 	key: WhatsAppMessageKey;

@@ -473,7 +473,12 @@ export class WhatsAppSessionManager {
 		return holder.connectingPromise;
 	}
 
-	async sendMessage(businessId: string, toPhone: string, text: string): Promise<WhatsAppMessage> {
+	async sendMessage(
+		businessId: string,
+		toPhone: string,
+		text: string,
+		isBot = false
+	): Promise<WhatsAppMessage> {
 		const holder = this.getOrCreateHolder(businessId);
 		if (!holder.sock || holder.status !== 'connected') {
 			throw new Error('WhatsApp no se encuentra conectado para este negocio.');
@@ -505,6 +510,7 @@ export class WhatsAppSessionManager {
 			businessId,
 			toPhone: cleanPhone,
 			text,
+			isBot,
 			messageId: result?.key?.id || undefined,
 			rawKey: {
 				remoteJid: result?.key?.remoteJid || jid,
@@ -588,7 +594,7 @@ export class WhatsAppSessionManager {
 				normalized === 'transferido'
 			) {
 				const reply = `¡Muchas gracias ${customerName}! 🍰 Recibimos tu aviso de pago. Un encargado de la pastelería está verificando la transferencia en la cuenta para confirmar tu pedido en breve.`;
-				await this.sendMessage(businessId, customerPhone, reply);
+				await this.sendMessage(businessId, customerPhone, reply, true);
 
 				this.broadcast(holder, {
 					type: 'whatsapp:proof_submitted',
@@ -617,7 +623,8 @@ export class WhatsAppSessionManager {
 				customerName,
 				messageText: combinedText,
 				chatHistory,
-				customSystemPrompt: botConfig.systemPrompt
+				botConfig,
+				customSystemPrompt: botConfig?.systemPrompt
 			});
 
 			// 7. Pausar estado de presencia y enviar respuesta
@@ -630,7 +637,7 @@ export class WhatsAppSessionManager {
 			console.log(`[WhatsApp Bot] Respuesta generada tras espera humana:`, botOutput.replyText);
 
 			if (botOutput.replyText) {
-				await this.sendMessage(businessId, customerPhone, botOutput.replyText);
+				await this.sendMessage(businessId, customerPhone, botOutput.replyText, true);
 			}
 
 			if (botOutput.orderCreated) {

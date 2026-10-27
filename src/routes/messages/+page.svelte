@@ -19,6 +19,7 @@
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import ArrowRight from '@lucide/svelte/icons/arrow-right';
 	import Smartphone from '@lucide/svelte/icons/smartphone';
+	import { Switch } from '#lib/components/ui/switch';
 	import { toast } from '#lib/components/ui/toast';
 	import { DEFAULT_BOT_PROMPT } from '#lib/features/ai/domain/bot-prompt.constants';
 	import type {
@@ -290,9 +291,9 @@
 		}
 	});
 
-	async function handleToggleBot() {
-		const newStatus = !botEnabled;
-		botEnabled = newStatus;
+	async function handleToggleBot(newVal?: boolean) {
+		const targetStatus = typeof newVal === 'boolean' ? newVal : !botEnabled;
+		botEnabled = targetStatus;
 		isSavingBotSettings = true;
 		try {
 			const res = await fetch('/api/integrations/whatsapp/bot/settings', {
@@ -300,24 +301,23 @@
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
 					businessId: data.activeBusiness.id,
-					enabled: newStatus,
-					systemPrompt: botPrompt
+					enabled: targetStatus
 				})
 			});
 			const result = await res.json();
 			if (result.success) {
 				toast.success(
-					newStatus ? 'Bot activado' : 'Bot pausado',
-					newStatus
+					targetStatus ? 'Bot activado' : 'Bot pausado',
+					targetStatus
 						? 'El bot responderá automáticamente a los mensajes de WhatsApp.'
-						: 'El bot fue pausado.'
+						: 'El bot fue pausado. Ahora puedes responder manualmente.'
 				);
 			} else {
-				botEnabled = !newStatus;
+				botEnabled = !targetStatus;
 				toast.error('Error al actualizar bot', result.error || 'No se pudo guardar la configuración.');
 			}
 		} catch (e: any) {
-			botEnabled = !newStatus;
+			botEnabled = !targetStatus;
 			toast.error('Error de red', e.message || 'No se pudo conectar con el servidor.');
 		} finally {
 			isSavingBotSettings = false;
@@ -542,18 +542,17 @@
 					<span class="font-mono text-[11px] font-bold text-emerald-700 dark:text-emerald-400">+{phone}</span>
 				</div>
 
-				<div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted/60 border border-border text-xs">
-					<Bot class="size-3.5 {botEnabled ? 'text-purple-600 dark:text-purple-400' : 'text-muted-foreground'}" />
+				<div class="flex items-center gap-2 px-3 py-1 rounded-full bg-muted/60 border border-border text-xs">
+					<Bot class="size-3.5 {botEnabled ? 'text-primary' : 'text-muted-foreground'}" />
 					<span class="text-[11px] font-semibold text-foreground">
 						Bot {botEnabled ? 'Activo' : 'Pausado'}
 					</span>
-					<button
-						type="button"
-						class="text-[10px] font-bold text-muted-foreground hover:text-foreground cursor-pointer ml-1 underline"
-						onclick={handleToggleBot}
-					>
-						{botEnabled ? 'Pausar' : 'Activar'}
-					</button>
+					<Switch
+						checked={botEnabled}
+						disabled={isSavingBotSettings}
+						onCheckedChange={handleToggleBot}
+						aria-label="Activar o pausar bot de WhatsApp"
+					/>
 				</div>
 
 				<Button
@@ -839,22 +838,37 @@
 						{#each activeConversation.messages as msg, i (`${msg.id}_${i}`)}
 							<div class="flex flex-col {msg.fromMe ? 'items-end' : 'items-start'}">
 								<div
-									class="max-w-[85%] sm:max-w-lg lg:max-w-xl rounded-2xl p-3 text-xs space-y-1 shadow-2xs relative group {msg.fromMe
-										? 'bg-emerald-600 text-white rounded-tr-xs'
+									class="max-w-[85%] sm:max-w-lg lg:max-w-xl rounded-2xl p-3 text-xs space-y-1.5 shadow-2xs relative group {msg.fromMe
+										? msg.isBot
+											? 'bg-primary text-primary-foreground rounded-tr-xs'
+											: 'bg-emerald-600 text-white rounded-tr-xs'
 										: 'bg-card border border-border text-foreground rounded-tl-xs'}"
 								>
+									{#if msg.fromMe}
+										<div class="flex items-center gap-1.5 text-[10px] font-semibold {msg.isBot ? 'text-primary-foreground/90' : 'text-white/90'} pb-0.5 border-b {msg.isBot ? 'border-primary-foreground/15' : 'border-white/20'}">
+											{#if msg.isBot}
+												<Bot class="size-3" />
+												<span>Bot IA</span>
+											{:else}
+												<span>Tú</span>
+											{/if}
+										</div>
+									{/if}
+
 									<p class="whitespace-pre-line leading-relaxed select-text">
 										{msg.text}
 									</p>
 
 									<div
 										class="flex items-center justify-end gap-1.5 text-[10px] {msg.fromMe
-											? 'text-white/80'
+											? msg.isBot
+												? 'text-primary-foreground/80'
+												: 'text-white/80'
 											: 'text-muted-foreground'} pt-0.5"
 									>
 										<span>{formatTime(msg.timestamp)}</span>
 										{#if msg.fromMe}
-											<CheckCheck class="size-3.5 text-white/90" />
+											<CheckCheck class="size-3.5 {msg.isBot ? 'text-primary-foreground/90' : 'text-white/90'}" />
 										{:else if !msg.isRead}
 											<button
 												type="button"

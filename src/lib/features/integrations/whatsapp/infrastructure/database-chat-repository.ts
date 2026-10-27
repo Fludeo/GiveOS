@@ -149,6 +149,7 @@ export class DatabaseChatRepository {
 		businessId: string;
 		toPhone: string;
 		text: string;
+		isBot?: boolean;
 		timestamp?: number;
 		messageId?: string;
 		rawKey?: any;
@@ -171,6 +172,7 @@ export class DatabaseChatRepository {
 					senderName: existingMsg.senderName,
 					text: existingMsg.text,
 					fromMe: true,
+					isBot: existingMsg.isBot,
 					timestamp: existingMsg.timestamp.getTime(),
 					isRead: true,
 					key: existingMsg.rawKey as any
@@ -180,13 +182,15 @@ export class DatabaseChatRepository {
 
 		const now = input.timestamp || Date.now();
 		const msgDate = new Date(now);
+		const isBotMessage = input.isBot ?? false;
 
 		await db.insert(chatMessages).values({
 			id: msgId,
 			sessionId,
 			businessId: input.businessId,
 			fromMe: true,
-			senderName: 'Yo (GiveOS)',
+			isBot: isBotMessage,
+			senderName: isBotMessage ? 'Bot IA' : 'Yo (GiveOS)',
 			text: input.text,
 			isRead: true,
 			rawKey: input.rawKey || null,
@@ -207,9 +211,10 @@ export class DatabaseChatRepository {
 			id: msgId,
 			businessId: input.businessId,
 			from: cleanPhone,
-			senderName: 'Yo (GiveOS)',
+			senderName: isBotMessage ? 'Bot IA' : 'Yo (GiveOS)',
 			text: input.text,
 			fromMe: true,
+			isBot: isBotMessage,
 			timestamp: now,
 			isRead: true,
 			key: input.rawKey
@@ -227,6 +232,7 @@ export class DatabaseChatRepository {
 				id: chatMessages.id,
 				businessId: chatMessages.businessId,
 				fromMe: chatMessages.fromMe,
+				isBot: chatMessages.isBot,
 				senderName: chatMessages.senderName,
 				text: chatMessages.text,
 				isRead: chatMessages.isRead,
@@ -248,6 +254,7 @@ export class DatabaseChatRepository {
 			senderName: m.customerName || m.senderName,
 			text: m.text,
 			fromMe: m.fromMe,
+			isBot: m.isBot,
 			timestamp: m.timestamp.getTime(),
 			isRead: m.isRead,
 			key: m.rawKey as any

@@ -361,6 +361,7 @@ export const chatMessages = pgTable(
 			.notNull()
 			.references(() => businesses.id, { onDelete: 'cascade' }),
 		fromMe: boolean('from_me').notNull().default(false),
+		isBot: boolean('is_bot').notNull().default(false),
 		senderName: text('sender_name').notNull().default(''),
 		text: text('text').notNull(),
 		isRead: boolean('is_read').notNull().default(false),

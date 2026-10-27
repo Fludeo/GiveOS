@@ -10,7 +10,17 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	}
 
 	const body = await request.json().catch(() => ({}));
-	const { businessId, enabled, systemPrompt } = body;
+	const {
+		businessId,
+		enabled,
+		tone,
+		useEmojis,
+		bankTransferInfo,
+		depositRequired,
+		depositNotes,
+		specialRules,
+		systemPrompt
+	} = body;
 
 	if (!businessId) {
 		return json({ error: 'businessId requerido' }, { status: 400 });
@@ -29,16 +39,34 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	const currentSettings = existing.settings || {};
 	const currentIntegrations = currentSettings.integrations || {};
+	const existingBot = currentIntegrations.bot || {};
+
+	const updatedBot = {
+		...existingBot,
+		enabled: typeof enabled === 'boolean' ? enabled : (existingBot.enabled ?? false),
+		tone: typeof tone === 'string' ? tone : (existingBot.tone || 'amigable'),
+		useEmojis: typeof useEmojis === 'boolean' ? useEmojis : (existingBot.useEmojis ?? true),
+		bankTransferInfo:
+			typeof bankTransferInfo === 'string'
+				? bankTransferInfo
+				: (existingBot.bankTransferInfo ?? ''),
+		depositRequired:
+			typeof depositRequired === 'boolean'
+				? depositRequired
+				: (existingBot.depositRequired ?? true),
+		depositNotes:
+			typeof depositNotes === 'string' ? depositNotes : (existingBot.depositNotes ?? ''),
+		specialRules:
+			typeof specialRules === 'string' ? specialRules : (existingBot.specialRules ?? ''),
+		systemPrompt: typeof systemPrompt === 'string' ? systemPrompt : existingBot.systemPrompt,
+		updatedAt: new Date().toISOString()
+	};
 
 	const updatedSettings = {
 		...currentSettings,
 		integrations: {
 			...currentIntegrations,
-			bot: {
-				enabled: typeof enabled === 'boolean' ? enabled : false,
-				systemPrompt: typeof systemPrompt === 'string' ? systemPrompt : undefined,
-				updatedAt: new Date().toISOString()
-			}
+			bot: updatedBot
 		}
 	};
 

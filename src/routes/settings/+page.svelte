@@ -203,6 +203,7 @@
 		{#if currentTab === 'integrations'}
 			<WhatsAppSettingsPanel
 				businessId={data.activeBusiness.id}
+				business={data.activeBusiness}
 				initialStatus={data.initialWhatsAppSession?.status}
 				initialPhone={data.initialWhatsAppSession?.phone}
 				initialPushName={data.initialWhatsAppSession?.pushName}

@@ -6,7 +6,7 @@ import { getDb } from '#lib/server/db/index';
 import { orders } from '#lib/server/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { DatabaseChatRepository } from '#lib/features/integrations/whatsapp/infrastructure/database-chat-repository';
-import { DEFAULT_BOT_PROMPT } from '#lib/features/ai/application/ecommerce-bot.service';
+import { DEFAULT_BOT_CONFIG, type BotSettingsConfig } from '#lib/features/ai/domain/bot-config.entity';
 
 export const load: PageServerLoad = async ({ url, locals }) => {
 	if (!locals.user) {
@@ -39,9 +39,10 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 	});
 
 	// Configuración del bot
-	const botSettings = {
-		enabled: activeBusiness.settings?.integrations?.bot?.enabled ?? false,
-		systemPrompt: activeBusiness.settings?.integrations?.bot?.systemPrompt || DEFAULT_BOT_PROMPT
+	const savedBot = activeBusiness.settings?.integrations?.bot || {};
+	const botSettings: BotSettingsConfig = {
+		...DEFAULT_BOT_CONFIG,
+		...savedBot
 	};
 
 	return {
