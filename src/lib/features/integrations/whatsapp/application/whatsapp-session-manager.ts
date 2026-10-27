@@ -333,8 +333,39 @@ export class WhatsAppSessionManager {
 							} catch (_) {}
 						}
 
-						const senderName = m.pushName || cleanFrom;
 						const timestamp = typeof m.messageTimestamp === 'number' ? m.messageTimestamp * 1000 : Date.now();
+
+						// 1. Si el mensaje fue enviado por nosotros (desde el celular vinculado o GiveOS)
+						if (m.key.fromMe) {
+							const newMsg = await DatabaseChatRepository.saveOutgoingMessage({
+								businessId,
+								toPhone: cleanFrom,
+								text,
+								timestamp,
+								messageId: m.key.id || undefined,
+								rawKey: {
+									remoteJid: m.key.remoteJid,
+									id: m.key.id,
+									fromMe: true,
+									participant: m.key.participant
+								}
+							});
+
+							holder.messages.unshift(newMsg);
+							if (holder.messages.length > 200) {
+								holder.messages.pop();
+							}
+
+							this.broadcast(holder, {
+								type: 'whatsapp:message',
+								businessId,
+								message: newMsg
+							});
+							continue;
+						}
+
+						// 2. Si el mensaje viene del cliente (entrante)
+						const senderName = m.pushName || cleanFrom;
 
 						const newMsg = await DatabaseChatRepository.saveIncomingMessage({
 							businessId,
@@ -346,7 +377,7 @@ export class WhatsAppSessionManager {
 							rawKey: {
 								remoteJid: m.key.remoteJid,
 								id: m.key.id,
-								fromMe: m.key.fromMe,
+								fromMe: false,
 								participant: m.key.participant
 							}
 						});

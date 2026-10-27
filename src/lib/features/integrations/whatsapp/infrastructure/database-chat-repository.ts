@@ -143,12 +143,13 @@ export class DatabaseChatRepository {
 	}
 
 	/**
-	 * Guarda un mensaje saliente (enviado por GiveOS al cliente)
+	 * Guarda un mensaje saliente (enviado por GiveOS o desde el celular vinculado)
 	 */
 	static async saveOutgoingMessage(input: {
 		businessId: string;
 		toPhone: string;
 		text: string;
+		timestamp?: number;
 		messageId?: string;
 		rawKey?: any;
 	}): Promise<WhatsAppMessage> {
@@ -157,7 +158,27 @@ export class DatabaseChatRepository {
 		const sessionId = await this.getOrCreateSession(input.businessId, cleanPhone);
 
 		const msgId = input.messageId || uuidv7();
-		const now = Date.now();
+
+		if (input.messageId) {
+			const existingMsg = await db.query.chatMessages.findFirst({
+				where: eq(chatMessages.id, input.messageId)
+			});
+			if (existingMsg) {
+				return {
+					id: existingMsg.id,
+					businessId: existingMsg.businessId,
+					from: cleanPhone,
+					senderName: existingMsg.senderName,
+					text: existingMsg.text,
+					fromMe: true,
+					timestamp: existingMsg.timestamp.getTime(),
+					isRead: true,
+					key: existingMsg.rawKey as any
+				};
+			}
+		}
+
+		const now = input.timestamp || Date.now();
 		const msgDate = new Date(now);
 
 		await db.insert(chatMessages).values({
