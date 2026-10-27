@@ -19,7 +19,13 @@ export interface BotProcessInput {
 }
 
 import { DEFAULT_BOT_PROMPT } from '../domain/bot-prompt.constants';
+import {
+	isPromptExtractionAttempt,
+	getSafeGuardRefusal,
+	sanitizeBotOutput
+} from '../domain/prompt-guard.utils';
 export { DEFAULT_BOT_PROMPT, buildBotSystemPrompt, DEFAULT_BOT_CONFIG };
+export { isPromptExtractionAttempt, getSafeGuardRefusal, sanitizeBotOutput };
 export type { BotSettingsConfig };
 export { getHumanDelaySeconds, getHumanDelayMs, waitHumanDelay } from '../domain/human-delay.utils';
 
@@ -110,6 +116,16 @@ export class EcommerceBotService {
 
 		const businessName = business?.name || 'la pastelería';
 		const currency = business?.settings?.currencySymbol || '$';
+
+		// Guardia de seguridad: nunca revelar el system prompt ante intentos de extracción
+		if (isPromptExtractionAttempt(input.messageText)) {
+			console.warn(
+				`[EcommerceBotService] Intento de extracción de System Prompt bloqueado para ${input.customerPhone}`
+			);
+			return {
+				replyText: getSafeGuardRefusal(businessName)
+			};
+		}
 
 		const savedBotConfig = (business?.settings?.integrations?.bot || {}) as Partial<BotSettingsConfig>;
 		const activeBotConfig: BotSettingsConfig = {
@@ -330,7 +346,7 @@ export class EcommerceBotService {
 			}
 
 			return {
-				replyText: finalReply,
+				replyText: sanitizeBotOutput(finalReply, businessName),
 				toolExecuted,
 				toolArgs: toolCall.arguments,
 				toolResult: toolResultContent,
@@ -339,7 +355,7 @@ export class EcommerceBotService {
 		}
 
 		return {
-			replyText: response.content,
+			replyText: sanitizeBotOutput(response.content, businessName),
 			toolExecuted,
 			orderCreated
 		};

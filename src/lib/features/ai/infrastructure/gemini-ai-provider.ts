@@ -1,4 +1,5 @@
 import { v7 as uuidv7 } from 'uuid';
+import { createHash } from 'crypto';
 import type {
 	AiChatRequest,
 	AiChatResponse,
@@ -9,16 +10,89 @@ import type {
 export interface GeminiProviderOptions {
 	apiKey?: string;
 	model?: string;
+	enableCache?: boolean;
 }
+
+interface CachedContentEntry {
+	resourceName: string;
+	expiresAt: number;
+}
+
+// Registro en memoria de recursos cacheados para reutilizar entre peticiones y reducir consumo de tokens
+const geminiCacheRegistry = new Map<string, CachedContentEntry>();
 
 export class GeminiAiProvider implements AiProvider {
 	readonly id = 'gemini';
 	readonly model: string;
 	private apiKey: string;
+	private enableCache: boolean;
 
 	constructor(options?: GeminiProviderOptions) {
 		this.apiKey = options?.apiKey || process.env.GEMINI_API_KEY || '';
 		this.model = options?.model || process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+		this.enableCache = options?.enableCache ?? (process.env.GEMINI_ENABLE_CACHE !== 'false');
+	}
+
+	/**
+	 * Crea u obtiene un recurso de Context Caching en la API de Gemini si está habilitado y es admitido
+	 */
+	private async getOrSetCachedContent(
+		systemInstruction: string,
+		toolsConfig?: Array<Record<string, any>>
+	): Promise<string | null> {
+		if (!this.enableCache || !systemInstruction) return null;
+
+		const normalizedModel = this.model.startsWith('models/')
+			? this.model
+			: `models/${this.model}`;
+
+		const cacheKey = createHash('sha256')
+			.update(`${normalizedModel}::${systemInstruction}::${JSON.stringify(toolsConfig || [])}`)
+			.digest('hex');
+
+		const existing = geminiCacheRegistry.get(cacheKey);
+		if (existing && existing.expiresAt > Date.now()) {
+			return existing.resourceName;
+		}
+
+		try {
+			const cacheUrl = `https://generativelanguage.googleapis.com/v1beta/cachedContents?key=${this.apiKey}`;
+			const res = await fetch(cacheUrl, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					model: normalizedModel,
+					contents: [],
+					systemInstruction: {
+						parts: [{ text: systemInstruction }]
+					},
+					tools: toolsConfig,
+					ttl: '3600s' // 1 hora de TTL en servidor Gemini
+				})
+			});
+
+			if (res.ok) {
+				const data = await res.json();
+				if (data.name) {
+					// Guardar en memoria con margen de seguridad (50 minutos)
+					geminiCacheRegistry.set(cacheKey, {
+						resourceName: data.name,
+						expiresAt: Date.now() + 50 * 60 * 1000
+					});
+					console.log(
+						`[GeminiAiProvider] Context Caching activado en API: "${data.name}". System prompt y herramientas cacheados con éxito.`
+					);
+					return data.name;
+				}
+			} else {
+				// Si la API rechaza el cache explícito (ej: umbral mínimo de tokens no alcanzado o tier),
+				// continúa en silencio usando inyección estándar en el cuerpo
+			}
+		} catch (_) {
+			// En caso de fallo de red al crear el cache, fallback transparente
+		}
+
+		return null;
 	}
 
 	async chat(request: AiChatRequest): Promise<AiChatResponse> {
@@ -58,17 +132,24 @@ export class GeminiAiProvider implements AiProvider {
 		}
 
 		// Herramientas en formato Gemini
-		const toolsConfig = request.tools && request.tools.length > 0
-			? [
-					{
-						functionDeclarations: request.tools.map((t) => ({
-							name: t.name,
-							description: t.description,
-							parameters: t.parameters
-						}))
-					}
-			  ]
-			: undefined;
+		const toolsConfig =
+			request.tools && request.tools.length > 0
+				? [
+						{
+							functionDeclarations: request.tools.map((t) => ({
+								name: t.name,
+								description: t.description,
+								parameters: t.parameters
+							}))
+						}
+				  ]
+				: undefined;
+
+		// Intentar obtener o crear cache en el servidor de la API de Gemini
+		let cachedContentName: string | null = null;
+		if (systemInstruction) {
+			cachedContentName = await this.getOrSetCachedContent(systemInstruction, toolsConfig);
+		}
 
 		const body: Record<string, any> = {
 			contents,
@@ -77,21 +158,51 @@ export class GeminiAiProvider implements AiProvider {
 			}
 		};
 
-		if (systemInstruction) {
-			body.systemInstruction = {
-				parts: [{ text: systemInstruction }]
-			};
+		if (cachedContentName) {
+			// Al usar cachedContent, la API de Gemini requiere omitir systemInstruction y tools repetidos
+			body.cachedContent = cachedContentName;
+		} else {
+			if (systemInstruction) {
+				body.systemInstruction = {
+					parts: [{ text: systemInstruction }]
+				};
+			}
+			if (toolsConfig) {
+				body.tools = toolsConfig;
+			}
 		}
 
-		if (toolsConfig) {
-			body.tools = toolsConfig;
-		}
-
-		const res = await fetch(url, {
+		let res = await fetch(url, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(body)
 		});
+
+		// Si falla usando un cache expirado o revocado en el servidor (404/400), invalidar y reintentar inmediatamente
+		if (!res.ok && cachedContentName) {
+			console.warn(
+				'[GeminiAiProvider] cachedContent inválido o expirado. Reintentando con prompt directo...'
+			);
+			for (const [key, val] of geminiCacheRegistry.entries()) {
+				if (val.resourceName === cachedContentName) {
+					geminiCacheRegistry.delete(key);
+				}
+			}
+			delete body.cachedContent;
+			if (systemInstruction) {
+				body.systemInstruction = {
+					parts: [{ text: systemInstruction }]
+				};
+			}
+			if (toolsConfig) {
+				body.tools = toolsConfig;
+			}
+			res = await fetch(url, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(body)
+			});
+		}
 
 		if (!res.ok) {
 			const err = await res.text();

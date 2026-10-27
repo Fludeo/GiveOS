@@ -56,7 +56,8 @@ export class OllamaAiProvider implements AiProvider {
 					content: m.role === 'tool' ? `[Resultado de herramienta]:\n${m.content}` : m.content
 				})),
 				stream: false,
-				options: { temperature }
+				keep_alive: '60m',
+				options: { temperature, num_ctx: 4096 }
 			})
 		});
 
@@ -95,7 +96,8 @@ export class OllamaAiProvider implements AiProvider {
 						}
 					})),
 					stream: false,
-					options: { temperature: request.temperature ?? 0.1 }
+					keep_alive: '60m',
+					options: { temperature: request.temperature ?? 0.1, num_ctx: 4096 }
 				})
 			});
 
@@ -164,7 +166,8 @@ export class OllamaAiProvider implements AiProvider {
 					content: m.content
 				})),
 				stream: false,
-				options: { temperature: request.temperature ?? 0.1 }
+				keep_alive: '60m',
+				options: { temperature: request.temperature ?? 0.1, num_ctx: 4096 }
 			})
 		});
 
