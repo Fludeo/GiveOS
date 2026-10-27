@@ -393,15 +393,19 @@ export class WhatsAppSessionManager {
 											return;
 										}
 
-										// Obtener historial reciente del chat con este cliente
+										// Obtener historial reciente del chat con este cliente (excluyendo el actual)
 										const history = holder.messages
-											.filter((msg) => msg.from === cleanFrom)
+											.filter((msg) => msg.from === cleanFrom && msg.id !== newMsg.id)
 											.slice(0, 10)
 											.reverse()
 											.map((msg) => ({
 												role: msg.fromMe ? ('assistant' as const) : ('user' as const),
 												text: msg.text
 											}));
+
+										console.log(
+											`[WhatsApp Bot] Evaluando mensaje de "${senderName}" (${cleanFrom}): "${text}"`
+										);
 
 										const botService = getEcommerceBotService();
 										const botOutput = await botService.processMessage({
@@ -412,6 +416,8 @@ export class WhatsAppSessionManager {
 											chatHistory: history,
 											customSystemPrompt: botConfig.systemPrompt
 										});
+
+										console.log(`[WhatsApp Bot] Respuesta de IA:`, botOutput.replyText);
 
 										if (botOutput.replyText) {
 											await this.sendMessage(businessId, cleanFrom, botOutput.replyText);
@@ -456,9 +462,26 @@ export class WhatsAppSessionManager {
 			throw new Error('WhatsApp no se encuentra conectado para este negocio.');
 		}
 
+		let jid = toPhone.trim();
 		const cleanPhone = toPhone.replace(/\D/g, '');
-		const jid = `${cleanPhone}@s.whatsapp.net`;
 
+		if (!jid.includes('@')) {
+			// Buscar si este contacto tiene un remoteJid original registrado (por ejemplo si es un @lid)
+			const existingMsg = holder.messages.find(
+				(m) =>
+					m.from === cleanPhone ||
+					m.from.endsWith(cleanPhone) ||
+					(m.key?.remoteJid && m.key.remoteJid.includes(cleanPhone))
+			);
+
+			if (existingMsg?.key?.remoteJid) {
+				jid = existingMsg.key.remoteJid;
+			} else {
+				jid = `${cleanPhone}@s.whatsapp.net`;
+			}
+		}
+
+		console.log(`[WhatsAppSessionManager] Enviando mensaje a JID "${jid}":`, text);
 		const result = await holder.sock.sendMessage(jid, { text });
 
 		const msgObj = await DatabaseChatRepository.saveOutgoingMessage({

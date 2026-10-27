@@ -72,6 +72,8 @@
 	let isRenamingContact = $state(false);
 	let customContactNames = $state<Record<string, string>>({});
 
+	let chatScrollContainer = $state<HTMLDivElement | null>(null);
+
 	const unconfirmedCount = $derived(unconfirmedOrders.length);
 
 	// Sincronizar estado inicial desde el servidor
@@ -274,6 +276,17 @@
 	$effect(() => {
 		if (!selectedRecipient && conversations.length > 0) {
 			selectedRecipient = conversations[0].phone;
+		}
+	});
+
+	// Auto-scroll al final del chat al abrir o recibir mensajes
+	$effect(() => {
+		if (activeConversation?.messages.length && chatScrollContainer) {
+			setTimeout(() => {
+				if (chatScrollContainer) {
+					chatScrollContainer.scrollTop = chatScrollContainer.scrollHeight;
+				}
+			}, 30);
 		}
 	});
 
@@ -1000,7 +1013,10 @@
 							{/if}
 
 							<!-- Flujo de Mensajes (Scrollable) -->
-							<div class="flex-1 overflow-y-auto p-4 space-y-2.5 bg-muted/15 flex flex-col justify-end">
+							<div
+								bind:this={chatScrollContainer}
+								class="flex-1 overflow-y-auto p-4 space-y-2.5 bg-muted/15"
+							>
 								{#each activeConversation.messages as msg, i (msg.id ? `${msg.id}_${i}` : `msg_${i}`)}
 									<div class="flex {msg.fromMe ? 'justify-end' : 'justify-start'}">
 										<div
