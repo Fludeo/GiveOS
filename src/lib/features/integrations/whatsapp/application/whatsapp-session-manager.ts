@@ -16,6 +16,7 @@ import {
 } from '../infrastructure/database-auth-state';
 import { DatabaseChatRepository } from '../infrastructure/database-chat-repository';
 import { getEcommerceBotService } from '#lib/features/ai/application/ecommerce-bot.service';
+import { getHumanDelaySeconds } from '#lib/features/ai/domain/human-delay.utils';
 import type {
 	WhatsAppMessage,
 	WhatsAppMessageKey,
@@ -39,6 +40,7 @@ interface SessionHolder {
 
 export class WhatsAppSessionManager {
 	private sessions = new Map<string, SessionHolder>();
+	private botDebounceTimers = new Map<string, NodeJS.Timeout>();
 
 	constructor() {
 		// Auto-restaurar sesiones activas guardadas en PostgreSQL al iniciar el servidor
@@ -337,6 +339,17 @@ export class WhatsAppSessionManager {
 
 						// 1. Si el mensaje fue enviado por nosotros (desde el celular vinculado o GiveOS)
 						if (m.key.fromMe) {
+							// Cancelar cualquier respuesta pendiente del bot para este cliente ya que intervino un operador
+							const timerKey = `${businessId}:${cleanFrom}`;
+							const pendingTimer = this.botDebounceTimers.get(timerKey);
+							if (pendingTimer) {
+								clearTimeout(pendingTimer);
+								this.botDebounceTimers.delete(timerKey);
+								console.log(
+									`[WhatsApp Bot] Mensaje saliente enviado a ${cleanFrom}. Cancelando respuesta programada del bot.`
+								);
+							}
+
 							const newMsg = await DatabaseChatRepository.saveOutgoingMessage({
 								businessId,
 								toPhone: cleanFrom,
@@ -393,81 +406,54 @@ export class WhatsAppSessionManager {
 							message: newMsg
 						});
 
-						// Si el mensaje viene del cliente, evaluar si el bot de IA debe intervenir
-						if (!m.key.fromMe) {
-							(async () => {
-								try {
-									const db = getDb();
-									const biz = await db.query.businesses.findFirst({
-										where: eq(businesses.id, businessId)
-									});
-									const botConfig = biz?.settings?.integrations?.bot;
+						// Si el mensaje viene del cliente, evaluar si el bot de IA debe intervenir con retardo humano
+						(async () => {
+							try {
+								const db = getDb();
+								const biz = await db.query.businesses.findFirst({
+									where: eq(businesses.id, businessId)
+								});
+								const botConfig = biz?.settings?.integrations?.bot;
 
-									if (botConfig?.enabled) {
-										const normalized = text.trim().toLowerCase();
+								if (botConfig?.enabled) {
+									const timerKey = `${businessId}:${cleanFrom}`;
 
-										// Simulación de comprobante enviado
-										if (
-											normalized.includes('comprobante enviado') ||
-											normalized === 'comprobante' ||
-											normalized === 'ya transferí' ||
-											normalized === 'transferido'
-										) {
-											const reply = `¡Muchas gracias ${senderName}! 🍰 Recibimos tu aviso de pago. Un encargado de la pastelería está verificando la transferencia en la cuenta para confirmar tu pedido en breve.`;
-											await this.sendMessage(businessId, cleanFrom, reply);
-
-											this.broadcast(holder, {
-												type: 'whatsapp:proof_submitted',
-												businessId,
-												phone: cleanFrom
-											} as any);
-											return;
-										}
-
-										// Obtener historial reciente del chat con este cliente (excluyendo el actual)
-										const history = holder.messages
-											.filter((msg) => msg.from === cleanFrom && msg.id !== newMsg.id)
-											.slice(0, 10)
-											.reverse()
-											.map((msg) => ({
-												role: msg.fromMe ? ('assistant' as const) : ('user' as const),
-												text: msg.text
-											}));
-
+									// Si el cliente ya había enviado otro mensaje hace instantes, reiniciamos el temporizador
+									// para que el bot espere a que termine de enviar todas sus ideas antes de responder.
+									const existingTimer = this.botDebounceTimers.get(timerKey);
+									if (existingTimer) {
+										clearTimeout(existingTimer);
+										this.botDebounceTimers.delete(timerKey);
 										console.log(
-											`[WhatsApp Bot] Evaluando mensaje de "${senderName}" (${cleanFrom}): "${text}"`
+											`[WhatsApp Bot] Mensaje adicional recibido de "${senderName}" (${cleanFrom}). Reiniciando temporizador humano.`
 										);
+									}
 
-										const botService = getEcommerceBotService();
-										const botOutput = await botService.processMessage({
+									// Generar retardo humano entre 7 y 10 segundos
+									const delaySec = getHumanDelaySeconds(7, 10);
+									const delayMs = Math.round(delaySec * 1000);
+									console.log(
+										`[WhatsApp Bot] Programando respuesta para "${senderName}" (${cleanFrom}) en ${delaySec}s...`
+									);
+
+									const timer = setTimeout(async () => {
+										this.botDebounceTimers.delete(timerKey);
+										await this.processDebouncedBotResponse({
 											businessId,
 											customerPhone: cleanFrom,
 											customerName: senderName,
-											messageText: text,
-											chatHistory: history,
-											customSystemPrompt: botConfig.systemPrompt
+											remoteJid,
+											botConfig,
+											holder
 										});
+									}, delayMs);
 
-										console.log(`[WhatsApp Bot] Respuesta de IA:`, botOutput.replyText);
-
-										if (botOutput.replyText) {
-											await this.sendMessage(businessId, cleanFrom, botOutput.replyText);
-										}
-
-										if (botOutput.orderCreated) {
-											this.broadcast(holder, {
-												type: 'whatsapp:unconfirmed_order_created',
-												businessId,
-												phone: cleanFrom,
-												order: botOutput.orderCreated
-											} as any);
-										}
-									}
-								} catch (botErr) {
-									console.error('[WhatsAppSessionManager] Error ejecutando bot de IA:', botErr);
+									this.botDebounceTimers.set(timerKey, timer);
 								}
-							})();
-						}
+							} catch (botErr) {
+								console.error('[WhatsAppSessionManager] Error programando bot con delay:', botErr);
+							}
+						})();
 					}
 				});
 			} catch (err) {
@@ -539,6 +525,125 @@ export class WhatsAppSessionManager {
 		});
 
 		return msgObj;
+	}
+
+	/**
+	 * Procesa y responde a los mensajes acumulados del cliente tras expirar el debounce humano (7-10s)
+	 */
+	private async processDebouncedBotResponse(params: {
+		businessId: string;
+		customerPhone: string;
+		customerName: string;
+		remoteJid: string;
+		botConfig: any;
+		holder: SessionHolder;
+	}): Promise<void> {
+		const { businessId, customerPhone, customerName, remoteJid, botConfig, holder } = params;
+
+		try {
+			// 1. Obtener mensajes del contacto en memoria (ordenados de más nuevo a más viejo)
+			const contactMsgs = holder.messages.filter((m) => {
+				const p = m.from.replace(/\D/g, '');
+				return p === customerPhone || p.endsWith(customerPhone) || customerPhone.endsWith(p);
+			});
+
+			if (contactMsgs.length === 0) return;
+
+			// 2. Encontrar todos los mensajes consecutivos enviados por el cliente desde la última respuesta nuestra
+			const lastAssistantIndex = contactMsgs.findIndex((m) => m.fromMe);
+			const unrepliedUserMsgs = (
+				lastAssistantIndex === -1 ? contactMsgs : contactMsgs.slice(0, lastAssistantIndex)
+			)
+				.filter((m) => !m.fromMe)
+				.reverse();
+
+			if (unrepliedUserMsgs.length === 0) return;
+
+			// Unificar los textos enviados consecutivamente durante el tiempo de espera
+			const combinedText = unrepliedUserMsgs
+				.map((m) => m.text.trim())
+				.filter(Boolean)
+				.join('\n');
+
+			if (!combinedText) return;
+
+			// 3. Historial conversacional previo a estos mensajes no respondidos
+			const historySource = (
+				lastAssistantIndex === -1
+					? []
+					: contactMsgs.slice(lastAssistantIndex, lastAssistantIndex + 10)
+			).reverse();
+
+			const chatHistory = historySource.map((msg) => ({
+				role: msg.fromMe ? ('assistant' as const) : ('user' as const),
+				text: msg.text
+			}));
+
+			// 4. Evaluar simulación de comprobante de pago
+			const normalized = combinedText.toLowerCase();
+			if (
+				normalized.includes('comprobante enviado') ||
+				normalized === 'comprobante' ||
+				normalized === 'ya transferí' ||
+				normalized === 'transferido'
+			) {
+				const reply = `¡Muchas gracias ${customerName}! 🍰 Recibimos tu aviso de pago. Un encargado de la pastelería está verificando la transferencia en la cuenta para confirmar tu pedido en breve.`;
+				await this.sendMessage(businessId, customerPhone, reply);
+
+				this.broadcast(holder, {
+					type: 'whatsapp:proof_submitted',
+					businessId,
+					phone: customerPhone
+				} as any);
+				return;
+			}
+
+			// 5. Simular presencia humana ("Escribiendo...") en WhatsApp
+			if (holder.sock && holder.status === 'connected' && remoteJid) {
+				try {
+					await holder.sock.sendPresenceUpdate('composing', remoteJid);
+				} catch (_) {}
+			}
+
+			console.log(
+				`[WhatsApp Bot] Procesando mensajes acumulados de "${customerName}" (${customerPhone}):\n"${combinedText}"`
+			);
+
+			// 6. Ejecutar el modelo de IA con la totalidad de los mensajes acumulados
+			const botService = getEcommerceBotService();
+			const botOutput = await botService.processMessage({
+				businessId,
+				customerPhone,
+				customerName,
+				messageText: combinedText,
+				chatHistory,
+				customSystemPrompt: botConfig.systemPrompt
+			});
+
+			// 7. Pausar estado de presencia y enviar respuesta
+			if (holder.sock && holder.status === 'connected' && remoteJid) {
+				try {
+					await holder.sock.sendPresenceUpdate('paused', remoteJid);
+				} catch (_) {}
+			}
+
+			console.log(`[WhatsApp Bot] Respuesta generada tras espera humana:`, botOutput.replyText);
+
+			if (botOutput.replyText) {
+				await this.sendMessage(businessId, customerPhone, botOutput.replyText);
+			}
+
+			if (botOutput.orderCreated) {
+				this.broadcast(holder, {
+					type: 'whatsapp:unconfirmed_order_created',
+					businessId,
+					phone: customerPhone,
+					order: botOutput.orderCreated
+				} as any);
+			}
+		} catch (err) {
+			console.error('[WhatsAppSessionManager] Error ejecutando bot de IA tras espera humana:', err);
+		}
 	}
 
 	async clearChatHistory(businessId: string, phone: string): Promise<void> {

@@ -16,6 +16,7 @@ export interface BotProcessInput {
 
 import { DEFAULT_BOT_PROMPT } from '../domain/bot-prompt.constants';
 export { DEFAULT_BOT_PROMPT };
+export { getHumanDelaySeconds, getHumanDelayMs, waitHumanDelay } from '../domain/human-delay.utils';
 
 export interface BotProcessOutput {
 	replyText: string;
