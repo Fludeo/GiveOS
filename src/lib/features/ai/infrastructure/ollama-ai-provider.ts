@@ -20,7 +20,7 @@ export class OllamaAiProvider implements AiProvider {
 
 	constructor(options?: OllamaProviderOptions) {
 		this.baseUrl = (options?.baseUrl || process.env.OLLAMA_URL || 'http://127.0.0.1:11434').replace(/\/$/, '');
-		this.model = options?.model || process.env.OLLAMA_MODEL || 'gemma3:4b';
+		this.model = options?.model || process.env.OLLAMA_MODEL || 'gemma3:1b';
 	}
 
 	async chat(request: AiChatRequest): Promise<AiChatResponse> {

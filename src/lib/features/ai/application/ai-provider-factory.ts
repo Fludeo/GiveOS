@@ -16,7 +16,7 @@ export function getAiProvider(): AiProvider {
 		default:
 			return new OllamaAiProvider({
 				baseUrl: process.env.OLLAMA_URL || 'http://127.0.0.1:11434',
-				model: process.env.OLLAMA_MODEL || 'gemma3:4b'
+				model: process.env.OLLAMA_MODEL || 'gemma3:1b'
 			});
 	}
 }
