@@ -30,9 +30,10 @@
 	import { Switch } from '#lib/components/ui/switch';
 	import { toast } from '#lib/components/ui/toast';
 	import { DEFAULT_BOT_PROMPT } from '#lib/features/ai/domain/bot-prompt.constants';
-	import type {
-		WhatsAppMessage,
-		WhatsAppSessionStatus
+	import {
+		phonesMatch,
+		type WhatsAppMessage,
+		type WhatsAppSessionStatus
 	} from '#lib/features/integrations/whatsapp/domain/whatsapp.entity';
 
 	let { data }: PageProps = $props();
@@ -180,14 +181,7 @@
 				if (cleanTarget) {
 					let changed = false;
 					for (const m of messages) {
-						const cleanFrom = m.from.replace(/\D/g, '');
-						if (
-							(cleanFrom === cleanTarget ||
-								cleanFrom.endsWith(cleanTarget) ||
-								cleanTarget.endsWith(cleanFrom)) &&
-							!m.fromMe &&
-							!m.isRead
-						) {
+						if (!m.fromMe && !m.isRead && phonesMatch(m.from, cleanTarget)) {
 							m.isRead = true;
 							changed = true;
 						}
@@ -331,6 +325,16 @@
 	$effect(() => {
 		if (!selectedRecipient && conversations.length > 0) {
 			selectedRecipient = conversations[0].phone;
+		}
+	});
+
+	// Auto-marcar como leído cuando se abre o selecciona una conversación con mensajes pendientes
+	$effect(() => {
+		const targetRecipient = selectedRecipient;
+		if (!targetRecipient) return;
+		const conv = conversations.find((c) => c.phone === targetRecipient);
+		if (conv && conv.unreadCount > 0) {
+			handleMarkAllAsRead(conv);
 		}
 	});
 
@@ -496,34 +500,42 @@
 				body: JSON.stringify({
 					businessId: data.activeBusiness.id,
 					messageKey: msg.key,
-					messageId: msg.id
+					messageId: msg.id,
+					messageIds: msg.id ? [msg.id] : undefined,
+					phone: msg.from
 				})
 			});
 		} catch (e) {
-			console.error(e);
+			console.error('[handleMarkAsRead] Error:', e);
 		}
 	}
 
 	async function handleMarkAllAsRead(conv: Conversation) {
-		for (const m of conv.messages) {
-			if (!m.fromMe) {
-				m.isRead = true;
-			}
+		const unreadMsgs = conv.messages.filter((m) => !m.fromMe && !m.isRead);
+		if (unreadMsgs.length === 0) return;
+
+		for (const m of unreadMsgs) {
+			m.isRead = true;
 		}
 		messages = [...messages];
 
+		const messageIds = unreadMsgs.map((m) => m.id).filter(Boolean);
+
 		try {
-			await fetch('/api/integrations/whatsapp/read', {
+			const res = await fetch('/api/integrations/whatsapp/read', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
 					businessId: data.activeBusiness.id,
-					phone: conv.phone
+					phone: conv.phone,
+					messageIds
 				})
 			});
-			toast.success('Leídos', `Mensajes de ${conv.contactName} marcados como vistos.`);
+			if (!res.ok) {
+				console.error('[handleMarkAllAsRead] Error HTTP del servidor:', res.status);
+			}
 		} catch (e) {
-			console.error(e);
+			console.error('[handleMarkAllAsRead] Error de red:', e);
 		}
 	}
 
@@ -925,13 +937,19 @@
 									</Button>
 								{/if}
 
-								{#if activeConversation.unreadCount > 0}
+								{#if activeConversation && activeConversation.unreadCount > 0}
 									<Button
 										type="button"
 										variant="outline"
 										size="sm"
 										class="h-7 text-xs gap-1.5 font-semibold text-emerald-700 border-emerald-500/30 hover:bg-emerald-500/10 cursor-pointer"
-										onclick={() => handleMarkAllAsRead(activeConversation)}
+										onclick={() => {
+											handleMarkAllAsRead(activeConversation);
+											toast.success(
+												'Leídos',
+												`Mensajes de ${activeConversation.contactName} marcados como vistos.`
+											);
+										}}
 									>
 										<CheckCheck class="size-3.5" />
 										<span>Marcar leído</span>

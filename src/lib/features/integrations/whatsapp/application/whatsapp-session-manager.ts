@@ -17,12 +17,13 @@ import {
 import { DatabaseChatRepository } from '../infrastructure/database-chat-repository';
 import { getEcommerceBotService } from '#lib/features/ai/application/ecommerce-bot.service';
 import { getHumanDelaySeconds } from '#lib/features/ai/domain/human-delay.utils';
-import type {
-	WhatsAppMessage,
-	WhatsAppMessageKey,
-	WhatsAppSessionInfo,
-	WhatsAppSessionStatus,
-	RealtimeEvent
+import {
+	phonesMatch,
+	type WhatsAppMessage,
+	type WhatsAppMessageKey,
+	type WhatsAppSessionInfo,
+	type WhatsAppSessionStatus,
+	type RealtimeEvent
 } from '../domain/whatsapp.entity';
 
 interface SessionHolder {
@@ -129,6 +130,13 @@ export class WhatsAppSessionManager {
 			connectedAt: holder.connectedAt,
 			messages: holder.messages
 		};
+	}
+
+	syncHolderMessages(businessId: string, messages: WhatsAppMessage[]): void {
+		const holder = this.getOrCreateHolder(businessId);
+		if (holder.messages.length === 0 && messages.length > 0) {
+			holder.messages = [...messages];
+		}
 	}
 
 	subscribe(businessId: string, listener: (event: RealtimeEvent) => void): () => void {
@@ -679,47 +687,53 @@ export class WhatsAppSessionManager {
 	/**
 	 * Marca todos los mensajes de un contacto como leídos (memoria, BD y WhatsApp)
 	 */
-	async markSessionAsRead(businessId: string, phone: string): Promise<boolean> {
+	async markSessionAsRead(
+		businessId: string,
+		phone: string,
+		messageIds?: string[]
+	): Promise<boolean> {
 		const cleanPhone = phone.replace(/\D/g, '');
 		const holder = this.getOrCreateHolder(businessId);
 
 		// 1. Actualizar memoria en vivo
 		for (const msg of holder.messages) {
 			const cleanFrom = msg.from.replace(/\D/g, '');
-			if (cleanFrom === cleanPhone || cleanFrom.endsWith(cleanPhone) || cleanPhone.endsWith(cleanFrom)) {
-				if (!msg.fromMe) {
-					msg.isRead = true;
-				}
+			const isMatch =
+				(messageIds && msg.id && messageIds.includes(msg.id)) ||
+				phonesMatch(cleanFrom, cleanPhone);
+
+			if (isMatch && !msg.fromMe) {
+				msg.isRead = true;
 			}
 		}
 
 		// 2. Persistir en la base de datos (PostgreSQL)
 		try {
-			await DatabaseChatRepository.markSessionAsRead(businessId, cleanPhone);
+			await DatabaseChatRepository.markSessionAsRead(businessId, cleanPhone, messageIds);
 		} catch (err) {
 			console.error('[WhatsAppSessionManager] Error al marcar sesión como leída en BD:', err);
 		}
 
-		// 3. Notificar a WhatsApp (Baileys) si el socket está conectado
+		// 3. Notificar a WhatsApp (Baileys) si el socket está conectado (sin bloquear la respuesta HTTP)
 		if (holder.sock && holder.status === 'connected') {
 			try {
 				const unreadKeys = holder.messages
 					.filter((m) => {
 						const cleanFrom = m.from.replace(/\D/g, '');
-						return (
-							(cleanFrom === cleanPhone || cleanFrom.endsWith(cleanPhone) || cleanPhone.endsWith(cleanFrom)) &&
-							!m.fromMe &&
-							m.key?.id &&
-							m.key?.remoteJid
-						);
+						const isMatch =
+							(messageIds && m.id && messageIds.includes(m.id)) ||
+							phonesMatch(cleanFrom, cleanPhone);
+						return isMatch && !m.fromMe && m.key?.id && m.key?.remoteJid;
 					})
 					.map((m) => m.key as any);
 
 				if (unreadKeys.length > 0) {
-					await holder.sock.readMessages(unreadKeys);
+					holder.sock.readMessages(unreadKeys).catch((sockErr: any) => {
+						console.warn('[WhatsAppSessionManager] Error async en readMessages de Baileys:', sockErr?.message);
+					});
 				}
 			} catch (sockErr) {
-				console.error('[WhatsAppSessionManager] Error al enviar confirmación de lectura a Baileys:', sockErr);
+				console.error('[WhatsAppSessionManager] Error al preparar confirmación de lectura para Baileys:', sockErr);
 			}
 		}
 

@@ -1,8 +1,8 @@
-import { eq, and, desc, sql } from 'drizzle-orm';
+import { eq, and, desc, sql, inArray } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 import { getDb } from '#lib/server/db/index';
 import { chatSessions, chatMessages } from '#lib/server/db/schema';
-import type { WhatsAppMessage } from '../domain/whatsapp.entity';
+import { phonesMatch, type WhatsAppMessage } from '../domain/whatsapp.entity';
 
 export interface ChatSessionWithMessages {
 	id: string;
@@ -264,30 +264,76 @@ export class DatabaseChatRepository {
 	/**
 	 * Marca todos los mensajes de una conversación como leídos
 	 */
-	static async markSessionAsRead(businessId: string, customerPhone: string): Promise<void> {
+	static async markSessionAsRead(
+		businessId: string,
+		customerPhone: string,
+		messageIds?: string[]
+	): Promise<void> {
 		const db = getDb();
 		const cleanPhone = customerPhone.replace(/\D/g, '');
-		if (!cleanPhone) return;
 
-		const sessions = await db.query.chatSessions.findMany({
-			where: eq(chatSessions.businessId, businessId)
-		});
-
-		const matchingSessions = sessions.filter((s) => {
-			const sPhone = s.customerPhone.replace(/\D/g, '');
-			return sPhone === cleanPhone || sPhone.endsWith(cleanPhone) || cleanPhone.endsWith(sPhone);
-		});
-
-		for (const session of matchingSessions) {
+		// 1. Si se especifican messageIds directos, actualizarlos en lote
+		if (messageIds && messageIds.length > 0) {
 			await db
 				.update(chatMessages)
 				.set({ isRead: true })
-				.where(eq(chatMessages.sessionId, session.id));
+				.where(
+					and(
+						eq(chatMessages.businessId, businessId),
+						inArray(chatMessages.id, messageIds)
+					)
+				);
 
-			await db
-				.update(chatSessions)
-				.set({ unreadCount: 0, updatedAt: new Date() })
-				.where(eq(chatSessions.id, session.id));
+			// Recalcular o poner en 0 las sesiones asociadas a estos mensajes
+			const affectedMessages = await db.query.chatMessages.findMany({
+				where: and(
+					eq(chatMessages.businessId, businessId),
+					inArray(chatMessages.id, messageIds)
+				),
+				columns: { sessionId: true }
+			});
+			const sessionIds = Array.from(new Set(affectedMessages.map((m) => m.sessionId)));
+			for (const sid of sessionIds) {
+				const unread = await db
+					.select({ count: sql<number>`count(*)::int` })
+					.from(chatMessages)
+					.where(
+						and(
+							eq(chatMessages.sessionId, sid),
+							eq(chatMessages.fromMe, false),
+							eq(chatMessages.isRead, false)
+						)
+					);
+				const remaining = unread[0]?.count ?? 0;
+				await db
+					.update(chatSessions)
+					.set({ unreadCount: remaining, updatedAt: new Date() })
+					.where(eq(chatSessions.id, sid));
+			}
+		}
+
+		// 2. Si se proporcionó un número de teléfono, buscar todas las sesiones coincidentes
+		if (cleanPhone) {
+			const sessions = await db.query.chatSessions.findMany({
+				where: eq(chatSessions.businessId, businessId)
+			});
+
+			const matchingSessions = sessions.filter((s) => {
+				const sPhone = s.customerPhone.replace(/\D/g, '');
+				return phonesMatch(sPhone, cleanPhone);
+			});
+
+			for (const session of matchingSessions) {
+				await db
+					.update(chatMessages)
+					.set({ isRead: true })
+					.where(eq(chatMessages.sessionId, session.id));
+
+				await db
+					.update(chatSessions)
+					.set({ unreadCount: 0, updatedAt: new Date() })
+					.where(eq(chatSessions.id, session.id));
+			}
 		}
 	}
 
