@@ -3,7 +3,7 @@ import type { PageServerLoad } from './$types';
 import { resolveBusinessOrRedirect } from '#lib/server/business-resolver';
 import { getServices } from '#lib/server/container';
 import { getDb } from '#lib/server/db/index';
-import { orders } from '#lib/server/db/schema';
+import { orders, orderItems } from '#lib/server/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { DatabaseChatRepository } from '#lib/features/integrations/whatsapp/infrastructure/database-chat-repository';
 import { DEFAULT_BOT_CONFIG, type BotSettingsConfig } from '#lib/features/ai/domain/bot-config.entity';
@@ -28,15 +28,27 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		initialWhatsAppSession.messages = dbMessages;
 	}
 
-	// Cargar pedidos no confirmados de este negocio
+	// Cargar pedidos no confirmados de este negocio junto con sus ítems
 	const db = getDb();
-	const unconfirmedOrders = await db.query.orders.findMany({
+	const rawUnconfirmedOrders = await db.query.orders.findMany({
 		where: and(
 			eq(orders.businessId, activeBusiness.id),
 			eq(orders.status, 'unconfirmed')
 		),
 		orderBy: [desc(orders.createdAt)]
 	});
+
+	const unconfirmedOrders = await Promise.all(
+		rawUnconfirmedOrders.map(async (ord) => {
+			const items = await db.query.orderItems.findMany({
+				where: eq(orderItems.orderId, ord.id)
+			});
+			return {
+				...ord,
+				items
+			};
+		})
+	);
 
 	// Configuración del bot
 	const savedBot = activeBusiness.settings?.integrations?.bot || {};

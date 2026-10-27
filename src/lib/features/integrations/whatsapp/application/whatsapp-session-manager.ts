@@ -8,7 +8,7 @@ import QRCode from 'qrcode';
 import { v7 as uuidv7 } from 'uuid';
 import { eq } from 'drizzle-orm';
 import { getDb } from '#lib/server/db/index';
-import { businesses } from '#lib/server/db/schema';
+import { businesses, orders, orderItems } from '#lib/server/db/schema';
 import {
 	useDatabaseAuthState,
 	getDatabaseSessionPhone,
@@ -641,11 +641,22 @@ export class WhatsAppSessionManager {
 			}
 
 			if (botOutput.orderCreated) {
+				const db = getDb();
+				const fullOrder = await db.query.orders.findFirst({
+					where: eq(orders.id, botOutput.orderCreated.orderId)
+				});
+				const items = await db.query.orderItems.findMany({
+					where: eq(orderItems.orderId, botOutput.orderCreated.orderId)
+				});
+
 				this.broadcast(holder, {
 					type: 'whatsapp:unconfirmed_order_created',
 					businessId,
 					phone: customerPhone,
-					order: botOutput.orderCreated
+					order: {
+						...(fullOrder || botOutput.orderCreated),
+						items: items || []
+					}
 				} as any);
 			}
 		} catch (err) {

@@ -19,6 +19,14 @@
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import ArrowRight from '@lucide/svelte/icons/arrow-right';
 	import Smartphone from '@lucide/svelte/icons/smartphone';
+	import ReceiptText from '@lucide/svelte/icons/receipt-text';
+	import CircleCheck from '@lucide/svelte/icons/circle-check';
+	import CircleX from '@lucide/svelte/icons/circle-x';
+	import CircleAlert from '@lucide/svelte/icons/circle-alert';
+	import PanelRightClose from '@lucide/svelte/icons/panel-right-close';
+	import PanelRightOpen from '@lucide/svelte/icons/panel-right-open';
+	import Clock from '@lucide/svelte/icons/clock';
+	import Calendar from '@lucide/svelte/icons/calendar';
 	import { Switch } from '#lib/components/ui/switch';
 	import { toast } from '#lib/components/ui/toast';
 	import { DEFAULT_BOT_PROMPT } from '#lib/features/ai/domain/bot-prompt.constants';
@@ -51,11 +59,19 @@
 	let isSavingBotSettings = $state(false);
 
 	let unconfirmedOrders = $state<any[]>([]);
+	let showOrderPanel = $state(true);
 	let showConfirmOrderModal = $state(false);
 	let selectedOrderToConfirm = $state<any | null>(null);
 	let confirmPaidAmount = $state<number>(0);
 	let sendWhatsAppConfirm = $state(true);
 	let isConfirmingOrder = $state(false);
+
+	let showRejectOrderModal = $state(false);
+	let selectedOrderToReject = $state<any | null>(null);
+	let rejectReason = $state('');
+	let sendWhatsAppReject = $state(true);
+	let isRejectingOrder = $state(false);
+	let proofSubmittedPhones = $state<Record<string, boolean>>({});
 
 	let showRenameModal = $state(false);
 	let renameContactInput = $state('');
@@ -132,6 +148,7 @@
 						payload.order,
 						...unconfirmedOrders.filter((o: any) => o.id !== payload.order.id)
 					];
+					showOrderPanel = true;
 					toast.info(
 						'Nuevo Pedido de WhatsApp',
 						`El bot tomó el pedido #${payload.order.orderNumber}. Esperando comprobante de pago.`
@@ -143,6 +160,12 @@
 		es.addEventListener('whatsapp:proof_submitted', (e) => {
 			try {
 				const payload = JSON.parse(e.data);
+				const p = (payload.phone || '').replace(/\D/g, '');
+				if (p) {
+					proofSubmittedPhones[p] = true;
+					proofSubmittedPhones = { ...proofSubmittedPhones };
+				}
+				showOrderPanel = true;
 				toast.warning(
 					'Comprobante enviado',
 					`El cliente +${payload.phone} notificó que envió el comprobante. Por favor verifícalo.`
@@ -273,6 +296,37 @@
 		);
 	});
 
+	// Determina si una conversación tiene un pedido pendiente o comprobante enviado
+	function getConversationAttention(conv: Conversation) {
+		const clean = conv.phone.replace(/\D/g, '');
+		const order = unconfirmedOrders.find((ord: any) => {
+			const ordPhone = (ord.transactionId || '').replace(/\D/g, '');
+			return ordPhone && (clean.endsWith(ordPhone) || ordPhone.endsWith(clean));
+		});
+
+		if (!order) return null;
+
+		const hasProofSubmitted =
+			!!proofSubmittedPhones[clean] ||
+			conv.messages.some((m) => {
+				if (m.fromMe) return false;
+				const t = m.text.toLowerCase();
+				return (
+					t.includes('comprobante') ||
+					t.includes('transferí') ||
+					t.includes('transferido') ||
+					t.includes('ya pagué') ||
+					t.includes('adjunto') ||
+					t.includes('pago enviado')
+				);
+			});
+
+		return {
+			order,
+			hasProofSubmitted
+		};
+	}
+
 	// Mantener sincronizado selectedRecipient si hay conversaciones
 	$effect(() => {
 		if (!selectedRecipient && conversations.length > 0) {
@@ -338,8 +392,9 @@
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
+					businessId: data.activeBusiness.id,
 					orderId: selectedOrderToConfirm.id,
-					paidAmount: confirmPaidAmount,
+					paidAmount: Number(confirmPaidAmount) || selectedOrderToConfirm.totalAmount,
 					sendWhatsApp: sendWhatsAppConfirm
 				})
 			});
@@ -359,6 +414,45 @@
 			toast.error('Error al confirmar pedido', e.message || 'Error de red.');
 		} finally {
 			isConfirmingOrder = false;
+		}
+	}
+
+	function openRejectOrderModal(order: any) {
+		selectedOrderToReject = order;
+		rejectReason = '';
+		showRejectOrderModal = true;
+	}
+
+	async function handleRejectOrder() {
+		if (!selectedOrderToReject) return;
+		isRejectingOrder = true;
+		try {
+			const res = await fetch('/api/integrations/whatsapp/orders/reject', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					businessId: data.activeBusiness.id,
+					orderId: selectedOrderToReject.id,
+					reason: rejectReason.trim(),
+					sendWhatsApp: sendWhatsAppReject
+				})
+			});
+			const result = await res.json();
+			if (result.success) {
+				toast.info(
+					'Pedido cancelado',
+					`La orden #${selectedOrderToReject.orderNumber} fue rechazada con éxito.`
+				);
+				unconfirmedOrders = unconfirmedOrders.filter((o) => o.id !== selectedOrderToReject.id);
+				showRejectOrderModal = false;
+				selectedOrderToReject = null;
+			} else {
+				toast.error('Error al rechazar pedido', result.error || 'No se pudo rechazar.');
+			}
+		} catch (e: any) {
+			toast.error('Error al rechazar pedido', e.message || 'Error de red.');
+		} finally {
+			isRejectingOrder = false;
 		}
 	}
 
@@ -669,48 +763,77 @@
 					{:else}
 						{#each filteredConversations as conv (conv.phone)}
 							{@const isSelected = activeConversation?.phone === conv.phone}
-							{@const hasUnconfirmed = unconfirmedOrders.some((ord: any) => {
-								const ordPhone = (ord.transactionId || '').replace(/\D/g, '');
-								return ordPhone && (conv.phone.endsWith(ordPhone) || ordPhone.endsWith(conv.phone));
-							})}
+							{@const attention = getConversationAttention(conv)}
 							<button
 								type="button"
 								onclick={() => {
 									selectedRecipient = conv.phone;
+									showOrderPanel = true;
 									if (conv.unreadCount > 0) {
 										handleMarkAllAsRead(conv);
 									}
 								}}
 								class="w-full text-left p-3 transition-colors flex items-start gap-3 cursor-pointer {isSelected
 									? 'bg-muted/80 border-l-3 border-emerald-600'
-									: 'hover:bg-muted/40'}"
+									: 'hover:bg-muted/40'} {attention?.hasProofSubmitted ? 'bg-amber-500/5' : ''}"
 							>
-								<!-- Avatar con Iniciales -->
-								<div
-									class="flex size-9 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 font-bold text-xs text-emerald-700 dark:text-emerald-400"
-								>
-									{conv.contactName.charAt(0).toUpperCase()}
+								<!-- Avatar con Iniciales y Badge Flotante de Atención -->
+								<div class="relative shrink-0">
+									<div
+										class="flex size-9 items-center justify-center rounded-full {attention?.hasProofSubmitted ? 'bg-amber-500/20 text-amber-700 dark:text-amber-400 font-bold' : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 font-bold'} text-xs"
+									>
+										{conv.contactName.charAt(0).toUpperCase()}
+									</div>
+									{#if attention?.hasProofSubmitted}
+										<span
+											class="absolute -bottom-1 -right-1 flex size-4 items-center justify-center rounded-full bg-amber-500 text-white shadow-xs animate-bounce"
+											title="Comprobante enviado - Requiere atención"
+										>
+											<ReceiptText class="size-2.5" />
+										</span>
+									{:else if attention}
+										<span
+											class="absolute -bottom-1 -right-1 flex size-3.5 items-center justify-center rounded-full bg-amber-500 text-white shadow-xs"
+											title="Pedido pendiente de confirmación"
+										>
+											<Clock class="size-2" />
+										</span>
+									{/if}
 								</div>
 
-								<div class="flex-1 min-w-0 space-y-0.5">
+								<div class="flex-1 min-w-0 space-y-1">
 									<div class="flex items-center justify-between gap-1">
-										<div class="flex items-center gap-1.5 min-w-0">
-											<span class="text-xs font-bold text-foreground truncate">
-												{conv.contactName === conv.phone
-													? formatPhoneNumber(conv.phone)
-													: conv.contactName}
-											</span>
-											{#if hasUnconfirmed}
-												<span
-													class="size-2 rounded-full bg-amber-500 shrink-0 animate-pulse"
-													title="Tiene pedido por confirmar"
-												></span>
-											{/if}
-										</div>
+										<span class="text-xs font-bold text-foreground truncate">
+											{conv.contactName === conv.phone
+												? formatPhoneNumber(conv.phone)
+												: conv.contactName}
+										</span>
 										<span class="text-[10px] text-muted-foreground whitespace-nowrap">
 											{formatTime(conv.lastMessage.timestamp)}
 										</span>
 									</div>
+
+									{#if attention}
+										<div class="flex items-center gap-1">
+											{#if attention.hasProofSubmitted}
+												<Badge
+													variant="outline"
+													class="border-amber-500/40 bg-amber-500/15 text-amber-800 dark:text-amber-300 gap-1 text-[9.5px] py-0 px-1.5 font-bold animate-pulse"
+												>
+													<ReceiptText class="size-2.5 text-amber-600" />
+													<span>Comprobante enviado</span>
+												</Badge>
+											{:else}
+												<Badge
+													variant="outline"
+													class="border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400 gap-1 text-[9.5px] py-0 px-1.5 font-medium"
+												>
+													<Clock class="size-2.5 text-amber-600" />
+													<span>Por confirmar (${attention.order.totalAmount.toLocaleString('es-AR')})</span>
+												</Badge>
+											{/if}
+										</div>
+									{/if}
 
 									<div class="flex items-center justify-between gap-2">
 										<p class="text-[11px] text-muted-foreground truncate">
@@ -735,8 +858,8 @@
 				</div>
 			</div>
 
-			<!-- COLUMNA DERECHA: VENTANA DE CHAT ACTIVO (FLEX-1 CON COMPOSER FIJO ABAJO) -->
-			<div class="flex-1 min-w-0 flex flex-col bg-background h-full overflow-hidden">
+			<!-- CONTENEDOR DE LA CONVERSACIÓN ACTIVA: CHAT + PANEL LATERAL DE ORDEN -->
+			<div class="flex-1 min-w-0 flex flex-row bg-background h-full overflow-hidden">
 				{#if !activeConversation}
 					<div class="flex-1 flex flex-col items-center justify-center p-8 text-center text-muted-foreground space-y-3">
 						<div class="flex size-14 items-center justify-center rounded-2xl bg-muted/50 text-muted-foreground/60">
@@ -750,191 +873,371 @@
 						</div>
 					</div>
 				{:else}
-					<!-- Header del Chat Activo (shrink-0) -->
-					<div class="p-3 sm:px-4 border-b border-border flex items-center justify-between gap-3 bg-muted/20 shrink-0">
-						<div class="flex items-center gap-2.5 min-w-0">
-							<div
-								class="flex size-8 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 font-bold text-xs text-emerald-700 dark:text-emerald-400"
-							>
-								{activeConversation.contactName.charAt(0).toUpperCase()}
-							</div>
-							<div class="min-w-0">
-								<div class="flex items-center gap-1.5">
-									<span class="text-xs font-bold text-foreground truncate">
-										{activeConversation.contactName}
-									</span>
-									<button
-										type="button"
-										class="text-muted-foreground hover:text-foreground cursor-pointer p-0.5 rounded"
-										onclick={openRenameModal}
-										title="Editar nombre del contacto"
-									>
-										<Pencil class="size-3" />
-									</button>
+					<!-- SUB-COLUMNA DEL CHAT (flex-1) -->
+					<div class="flex-1 min-w-0 flex flex-col h-full overflow-hidden">
+						<!-- Header del Chat Activo (shrink-0) -->
+						<div class="p-3 sm:px-4 border-b border-border flex items-center justify-between gap-3 bg-muted/20 shrink-0">
+							<div class="flex items-center gap-2.5 min-w-0">
+								<div
+									class="flex size-8 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 font-bold text-xs text-emerald-700 dark:text-emerald-400"
+								>
+									{activeConversation.contactName.charAt(0).toUpperCase()}
 								</div>
-								<p class="text-[10px] text-muted-foreground font-mono truncate">
-									{formatPhoneNumber(activeConversation.phone)}
-								</p>
+								<div class="min-w-0">
+									<div class="flex items-center gap-1.5">
+										<span class="text-xs font-bold text-foreground truncate">
+											{activeConversation.contactName}
+										</span>
+										<button
+											type="button"
+											class="text-muted-foreground hover:text-foreground cursor-pointer p-0.5 rounded"
+											onclick={openRenameModal}
+											title="Editar nombre del contacto"
+										>
+											<Pencil class="size-3" />
+										</button>
+									</div>
+									<p class="text-[10px] text-muted-foreground font-mono truncate">
+										{formatPhoneNumber(activeConversation.phone)}
+									</p>
+								</div>
+							</div>
+
+							<div class="flex items-center gap-2 shrink-0">
+								{#if activeUnconfirmedOrder}
+									<Button
+										type="button"
+										variant="outline"
+										size="sm"
+										class="h-7.5 text-xs gap-1.5 font-semibold {showOrderPanel
+											? 'bg-amber-500/15 border-amber-500/40 text-amber-800 dark:text-amber-300'
+											: 'border-amber-500/30 text-amber-700 hover:bg-amber-500/10'} cursor-pointer"
+										onclick={() => (showOrderPanel = !showOrderPanel)}
+										title={showOrderPanel ? 'Ocultar panel de orden' : 'Ver orden en panel lateral'}
+									>
+										<ReceiptText class="size-3.5 text-amber-600" />
+										<span class="hidden sm:inline">Pedido #{activeUnconfirmedOrder.orderNumber}</span>
+										{#if showOrderPanel}
+											<PanelRightClose class="size-3.5 opacity-70" />
+										{:else}
+											<PanelRightOpen class="size-3.5 opacity-70" />
+										{/if}
+									</Button>
+								{/if}
+
+								{#if activeConversation.unreadCount > 0}
+									<Button
+										type="button"
+										variant="outline"
+										size="sm"
+										class="h-7 text-xs gap-1.5 font-semibold text-emerald-700 border-emerald-500/30 hover:bg-emerald-500/10 cursor-pointer"
+										onclick={() => handleMarkAllAsRead(activeConversation)}
+									>
+										<CheckCheck class="size-3.5" />
+										<span>Marcar leído</span>
+									</Button>
+								{/if}
+
+								<Button
+									type="button"
+									variant="ghost"
+									size="sm"
+									class="h-7 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 gap-1 cursor-pointer"
+									onclick={() => (showClearChatModal = true)}
+									title="Vaciar mensajes de este chat"
+								>
+									<Trash2 class="size-3.5" />
+									<span class="hidden sm:inline">Vaciar chat</span>
+								</Button>
 							</div>
 						</div>
 
-						<div class="flex items-center gap-2 shrink-0">
-							{#if activeConversation.unreadCount > 0}
-								<Button
-									type="button"
-									variant="outline"
-									size="sm"
-									class="h-7 text-xs gap-1.5 font-semibold text-emerald-700 border-emerald-500/30 hover:bg-emerald-500/10 cursor-pointer"
-									onclick={() => handleMarkAllAsRead(activeConversation)}
-								>
-									<CheckCheck class="size-3.5" />
-									<span>Marcar leído</span>
-								</Button>
-							{/if}
-
-							<Button
-								type="button"
-								variant="ghost"
-								size="sm"
-								class="h-7 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 gap-1 cursor-pointer"
-								onclick={() => (showClearChatModal = true)}
-								title="Vaciar mensajes de este chat"
+						<!-- Banner aviso rápido (si el panel lateral derecho está colapsado) -->
+						{#if activeUnconfirmedOrder && !showOrderPanel}
+							<div
+								class="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 flex items-center justify-between gap-3 text-xs shrink-0"
 							>
-								<Trash2 class="size-3.5" />
-								<span class="hidden sm:inline">Vaciar chat</span>
-							</Button>
+								<div class="flex items-center gap-2 text-amber-800 dark:text-amber-200">
+									<ReceiptText class="size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+									<span>
+										Pedido <strong>#{activeUnconfirmedOrder.orderNumber}</strong> pendiente por
+										<strong>${activeUnconfirmedOrder.totalAmount.toLocaleString('es-AR')}</strong>
+									</span>
+								</div>
+								<div class="flex items-center gap-1.5">
+									<Button
+										type="button"
+										size="sm"
+										variant="outline"
+										class="h-6.5 text-xs text-amber-800 dark:text-amber-300 border-amber-500/30 hover:bg-amber-500/15 cursor-pointer"
+										onclick={() => (showOrderPanel = true)}
+									>
+										<span>Ver en panel lateral</span>
+									</Button>
+									<Button
+										type="button"
+										size="sm"
+										class="h-6.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold gap-1.5 cursor-pointer shadow-xs"
+										onclick={() => openConfirmOrderModal(activeUnconfirmedOrder)}
+									>
+										<Check class="size-3" />
+										<span>Confirmar</span>
+									</Button>
+								</div>
+							</div>
+						{/if}
+
+						<!-- Área de Mensajes del Chat con Scroll (flex-1 min-h-0 overflow-y-auto) -->
+						<div
+							bind:this={chatScrollContainer}
+							class="flex-1 min-h-0 overflow-y-auto p-4 space-y-3 bg-muted/5 flex flex-col"
+						>
+							{#each activeConversation.messages as msg, i (`${msg.id}_${i}`)}
+								<div class="flex flex-col {msg.fromMe ? 'items-end' : 'items-start'}">
+									<div
+										class="max-w-[85%] sm:max-w-lg lg:max-w-xl rounded-2xl p-3 text-xs space-y-1.5 shadow-2xs relative group {msg.fromMe
+											? msg.isBot
+												? 'bg-primary text-primary-foreground rounded-tr-xs'
+												: 'bg-emerald-600 text-white rounded-tr-xs'
+											: 'bg-card border border-border text-foreground rounded-tl-xs'}"
+									>
+										{#if msg.fromMe}
+											<div class="flex items-center gap-1.5 text-[10px] font-semibold {msg.isBot ? 'text-primary-foreground/90' : 'text-white/90'} pb-0.5 border-b {msg.isBot ? 'border-primary-foreground/15' : 'border-white/20'}">
+												{#if msg.isBot}
+													<Bot class="size-3" />
+													<span>Bot IA</span>
+												{:else}
+													<span>Tú</span>
+												{/if}
+											</div>
+										{/if}
+
+										<p class="whitespace-pre-line leading-relaxed select-text">
+											{msg.text}
+										</p>
+
+										<div
+											class="flex items-center justify-end gap-1.5 text-[10px] {msg.fromMe
+												? msg.isBot
+													? 'text-primary-foreground/80'
+													: 'text-white/80'
+												: 'text-muted-foreground'} pt-0.5"
+										>
+											<span>{formatTime(msg.timestamp)}</span>
+											{#if msg.fromMe}
+												<CheckCheck class="size-3.5 {msg.isBot ? 'text-primary-foreground/90' : 'text-white/90'}" />
+											{:else if !msg.isRead}
+												<button
+													type="button"
+													class="opacity-0 group-hover:opacity-100 hover:underline cursor-pointer text-emerald-600 dark:text-emerald-400"
+													onclick={() => handleMarkAsRead(msg)}
+												>
+													Leído
+												</button>
+											{/if}
+										</div>
+									</div>
+								</div>
+							{/each}
+						</div>
+
+						<!-- Barra Inferior de Composición y Respuestas Rápidas (shrink-0) -->
+						<div class="p-3 border-t border-border bg-background space-y-2 shrink-0">
+							<!-- Chips de Respuestas Rápidas -->
+							<div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] text-muted-foreground">
+								<span class="text-[10px] font-semibold shrink-0">Atajos:</span>
+								<button
+									type="button"
+									class="px-2 py-0.5 rounded-full border border-border bg-muted/30 hover:bg-muted text-foreground cursor-pointer shrink-0 transition-colors"
+									onclick={() => (replyText = '¡Hola! Te paso los datos para la transferencia:\nAlias: PASTELERIA.SWEET.CAKES\nTitular: Pastelería Dulce')}
+								>
+									💳 Alias / CBU
+								</button>
+								<button
+									type="button"
+									class="px-2 py-0.5 rounded-full border border-border bg-muted/30 hover:bg-muted text-foreground cursor-pointer shrink-0 transition-colors"
+									onclick={() => (replyText = 'Nuestro horario de atención es de Lunes a Sábado de 09:00 a 19:00 hs.')}
+								>
+									🕒 Horarios
+								</button>
+								<button
+									type="button"
+									class="px-2 py-0.5 rounded-full border border-border bg-muted/30 hover:bg-muted text-foreground cursor-pointer shrink-0 transition-colors"
+									onclick={() => (replyText = '¡Hola! Con gusto te paso nuestro catálogo disponible de tortas y productos.')}
+								>
+									🎂 Catálogo
+								</button>
+							</div>
+
+							<!-- Input de Texto y Botón Enviar -->
+							<form onsubmit={handleSendMessage} class="flex items-center gap-2">
+								<Input
+									placeholder="Escribe un mensaje para el cliente..."
+									bind:value={replyText}
+									class="h-9 text-xs"
+									disabled={isSending}
+								/>
+								<Button
+									type="submit"
+									size="sm"
+									class="h-9 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold gap-1.5 shrink-0 cursor-pointer"
+									disabled={!replyText.trim() || isSending}
+								>
+									{#if isSending}
+										<RefreshCw class="size-3.5 animate-spin" />
+									{:else}
+										<Send class="size-3.5" />
+										<span class="hidden sm:inline">Enviar</span>
+									{/if}
+								</Button>
+							</form>
 						</div>
 					</div>
 
-					<!-- BANNER: PEDIDO PENDIENTE DE CONFIRMACIÓN (shrink-0) -->
-					{#if activeUnconfirmedOrder}
+					<!-- PANEL DERECHO: DETALLES DE PEDIDO NO CONFIRMADO -->
+					{#if activeUnconfirmedOrder && showOrderPanel}
 						<div
-							class="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 flex items-center justify-between gap-3 text-xs shrink-0"
+							class="w-80 lg:w-96 shrink-0 border-l border-border bg-card flex flex-col h-full overflow-hidden animate-in slide-in-from-right duration-150 shadow-xs"
 						>
-							<div class="flex items-center gap-2 text-amber-800 dark:text-amber-200">
-								<ShoppingBag class="size-4 shrink-0 text-amber-600 dark:text-amber-400" />
-								<span>
-									Pedido <strong>#{activeUnconfirmedOrder.orderNumber}</strong> pendiente por
-									<strong>${activeUnconfirmedOrder.totalAmount.toLocaleString('es-AR')}</strong>
-								</span>
-							</div>
-							<Button
-								type="button"
-								size="sm"
-								class="h-6.5 text-xs bg-amber-600 hover:bg-amber-700 text-white font-semibold gap-1.5 cursor-pointer shadow-xs"
-								onclick={() => openConfirmOrderModal(activeUnconfirmedOrder)}
-							>
-								<Check class="size-3" />
-								<span>Confirmar</span>
-							</Button>
-						</div>
-					{/if}
+							<!-- Header del panel -->
+							<div class="p-3 sm:px-4 border-b border-border flex items-center justify-between bg-muted/20 shrink-0">
+								<div class="flex items-center gap-2">
+									<div class="flex size-7 items-center justify-center rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400">
+										<ReceiptText class="size-4" />
+									</div>
+									<div>
+										<h3 class="text-xs font-bold text-foreground">
+											Orden #{activeUnconfirmedOrder.orderNumber}
+										</h3>
+										<span class="text-[10px] text-amber-700 dark:text-amber-400 font-medium">
+											Esperando verificación
+										</span>
+									</div>
+								</div>
 
-					<!-- Área de Mensajes del Chat con Scroll (flex-1 min-h-0 overflow-y-auto) -->
-					<div
-						bind:this={chatScrollContainer}
-						class="flex-1 min-h-0 overflow-y-auto p-4 space-y-3 bg-muted/5 flex flex-col"
-					>
-						{#each activeConversation.messages as msg, i (`${msg.id}_${i}`)}
-							<div class="flex flex-col {msg.fromMe ? 'items-end' : 'items-start'}">
-								<div
-									class="max-w-[85%] sm:max-w-lg lg:max-w-xl rounded-2xl p-3 text-xs space-y-1.5 shadow-2xs relative group {msg.fromMe
-										? msg.isBot
-											? 'bg-primary text-primary-foreground rounded-tr-xs'
-											: 'bg-emerald-600 text-white rounded-tr-xs'
-										: 'bg-card border border-border text-foreground rounded-tl-xs'}"
-								>
-									{#if msg.fromMe}
-										<div class="flex items-center gap-1.5 text-[10px] font-semibold {msg.isBot ? 'text-primary-foreground/90' : 'text-white/90'} pb-0.5 border-b {msg.isBot ? 'border-primary-foreground/15' : 'border-white/20'}">
-											{#if msg.isBot}
-												<Bot class="size-3" />
-												<span>Bot IA</span>
-											{:else}
-												<span>Tú</span>
-											{/if}
-										</div>
-									{/if}
-
-									<p class="whitespace-pre-line leading-relaxed select-text">
-										{msg.text}
-									</p>
-
-									<div
-										class="flex items-center justify-end gap-1.5 text-[10px] {msg.fromMe
-											? msg.isBot
-												? 'text-primary-foreground/80'
-												: 'text-white/80'
-											: 'text-muted-foreground'} pt-0.5"
+								<div class="flex items-center gap-1">
+									<Badge variant="outline" class="text-[10px] border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-300 font-semibold">
+										No confirmado
+									</Badge>
+									<button
+										type="button"
+										class="p-1 text-muted-foreground hover:text-foreground rounded-md hover:bg-muted cursor-pointer"
+										onclick={() => (showOrderPanel = false)}
+										title="Ocultar panel lateral"
 									>
-										<span>{formatTime(msg.timestamp)}</span>
-										{#if msg.fromMe}
-											<CheckCheck class="size-3.5 {msg.isBot ? 'text-primary-foreground/90' : 'text-white/90'}" />
-										{:else if !msg.isRead}
-											<button
-												type="button"
-												class="opacity-0 group-hover:opacity-100 hover:underline cursor-pointer text-emerald-600 dark:text-emerald-400"
-												onclick={() => handleMarkAsRead(msg)}
-											>
-												Leído
-											</button>
+										<X class="size-4" />
+									</button>
+								</div>
+							</div>
+
+							<!-- Contenido con scroll independiente -->
+							<div class="flex-1 min-h-0 overflow-y-auto p-4 space-y-4 text-xs">
+								<!-- Aviso del Comprobante -->
+								<div class="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 space-y-1.5">
+									<div class="flex items-center gap-1.5 font-bold text-amber-900 dark:text-amber-300">
+										<CircleAlert class="size-4 text-amber-600 shrink-0" />
+										<span>Revisión de Pago Pendiente</span>
+									</div>
+									<p class="text-[11px] text-amber-800/90 dark:text-amber-300/90 leading-relaxed">
+										Revisa el comprobante enviado en el chat y corrobora la acreditación en tu cuenta bancaria. Luego ingresa el monto cobrado para confirmar o rechazar la orden.
+									</p>
+								</div>
+
+								<!-- Datos del Cliente y Entrega -->
+								<div class="rounded-xl border border-border bg-muted/10 p-3 space-y-2">
+									<span class="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">
+										Datos de Entrega
+									</span>
+									<div class="space-y-1.5 text-xs">
+										<div class="flex items-center justify-between">
+											<span class="text-muted-foreground">Cliente:</span>
+											<span class="font-semibold text-foreground">{activeUnconfirmedOrder.customerName}</span>
+										</div>
+										<div class="flex items-center justify-between">
+											<span class="text-muted-foreground">WhatsApp:</span>
+											<span class="font-mono text-foreground">{formatPhoneNumber(activeUnconfirmedOrder.transactionId || activeConversation.phone)}</span>
+										</div>
+										{#if activeUnconfirmedOrder.deliveryDate}
+											<div class="flex items-center justify-between">
+												<span class="text-muted-foreground">Fecha solicitada:</span>
+												<span class="font-semibold text-foreground">
+													{new Date(activeUnconfirmedOrder.deliveryDate).toLocaleDateString([], { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+												</span>
+											</div>
 										{/if}
 									</div>
 								</div>
+
+								<!-- Productos del Pedido -->
+								<div class="rounded-xl border border-border bg-background p-3 space-y-2.5">
+									<span class="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">
+										Productos Solicitados
+									</span>
+									{#if activeUnconfirmedOrder.items && activeUnconfirmedOrder.items.length > 0}
+										<div class="divide-y divide-border/40">
+											{#each activeUnconfirmedOrder.items as item}
+												<div class="py-2 flex items-start justify-between gap-2 text-xs">
+													<div class="min-w-0 flex-1">
+														<span class="font-semibold text-foreground block truncate">{item.productName}</span>
+														<span class="text-[10px] text-muted-foreground">Cant: {item.quantity} × ${item.unitPrice.toLocaleString('es-AR')}</span>
+													</div>
+													<span class="font-bold text-foreground shrink-0">
+														${(item.quantity * item.unitPrice).toLocaleString('es-AR')}
+													</span>
+												</div>
+											{/each}
+										</div>
+									{:else}
+										<p class="text-[11px] text-muted-foreground italic">Detalle de productos guardado en orden.</p>
+									{/if}
+
+									{#if activeUnconfirmedOrder.notes}
+										<div class="pt-2 border-t border-border/40 space-y-1">
+											<span class="text-[10px] font-semibold text-muted-foreground">Notas / Aclaraciones:</span>
+											<p class="text-[11px] text-foreground bg-muted/30 p-2 rounded-lg font-mono whitespace-pre-wrap">{activeUnconfirmedOrder.notes}</p>
+										</div>
+									{/if}
+								</div>
+
+								<!-- Total a Cobrar -->
+								<div class="p-3 rounded-xl border border-border bg-muted/20 flex items-center justify-between">
+									<div>
+										<span class="text-[10px] font-semibold text-muted-foreground block">Monto Total del Pedido</span>
+										<span class="text-lg font-black text-foreground">
+											${activeUnconfirmedOrder.totalAmount.toLocaleString('es-AR')}
+										</span>
+									</div>
+									<Badge variant="outline" class="border-amber-500/40 bg-amber-500/10 text-amber-700 text-xs font-bold">
+										Por cobrar
+									</Badge>
+								</div>
 							</div>
-						{/each}
-					</div>
 
-					<!-- Barra Inferior de Composición y Respuestas Rápidas (shrink-0) -->
-					<div class="p-3 border-t border-border bg-background space-y-2 shrink-0">
-						<!-- Chips de Respuestas Rápidas -->
-						<div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] text-muted-foreground">
-							<span class="text-[10px] font-semibold shrink-0">Atajos:</span>
-							<button
-								type="button"
-								class="px-2 py-0.5 rounded-full border border-border bg-muted/30 hover:bg-muted text-foreground cursor-pointer shrink-0 transition-colors"
-								onclick={() => (replyText = '¡Hola! Te paso los datos para la transferencia:\nAlias: PASTELERIA.SWEET.CAKES\nTitular: Pastelería Dulce')}
-							>
-								💳 Alias / CBU
-							</button>
-							<button
-								type="button"
-								class="px-2 py-0.5 rounded-full border border-border bg-muted/30 hover:bg-muted text-foreground cursor-pointer shrink-0 transition-colors"
-								onclick={() => (replyText = 'Nuestro horario de atención es de Lunes a Sábado de 09:00 a 19:00 hs.')}
-							>
-								🕒 Horarios
-							</button>
-							<button
-								type="button"
-								class="px-2 py-0.5 rounded-full border border-border bg-muted/30 hover:bg-muted text-foreground cursor-pointer shrink-0 transition-colors"
-								onclick={() => (replyText = '¡Hola! Con gusto te paso nuestro catálogo disponible de tortas y productos.')}
-							>
-								🎂 Catálogo
-							</button>
+							<!-- Acciones: Confirmar o Rechazar -->
+							<div class="p-3.5 border-t border-border bg-background space-y-2 shrink-0">
+								<div class="grid grid-cols-2 gap-2">
+									<Button
+										type="button"
+										variant="outline"
+										class="h-9 text-xs border-destructive/40 text-destructive hover:bg-destructive/10 font-semibold gap-1.5 cursor-pointer"
+										onclick={() => openRejectOrderModal(activeUnconfirmedOrder)}
+									>
+										<CircleX class="size-4" />
+										<span>Rechazar</span>
+									</Button>
+
+									<Button
+										type="button"
+										class="h-9 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold gap-1.5 cursor-pointer shadow-xs"
+										onclick={() => openConfirmOrderModal(activeUnconfirmedOrder)}
+									>
+										<CircleCheck class="size-4" />
+										<span>Confirmar</span>
+									</Button>
+								</div>
+							</div>
 						</div>
-
-						<!-- Input de Texto y Botón Enviar -->
-						<form onsubmit={handleSendMessage} class="flex items-center gap-2">
-							<Input
-								placeholder="Escribe un mensaje para el cliente..."
-								bind:value={replyText}
-								class="h-9 text-xs"
-								disabled={isSending}
-							/>
-							<Button
-								type="submit"
-								size="sm"
-								class="h-9 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold gap-1.5 shrink-0 cursor-pointer"
-								disabled={!replyText.trim() || isSending}
-							>
-								{#if isSending}
-									<RefreshCw class="size-3.5 animate-spin" />
-								{:else}
-									<Send class="size-3.5" />
-									<span class="hidden sm:inline">Enviar</span>
-								{/if}
-							</Button>
-						</form>
-					</div>
+					{/if}
 				{/if}
 			</div>
 		</div>
@@ -1030,7 +1333,7 @@
 		<div class="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl space-y-4">
 			<div class="flex items-center justify-between border-b border-border pb-3">
 				<div class="flex items-center gap-2">
-					<ShoppingBag class="size-5 text-emerald-600" />
+					<CircleCheck class="size-5 text-emerald-600" />
 					<h3 class="font-bold text-sm">Confirmar Pedido #{selectedOrderToConfirm.orderNumber}</h3>
 				</div>
 				<button
@@ -1052,14 +1355,26 @@
 					</p>
 				</div>
 
-				<div class="space-y-1">
-					<label for="confirm-paid-input" class="text-xs font-semibold">Monto cobrado/transferido:</label>
+				<div class="space-y-1.5">
+					<label for="confirm-paid-input" class="text-xs font-semibold text-foreground">
+						Monto cobrado/acreditado (según comprobante):
+					</label>
 					<Input
 						id="confirm-paid-input"
 						type="number"
+						step="any"
 						bind:value={confirmPaidAmount}
 						class="h-9 text-xs"
 					/>
+					{#if confirmPaidAmount < selectedOrderToConfirm.totalAmount}
+						<p class="text-[11px] text-amber-600 dark:text-amber-400 font-medium">
+							⚠️ Se registrará como <strong>pago parcial</strong> (Saldo pendiente: ${(selectedOrderToConfirm.totalAmount - confirmPaidAmount).toLocaleString('es-AR')}).
+						</p>
+					{:else}
+						<p class="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
+							✓ Se registrará como <strong>pago completo</strong>.
+						</p>
+					{/if}
 				</div>
 
 				<label class="flex items-center gap-2 pt-1 cursor-pointer">
@@ -1088,7 +1403,7 @@
 				<Button
 					type="button"
 					size="sm"
-					class="text-xs h-8 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold gap-1.5"
+					class="text-xs h-8 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold gap-1.5 cursor-pointer shadow-xs"
 					disabled={isConfirmingOrder}
 					onclick={handleConfirmOrder}
 				>
@@ -1098,6 +1413,116 @@
 					{:else}
 						<Check class="size-3.5" />
 						<span>Confirmar Pedido</span>
+					{/if}
+				</Button>
+			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- MODAL RECHAZAR PEDIDO DE WHATSAPP -->
+{#if showRejectOrderModal && selectedOrderToReject}
+	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+		<div class="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl space-y-4">
+			<div class="flex items-center justify-between border-b border-border pb-3">
+				<div class="flex items-center gap-2 text-destructive">
+					<CircleX class="size-5" />
+					<h3 class="font-bold text-sm text-foreground">Rechazar Pedido #{selectedOrderToReject.orderNumber}</h3>
+				</div>
+				<button
+					type="button"
+					class="rounded-lg p-1 text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer"
+					onclick={() => (showRejectOrderModal = false)}
+				>
+					<X class="size-4" />
+				</button>
+			</div>
+
+			<div class="space-y-3 text-xs">
+				<div class="p-3 rounded-xl border border-destructive/20 bg-destructive/5 space-y-1">
+					<p class="text-muted-foreground">
+						Cliente: <strong class="text-foreground">{selectedOrderToReject.customerName}</strong>
+					</p>
+					<p class="text-muted-foreground">
+						Total a cancelar: <strong class="text-foreground">${selectedOrderToReject.totalAmount.toLocaleString('es-AR')}</strong>
+					</p>
+					<p class="text-[11px] text-muted-foreground pt-1">
+						El pedido pasará a estado <strong>cancelado</strong> y se removerá de la lista de órdenes pendientes.
+					</p>
+				</div>
+
+				<div class="space-y-1.5">
+					<label for="reject-reason-input" class="text-xs font-semibold text-foreground">
+						Motivo del rechazo (opcional):
+					</label>
+					<Input
+						id="reject-reason-input"
+						placeholder="Ej: Comprobante no válido o no acreditado en cuenta"
+						bind:value={rejectReason}
+						class="h-9 text-xs"
+					/>
+					<div class="flex flex-wrap gap-1 pt-0.5">
+						<button
+							type="button"
+							class="text-[10px] px-2 py-0.5 rounded-full border border-border bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer"
+							onclick={() => (rejectReason = 'Comprobante no acreditado en cuenta bancaria')}
+						>
+							Pago no acreditado
+						</button>
+						<button
+							type="button"
+							class="text-[10px] px-2 py-0.5 rounded-full border border-border bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer"
+							onclick={() => (rejectReason = 'Sin disponibilidad para la fecha solicitada')}
+						>
+							Sin disponibilidad
+						</button>
+						<button
+							type="button"
+							class="text-[10px] px-2 py-0.5 rounded-full border border-border bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer"
+							onclick={() => (rejectReason = 'Cancelado a pedido del cliente')}
+						>
+							Cancelado por cliente
+						</button>
+					</div>
+				</div>
+
+				<label class="flex items-center gap-2 pt-1 cursor-pointer">
+					<input
+						type="checkbox"
+						bind:checked={sendWhatsAppReject}
+						class="rounded border-input text-destructive focus:ring-destructive"
+					/>
+					<span class="text-xs text-muted-foreground">
+						Enviar aviso por WhatsApp informando el rechazo al cliente automáticamente.
+					</span>
+				</label>
+			</div>
+
+			<div class="flex items-center justify-end gap-2 pt-2 border-t border-border">
+				<Button
+					type="button"
+					variant="outline"
+					size="sm"
+					class="text-xs h-8"
+					disabled={isRejectingOrder}
+					onclick={() => (showRejectOrderModal = false)}
+				>
+					Volver
+				</Button>
+				<Button
+					type="button"
+					size="sm"
+					variant="destructive"
+					class="text-xs h-8 font-semibold gap-1.5 cursor-pointer"
+					disabled={isRejectingOrder}
+					onclick={handleRejectOrder}
+				>
+					{#if isRejectingOrder}
+						<RefreshCw class="size-3.5 animate-spin" />
+						<span>Rechazando...</span>
+					{:else}
+						<CircleX class="size-3.5" />
+						<span>Confirmar Rechazo</span>
 					{/if}
 				</Button>
 			</div>
