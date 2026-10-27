@@ -233,25 +233,77 @@ ${rawPrompt}`;
 				}
 			}
 
-			// 5. Devolver el resultado de la herramienta al modelo para generar la respuesta final al cliente
+			// 5. Devolver el resultado de la herramienta al modelo con instrucción contextual para generar la respuesta final
+			const assistantActionText =
+				response.content?.trim() ||
+				(toolCall.name === 'get_catalog'
+					? 'Consultando el catálogo de productos disponibles...'
+					: toolCall.name === 'get_business_info'
+						? 'Consultando la información del negocio...'
+						: 'Procesando el pedido...');
+
 			messages.push({
 				role: 'assistant',
-				content: response.content || `[Ejecutando ${toolCall.name}]`
+				content: assistantActionText
 			});
+
+			let toolPromptInstruction = '';
+			if (toolCall.name === 'get_catalog') {
+				toolPromptInstruction = `[Resultado del sistema para get_catalog]:\n${toolResultContent}\n\nInstrucción: Presenta amablemente estos productos al cliente de forma atractiva, clara y con sus respectivos precios, e invítalo a elegir el que desee.`;
+			} else if (toolCall.name === 'get_business_info') {
+				toolPromptInstruction = `[Resultado del sistema para get_business_info]:\n${toolResultContent}\n\nInstrucción: Brinda amablemente los datos de atención, horarios o medios de pago al cliente de forma clara y cordial.`;
+			} else if (toolCall.name === 'create_unconfirmed_order') {
+				toolPromptInstruction = `[Resultado del sistema para create_unconfirmed_order]:\n${toolResultContent}\n\nInstrucción: Confirma al cliente que su pedido fue registrado con el número de orden y monto total, e indícale amablemente los siguientes pasos para coordinar la entrega o transferencia.`;
+			} else {
+				toolPromptInstruction = `[Resultado del sistema para ${toolCall.name}]:\n${toolResultContent}\n\nInstrucción: Responde amablemente al cliente utilizando esta información.`;
+			}
 
 			messages.push({
-				role: 'tool',
-				content: toolResultContent,
-				toolCallId: toolCall.name
+				role: 'user',
+				content: toolPromptInstruction
 			});
 
-			const secondResponse = await aiProvider.chat({
-				messages,
-				temperature: 0.2
-			});
+			let finalReply = '';
+			try {
+				const secondResponse = await aiProvider.chat({
+					messages,
+					temperature: 0.2
+				});
+				finalReply = secondResponse.content?.trim() || '';
+			} catch (secondErr) {
+				console.error('[EcommerceBotService] Error en respuesta de síntesis tras tool call:', secondErr);
+			}
+
+			// Fallback determinista si el modelo no produjo texto o repitió placeholders
+			if (
+				!finalReply ||
+				finalReply.includes('[Ejecutando') ||
+				finalReply.toLowerCase().includes('no tengo acceso a un catálogo')
+			) {
+				if (toolCall.name === 'get_catalog') {
+					try {
+						const prods = JSON.parse(toolResultContent);
+						if (Array.isArray(prods) && prods.length > 0) {
+							const list = prods
+								.map(
+									(p) =>
+										`🎂 *${p.nombre}* (${p.codigo}): ${p.precio}${p.descripcion ? ` - ${p.descripcion}` : ''}`
+								)
+								.join('\n');
+							finalReply = `¡Hola! Con mucho gusto, aquí tienes nuestros productos disponibles:\n\n${list}\n\n¿Cuál te gustaría pedir o sobre cuál te gustaría más información? 😊`;
+						} else {
+							finalReply = 'Por el momento no tenemos productos activos en el catálogo. ¡Consúltanos más tarde!';
+						}
+					} catch {
+						finalReply = 'Aquí tienes nuestro catálogo de productos disponibles. ¿Cuál te gustaría pedir?';
+					}
+				} else if (toolCall.name === 'create_unconfirmed_order' && orderCreated) {
+					finalReply = `¡Excelente! Registramos tu pedido con el número *#${orderCreated.orderNumber}* por un total de *${currency}${orderCreated.totalAmount.toLocaleString('es-AR')}*.\n\nPara confirmarlo, puedes realizar la transferencia y responder *"comprobante enviado"*. ¡Muchas gracias!`;
+				}
+			}
 
 			return {
-				replyText: secondResponse.content,
+				replyText: finalReply,
 				toolExecuted,
 				toolArgs: toolCall.arguments,
 				toolResult: toolResultContent,

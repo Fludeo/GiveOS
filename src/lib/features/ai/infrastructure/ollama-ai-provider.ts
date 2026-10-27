@@ -52,8 +52,8 @@ export class OllamaAiProvider implements AiProvider {
 			body: JSON.stringify({
 				model: this.model,
 				messages: messages.map((m) => ({
-					role: m.role,
-					content: m.content
+					role: m.role === 'tool' ? 'user' : m.role,
+					content: m.role === 'tool' ? `[Resultado de herramienta]:\n${m.content}` : m.content
 				})),
 				stream: false,
 				options: { temperature }
