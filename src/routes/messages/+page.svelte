@@ -4,27 +4,21 @@
 	import { Button } from '#lib/components/ui/button';
 	import { Badge } from '#lib/components/ui/badge';
 	import { Input } from '#lib/components/ui/input';
-	import { Card, CardHeader, CardTitle, CardContent } from '#lib/components/ui/card';
 	import MessageSquare from '@lucide/svelte/icons/message-square';
-	import ShieldCheck from '@lucide/svelte/icons/shield-check';
 	import RefreshCw from '@lucide/svelte/icons/refresh-cw';
 	import X from '@lucide/svelte/icons/x';
 	import Send from '@lucide/svelte/icons/send';
 	import Check from '@lucide/svelte/icons/check';
 	import CheckCheck from '@lucide/svelte/icons/check-check';
-	import Eye from '@lucide/svelte/icons/eye';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Search from '@lucide/svelte/icons/search';
 	import ShoppingBag from '@lucide/svelte/icons/shopping-bag';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import Bot from '@lucide/svelte/icons/bot';
 	import Settings2 from '@lucide/svelte/icons/settings-2';
-	import AlertCircle from '@lucide/svelte/icons/alert-circle';
 	import Pencil from '@lucide/svelte/icons/pencil';
-	import Sparkles from '@lucide/svelte/icons/sparkles';
 	import ArrowRight from '@lucide/svelte/icons/arrow-right';
 	import Smartphone from '@lucide/svelte/icons/smartphone';
-	import ExternalLink from '@lucide/svelte/icons/external-link';
 	import { toast } from '#lib/components/ui/toast';
 	import { DEFAULT_BOT_PROMPT } from '#lib/features/ai/domain/bot-prompt.constants';
 	import type {
@@ -536,13 +530,50 @@
 	activeBusiness={data.activeBusiness}
 	businesses={data.businesses}
 	currentSection="messages"
-	title="Mensajes de Clientes"
-	description="Atención por WhatsApp, bandeja de entrada y pedidos automáticos en tiempo real."
+	title="Mensajes"
+	description="Atención por WhatsApp y pedidos en tiempo real."
 	unconfirmedOrdersCount={unconfirmedCount}
 >
+	{#snippet headerActions()}
+		{#if isConnected}
+			<div class="flex items-center gap-2">
+				<div class="flex items-center gap-2 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-xs">
+					<span class="size-2 rounded-full bg-emerald-500 animate-pulse"></span>
+					<span class="font-mono text-[11px] font-bold text-emerald-700 dark:text-emerald-400">+{phone}</span>
+				</div>
+
+				<div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted/60 border border-border text-xs">
+					<Bot class="size-3.5 {botEnabled ? 'text-purple-600 dark:text-purple-400' : 'text-muted-foreground'}" />
+					<span class="text-[11px] font-semibold text-foreground">
+						Bot {botEnabled ? 'Activo' : 'Pausado'}
+					</span>
+					<button
+						type="button"
+						class="text-[10px] font-bold text-muted-foreground hover:text-foreground cursor-pointer ml-1 underline"
+						onclick={handleToggleBot}
+					>
+						{botEnabled ? 'Pausar' : 'Activar'}
+					</button>
+				</div>
+
+				<Button
+					type="button"
+					variant="ghost"
+					size="sm"
+					href="/settings?tab=integrations"
+					class="text-xs h-7 px-2 text-muted-foreground hover:text-foreground gap-1"
+					title="Configuración de WhatsApp"
+				>
+					<Settings2 class="size-3.5" />
+					<span class="hidden sm:inline">Ajustes</span>
+				</Button>
+			</div>
+		{/if}
+	{/snippet}
+
 	{#if !isConnected}
 		<!-- ESTADO VACÍO: WHATSAPP NO CONECTADO -->
-		<div class="mx-auto max-w-xl py-12 px-4 text-center space-y-6">
+		<div class="mx-auto max-w-xl py-16 px-4 text-center space-y-6">
 			<div class="flex size-20 items-center justify-center rounded-3xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 mx-auto shadow-xs">
 				<svg class="size-10 fill-current" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
 					<path d="M12.004 2C6.48 2 2 6.48 2 12c0 1.83.498 3.55 1.364 5.035L2 22l5.12-1.33A9.957 9.957 0 0012.004 22c5.523 0 10.004-4.48 10.004-10S17.527 2 12.004 2zm5.827 14.185c-.244.686-1.42 1.309-1.96 1.353-.51.042-1.157.062-3.738-.974-3.13-1.258-5.114-4.444-5.27-4.65-.157-.207-1.264-1.684-1.264-3.212 0-1.528.8-2.28 1.083-2.589.284-.31.623-.387.83-.387.208 0 .416.002.599.012.193.01.45.074.704.64.265.592.906 2.215.986 2.378.08.163.133.354.026.568-.106.213-.16.347-.318.533-.16.186-.337.416-.48.558-.16.158-.328.33-.14.653.187.324.832 1.371 1.786 2.222 1.228 1.094 2.263 1.433 2.586 1.593.324.16.513.134.704-.085.191-.22.822-.958 1.042-1.286.22-.328.44-.274.743-.162.304.112 1.93.91 2.261 1.074.33.164.55.244.63.382.08.138.08.802-.164 1.488z"/>
@@ -568,384 +599,329 @@
 			</div>
 		</div>
 	{:else}
-		<!-- CHAT WORKSPACE (WHATSAPP CONECTADO) -->
-		<div class="space-y-4">
-			<!-- BARRA SUPERIOR DE ESTADO Y ACCIONES RÁPIDAS -->
-			<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl border border-border bg-card/60 backdrop-blur-xs">
-				<div class="flex items-center gap-3">
-					<div class="flex size-9 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
-						<Smartphone class="size-4.5" />
-					</div>
-					<div>
-						<div class="flex items-center gap-2">
-							<span class="text-xs font-bold text-foreground font-mono">+{phone}</span>
-							<Badge variant="outline" class="border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-[10px] py-0">
-								En línea
-							</Badge>
+		<!-- CHAT WORKSPACE (WHATSAPP CONECTADO): ALTURA FIJA EXACTA A PANTALLA -->
+		<div class="flex h-[calc(100vh-140px)] max-h-[calc(100vh-140px)] w-full rounded-2xl border border-border bg-card shadow-xs overflow-hidden">
+			<!-- COLUMNA IZQUIERDA: LISTA DE CONVERSACIONES (ANCHO FIJO ERGONÓMICO 320px) -->
+			<div class="w-80 lg:w-88 shrink-0 border-r border-border flex flex-col bg-muted/10 h-full">
+				<!-- Barra de búsqueda y Nuevo Chat -->
+				<div class="p-3 border-b border-border space-y-2 shrink-0">
+					<div class="flex items-center gap-2">
+						<div class="relative flex-1">
+							<Search class="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
+							<Input
+								placeholder="Buscar chat o número..."
+								bind:value={contactSearch}
+								class="pl-8 h-8 text-xs bg-background"
+							/>
+							{#if contactSearch}
+								<button
+									type="button"
+									onclick={() => (contactSearch = '')}
+									class="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground cursor-pointer"
+								>
+									<X class="size-3.5" />
+								</button>
+							{/if}
 						</div>
-						<p class="text-[11px] text-muted-foreground">
-							{pushName ? `WhatsApp: ${pushName}` : 'Conexión activa vía Baileys'}
-						</p>
+						<Button
+							type="button"
+							variant="outline"
+							size="icon"
+							class="size-8 shrink-0 text-muted-foreground hover:text-foreground cursor-pointer"
+							onclick={() => (showNewChatInput = !showNewChatInput)}
+							title="Iniciar chat con nuevo número"
+						>
+							<Plus class="size-4" />
+						</Button>
 					</div>
+
+					{#if showNewChatInput}
+						<div class="p-2.5 rounded-xl border border-border bg-card space-y-2 animate-in fade-in">
+							<label for="new-phone-input" class="text-[10px] font-semibold text-muted-foreground">
+								Ingresa número con código de país:
+							</label>
+							<div class="flex gap-1.5">
+								<Input
+									id="new-phone-input"
+									placeholder="Ej: 5491122334455"
+									bind:value={newChatPhone}
+									class="h-7 text-xs font-mono"
+								/>
+								<Button
+									type="button"
+									size="sm"
+									class="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold cursor-pointer"
+									onclick={handleStartNewChat}
+								>
+									Abrir
+								</Button>
+							</div>
+						</div>
+					{/if}
 				</div>
 
-				<div class="flex items-center gap-2">
-					<!-- Indicador y switch rápido del Bot -->
-					<div class="flex items-center gap-2 px-2.5 py-1 rounded-xl bg-muted/60 border border-border text-xs">
-						<Bot class="size-3.5 {botEnabled ? 'text-purple-600 dark:text-purple-400' : 'text-muted-foreground'}" />
-						<span class="text-[11px] font-semibold text-foreground">
-							Bot {botEnabled ? 'Activo' : 'Pausado'}
-						</span>
-						<button
-							type="button"
-							class="text-[10px] font-bold underline text-muted-foreground hover:text-foreground cursor-pointer ml-1"
-							onclick={handleToggleBot}
-						>
-							{botEnabled ? 'Pausar' : 'Activar'}
-						</button>
-					</div>
+				<!-- Lista de Contactos con Scroll Independiente -->
+				<div class="flex-1 min-h-0 overflow-y-auto divide-y divide-border/40">
+					{#if filteredConversations.length === 0}
+						<div class="p-8 text-center text-xs text-muted-foreground space-y-1">
+							<p class="font-medium text-foreground">No hay conversaciones</p>
+							<p class="text-[11px]">Cuando tus clientes escriban por WhatsApp aparecerán aquí.</p>
+						</div>
+					{:else}
+						{#each filteredConversations as conv (conv.phone)}
+							{@const isSelected = activeConversation?.phone === conv.phone}
+							{@const hasUnconfirmed = unconfirmedOrders.some((ord: any) => {
+								const ordPhone = (ord.transactionId || '').replace(/\D/g, '');
+								return ordPhone && (conv.phone.endsWith(ordPhone) || ordPhone.endsWith(conv.phone));
+							})}
+							<button
+								type="button"
+								onclick={() => {
+									selectedRecipient = conv.phone;
+									if (conv.unreadCount > 0) {
+										handleMarkAllAsRead(conv);
+									}
+								}}
+								class="w-full text-left p-3 transition-colors flex items-start gap-3 cursor-pointer {isSelected
+									? 'bg-muted/80 border-l-3 border-emerald-600'
+									: 'hover:bg-muted/40'}"
+							>
+								<!-- Avatar con Iniciales -->
+								<div
+									class="flex size-9 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 font-bold text-xs text-emerald-700 dark:text-emerald-400"
+								>
+									{conv.contactName.charAt(0).toUpperCase()}
+								</div>
 
-					<!-- Enlace directo a Ajustes de Integración -->
-					<Button
-						type="button"
-						variant="ghost"
-						size="sm"
-						href="/settings?tab=integrations"
-						class="text-xs h-8 text-muted-foreground hover:text-foreground gap-1.5"
-						title="Abrir configuración de WhatsApp y Bot"
-					>
-						<Settings2 class="size-3.5" />
-						<span class="hidden sm:inline">Configuración</span>
-					</Button>
+								<div class="flex-1 min-w-0 space-y-0.5">
+									<div class="flex items-center justify-between gap-1">
+										<div class="flex items-center gap-1.5 min-w-0">
+											<span class="text-xs font-bold text-foreground truncate">
+												{conv.contactName === conv.phone
+													? formatPhoneNumber(conv.phone)
+													: conv.contactName}
+											</span>
+											{#if hasUnconfirmed}
+												<span
+													class="size-2 rounded-full bg-amber-500 shrink-0 animate-pulse"
+													title="Tiene pedido por confirmar"
+												></span>
+											{/if}
+										</div>
+										<span class="text-[10px] text-muted-foreground whitespace-nowrap">
+											{formatTime(conv.lastMessage.timestamp)}
+										</span>
+									</div>
+
+									<div class="flex items-center justify-between gap-2">
+										<p class="text-[11px] text-muted-foreground truncate">
+											{#if conv.lastMessage.fromMe}
+												<span class="text-emerald-600 dark:text-emerald-400 font-semibold">Tú: </span>
+											{/if}
+											{conv.lastMessage.text}
+										</p>
+
+										{#if conv.unreadCount > 0}
+											<span
+												class="flex size-4.5 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-[10px] font-bold text-white shadow-xs"
+											>
+												{conv.unreadCount}
+											</span>
+										{/if}
+									</div>
+								</div>
+							</button>
+						{/each}
+					{/if}
 				</div>
 			</div>
 
-			<!-- WORKSPACE DE MENSAJERÍA (2 COLUMNAS) -->
-			<div class="rounded-2xl border border-border bg-card shadow-xs overflow-hidden">
-				<div class="grid grid-cols-1 md:grid-cols-12 min-h-[580px] h-[calc(100vh-230px)]">
-					<!-- COLUMNA IZQUIERDA: LISTA DE CONVERSACIONES (4 o 5 cols) -->
-					<div class="md:col-span-4 lg:col-span-4 border-r border-border flex flex-col bg-muted/10">
-						<!-- Barra de búsqueda y Nuevo Chat -->
-						<div class="p-3 border-b border-border space-y-2">
-							<div class="flex items-center gap-2">
-								<div class="relative flex-1">
-									<Search class="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
-									<Input
-										placeholder="Buscar chat o número..."
-										bind:value={contactSearch}
-										class="pl-8 h-8 text-xs bg-background"
-									/>
-									{#if contactSearch}
-										<button
-											type="button"
-											onclick={() => (contactSearch = '')}
-											class="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground cursor-pointer"
-										>
-											<X class="size-3.5" />
-										</button>
-									{/if}
+			<!-- COLUMNA DERECHA: VENTANA DE CHAT ACTIVO (FLEX-1 CON COMPOSER FIJO ABAJO) -->
+			<div class="flex-1 min-w-0 flex flex-col bg-background h-full overflow-hidden">
+				{#if !activeConversation}
+					<div class="flex-1 flex flex-col items-center justify-center p-8 text-center text-muted-foreground space-y-3">
+						<div class="flex size-14 items-center justify-center rounded-2xl bg-muted/50 text-muted-foreground/60">
+							<MessageSquare class="size-7" />
+						</div>
+						<div class="space-y-1">
+							<p class="text-sm font-semibold text-foreground">Selecciona una conversación</p>
+							<p class="text-xs max-w-sm">
+								Elige un contacto de la izquierda o inicia una conversación para ver los mensajes.
+							</p>
+						</div>
+					</div>
+				{:else}
+					<!-- Header del Chat Activo (shrink-0) -->
+					<div class="p-3 sm:px-4 border-b border-border flex items-center justify-between gap-3 bg-muted/20 shrink-0">
+						<div class="flex items-center gap-2.5 min-w-0">
+							<div
+								class="flex size-8 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 font-bold text-xs text-emerald-700 dark:text-emerald-400"
+							>
+								{activeConversation.contactName.charAt(0).toUpperCase()}
+							</div>
+							<div class="min-w-0">
+								<div class="flex items-center gap-1.5">
+									<span class="text-xs font-bold text-foreground truncate">
+										{activeConversation.contactName}
+									</span>
+									<button
+										type="button"
+										class="text-muted-foreground hover:text-foreground cursor-pointer p-0.5 rounded"
+										onclick={openRenameModal}
+										title="Editar nombre del contacto"
+									>
+										<Pencil class="size-3" />
+									</button>
 								</div>
+								<p class="text-[10px] text-muted-foreground font-mono truncate">
+									{formatPhoneNumber(activeConversation.phone)}
+								</p>
+							</div>
+						</div>
+
+						<div class="flex items-center gap-2 shrink-0">
+							{#if activeConversation.unreadCount > 0}
 								<Button
 									type="button"
 									variant="outline"
-									size="icon"
-									class="size-8 shrink-0 text-muted-foreground hover:text-foreground cursor-pointer"
-									onclick={() => (showNewChatInput = !showNewChatInput)}
-									title="Iniciar chat con nuevo número"
+									size="sm"
+									class="h-7 text-xs gap-1.5 font-semibold text-emerald-700 border-emerald-500/30 hover:bg-emerald-500/10 cursor-pointer"
+									onclick={() => handleMarkAllAsRead(activeConversation)}
 								>
-									<Plus class="size-4" />
+									<CheckCheck class="size-3.5" />
+									<span>Marcar leído</span>
 								</Button>
-							</div>
-
-							{#if showNewChatInput}
-								<div class="p-2.5 rounded-xl border border-border bg-card space-y-2 animate-in fade-in">
-									<label for="new-phone-input" class="text-[10px] font-semibold text-muted-foreground">
-										Ingresa número de WhatsApp con código de país:
-									</label>
-									<div class="flex gap-1.5">
-										<Input
-											id="new-phone-input"
-											placeholder="Ej: 5491122334455"
-											bind:value={newChatPhone}
-											class="h-7 text-xs font-mono"
-										/>
-										<Button
-											type="button"
-											size="sm"
-											class="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold cursor-pointer"
-											onclick={handleStartNewChat}
-										>
-											Abrir
-										</Button>
-									</div>
-								</div>
 							{/if}
-						</div>
 
-						<!-- Lista de Contactos con Scroll Independiente -->
-						<div class="flex-1 overflow-y-auto divide-y divide-border/50">
-							{#if filteredConversations.length === 0}
-								<div class="p-8 text-center text-xs text-muted-foreground space-y-1">
-									<p class="font-medium text-foreground">No hay conversaciones</p>
-									<p class="text-[11px]">Cuando tus clientes escriban por WhatsApp aparecerán aquí.</p>
-								</div>
-							{:else}
-								{#each filteredConversations as conv (conv.phone)}
-									{@const isSelected = activeConversation?.phone === conv.phone}
-									{@const hasUnconfirmed = unconfirmedOrders.some((ord: any) => {
-										const ordPhone = (ord.transactionId || '').replace(/\D/g, '');
-										return ordPhone && (conv.phone.endsWith(ordPhone) || ordPhone.endsWith(conv.phone));
-									})}
-									<button
-										type="button"
-										onclick={() => {
-											selectedRecipient = conv.phone;
-											if (conv.unreadCount > 0) {
-												handleMarkAllAsRead(conv);
-											}
-										}}
-										class="w-full text-left p-3 transition-colors flex items-start gap-3 cursor-pointer {isSelected
-											? 'bg-muted/80 border-l-3 border-emerald-600'
-											: 'hover:bg-muted/40'}"
-									>
-										<!-- Avatar con Iniciales -->
-										<div
-											class="flex size-9.5 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 font-bold text-xs text-emerald-700 dark:text-emerald-400"
-										>
-											{conv.contactName.charAt(0).toUpperCase()}
-										</div>
-
-										<div class="flex-1 min-w-0 space-y-0.5">
-											<div class="flex items-center justify-between gap-1">
-												<div class="flex items-center gap-1.5 min-w-0">
-													<span class="text-xs font-bold text-foreground truncate">
-														{conv.contactName === conv.phone
-															? formatPhoneNumber(conv.phone)
-															: conv.contactName}
-													</span>
-													{#if hasUnconfirmed}
-														<span
-															class="size-2 rounded-full bg-amber-500 shrink-0 animate-pulse"
-															title="Tiene pedido por confirmar"
-														></span>
-													{/if}
-												</div>
-												<span class="text-[10px] text-muted-foreground whitespace-nowrap">
-													{formatTime(conv.lastMessage.timestamp)}
-												</span>
-											</div>
-
-											<div class="flex items-center justify-between gap-2">
-												<p class="text-[11px] text-muted-foreground truncate">
-													{#if conv.lastMessage.fromMe}
-														<span class="text-emerald-600 dark:text-emerald-400 font-semibold">Tú: </span>
-													{/if}
-													{conv.lastMessage.text}
-												</p>
-
-												{#if conv.unreadCount > 0}
-													<span
-														class="flex size-4.5 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-[10px] font-bold text-white shadow-xs"
-													>
-														{conv.unreadCount}
-													</span>
-												{/if}
-											</div>
-										</div>
-									</button>
-								{/each}
-							{/if}
+							<Button
+								type="button"
+								variant="ghost"
+								size="sm"
+								class="h-7 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 gap-1 cursor-pointer"
+								onclick={() => (showClearChatModal = true)}
+								title="Vaciar mensajes de este chat"
+							>
+								<Trash2 class="size-3.5" />
+								<span class="hidden sm:inline">Vaciar chat</span>
+							</Button>
 						</div>
 					</div>
 
-					<!-- COLUMNA DERECHA: VENTANA DE CHAT ACTIVO (8 cols) -->
-					<div class="md:col-span-8 lg:col-span-8 flex flex-col bg-background">
-						{#if !activeConversation}
-							<div class="flex-1 flex flex-col items-center justify-center p-8 text-center text-muted-foreground space-y-3">
-								<div class="flex size-14 items-center justify-center rounded-2xl bg-muted/50 text-muted-foreground/60">
-									<MessageSquare class="size-7" />
-								</div>
-								<div class="space-y-1">
-									<p class="text-sm font-semibold text-foreground">Selecciona una conversación</p>
-									<p class="text-xs max-w-sm">
-										Elige un contacto de la izquierda o inicia una conversación para ver los mensajes.
-									</p>
-								</div>
+					<!-- BANNER: PEDIDO PENDIENTE DE CONFIRMACIÓN (shrink-0) -->
+					{#if activeUnconfirmedOrder}
+						<div
+							class="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 flex items-center justify-between gap-3 text-xs shrink-0"
+						>
+							<div class="flex items-center gap-2 text-amber-800 dark:text-amber-200">
+								<ShoppingBag class="size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+								<span>
+									Pedido <strong>#{activeUnconfirmedOrder.orderNumber}</strong> pendiente por
+									<strong>${activeUnconfirmedOrder.totalAmount.toLocaleString('es-AR')}</strong>
+								</span>
 							</div>
-						{:else}
-							<!-- Header del Chat Activo -->
-							<div class="p-3 sm:px-4 border-b border-border flex items-center justify-between gap-3 bg-muted/20">
-								<div class="flex items-center gap-2.5 min-w-0">
+							<Button
+								type="button"
+								size="sm"
+								class="h-6.5 text-xs bg-amber-600 hover:bg-amber-700 text-white font-semibold gap-1.5 cursor-pointer shadow-xs"
+								onclick={() => openConfirmOrderModal(activeUnconfirmedOrder)}
+							>
+								<Check class="size-3" />
+								<span>Confirmar</span>
+							</Button>
+						</div>
+					{/if}
+
+					<!-- Área de Mensajes del Chat con Scroll (flex-1 min-h-0 overflow-y-auto) -->
+					<div
+						bind:this={chatScrollContainer}
+						class="flex-1 min-h-0 overflow-y-auto p-4 space-y-3 bg-muted/5 flex flex-col"
+					>
+						{#each activeConversation.messages as msg, i (`${msg.id}_${i}`)}
+							<div class="flex flex-col {msg.fromMe ? 'items-end' : 'items-start'}">
+								<div
+									class="max-w-[85%] sm:max-w-lg lg:max-w-xl rounded-2xl p-3 text-xs space-y-1 shadow-2xs relative group {msg.fromMe
+										? 'bg-emerald-600 text-white rounded-tr-xs'
+										: 'bg-card border border-border text-foreground rounded-tl-xs'}"
+								>
+									<p class="whitespace-pre-line leading-relaxed select-text">
+										{msg.text}
+									</p>
+
 									<div
-										class="flex size-8 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 font-bold text-xs text-emerald-700 dark:text-emerald-400"
+										class="flex items-center justify-end gap-1.5 text-[10px] {msg.fromMe
+											? 'text-white/80'
+											: 'text-muted-foreground'} pt-0.5"
 									>
-										{activeConversation.contactName.charAt(0).toUpperCase()}
-									</div>
-									<div class="min-w-0">
-										<div class="flex items-center gap-1.5">
-											<span class="text-xs font-bold text-foreground truncate">
-												{activeConversation.contactName}
-											</span>
+										<span>{formatTime(msg.timestamp)}</span>
+										{#if msg.fromMe}
+											<CheckCheck class="size-3.5 text-white/90" />
+										{:else if !msg.isRead}
 											<button
 												type="button"
-												class="text-muted-foreground hover:text-foreground cursor-pointer p-0.5 rounded"
-												onclick={openRenameModal}
-												title="Editar nombre del contacto"
+												class="opacity-0 group-hover:opacity-100 hover:underline cursor-pointer text-emerald-600 dark:text-emerald-400"
+												onclick={() => handleMarkAsRead(msg)}
 											>
-												<Pencil class="size-3" />
+												Leído
 											</button>
-										</div>
-										<p class="text-[10px] text-muted-foreground font-mono truncate">
-											{formatPhoneNumber(activeConversation.phone)}
-										</p>
-									</div>
-								</div>
-
-								<div class="flex items-center gap-2 shrink-0">
-									{#if activeConversation.unreadCount > 0}
-										<Button
-											type="button"
-											variant="outline"
-											size="sm"
-											class="h-7 text-xs gap-1.5 font-semibold text-emerald-700 border-emerald-500/30 hover:bg-emerald-500/10 cursor-pointer"
-											onclick={() => handleMarkAllAsRead(activeConversation)}
-										>
-											<CheckCheck class="size-3.5" />
-											<span>Marcar como leído</span>
-										</Button>
-									{/if}
-
-									<Button
-										type="button"
-										variant="ghost"
-										size="sm"
-										class="h-7 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 gap-1 cursor-pointer"
-										onclick={() => (showClearChatModal = true)}
-										title="Vaciar mensajes de este chat"
-									>
-										<Trash2 class="size-3.5" />
-										<span class="hidden sm:inline">Vaciar chat</span>
-									</Button>
-								</div>
-							</div>
-
-							<!-- BANNER: PEDIDO PENDIENTE DE CONFIRMACIÓN -->
-							{#if activeUnconfirmedOrder}
-								<div
-									class="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2.5 flex items-center justify-between gap-3 text-xs"
-								>
-									<div class="flex items-center gap-2 text-amber-800 dark:text-amber-200">
-										<ShoppingBag class="size-4 shrink-0 text-amber-600 dark:text-amber-400" />
-										<span>
-											Pedido <strong>#{activeUnconfirmedOrder.orderNumber}</strong> pendiente por
-											<strong>${activeUnconfirmedOrder.totalAmount.toLocaleString('es-AR')}</strong>
-										</span>
-									</div>
-									<Button
-										type="button"
-										size="sm"
-										class="h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white font-semibold gap-1.5 cursor-pointer shadow-xs"
-										onclick={() => openConfirmOrderModal(activeUnconfirmedOrder)}
-									>
-										<Check class="size-3.5" />
-										<span>Confirmar Pedido</span>
-									</Button>
-								</div>
-							{/if}
-
-							<!-- Área de Mensajes del Chat con Scroll -->
-							<div
-								bind:this={chatScrollContainer}
-								class="flex-1 overflow-y-auto p-4 space-y-3 bg-muted/5 flex flex-col"
-							>
-								{#each activeConversation.messages as msg, i (`${msg.id}_${i}`)}
-									<div class="flex flex-col {msg.fromMe ? 'items-end' : 'items-start'}">
-										<div
-											class="max-w-[80%] rounded-2xl p-3 text-xs space-y-1 shadow-2xs relative group {msg.fromMe
-												? 'bg-emerald-600 text-white rounded-tr-xs'
-												: 'bg-card border border-border text-foreground rounded-tl-xs'}"
-										>
-											<p class="whitespace-pre-line leading-relaxed select-text">
-												{msg.text}
-											</p>
-
-											<div
-												class="flex items-center justify-end gap-1.5 text-[10px] {msg.fromMe
-													? 'text-white/80'
-													: 'text-muted-foreground'} pt-0.5"
-											>
-												<span>{formatTime(msg.timestamp)}</span>
-												{#if msg.fromMe}
-													<CheckCheck class="size-3.5 text-white/90" />
-												{:else if !msg.isRead}
-													<button
-														type="button"
-														class="opacity-0 group-hover:opacity-100 hover:underline cursor-pointer text-emerald-600 dark:text-emerald-400"
-														onclick={() => handleMarkAsRead(msg)}
-													>
-														Leído
-													</button>
-												{/if}
-											</div>
-										</div>
-									</div>
-								{/each}
-							</div>
-
-							<!-- Barra Inferior de Composición y Respuestas Rápidas -->
-							<div class="p-3 border-t border-border bg-background space-y-2">
-								<!-- Chips de Respuestas Rápidas -->
-								<div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] text-muted-foreground">
-									<span class="text-[10px] font-semibold shrink-0">Atajos:</span>
-									<button
-										type="button"
-										class="px-2 py-0.5 rounded-full border border-border bg-muted/30 hover:bg-muted text-foreground cursor-pointer shrink-0"
-										onclick={() => (replyText = '¡Hola! Te paso los datos para la transferencia:\nAlias: PASTELERIA.SWEET.CAKES\nTitular: Pastelería Dulce')}
-									>
-										💳 Alias / CBU
-									</button>
-									<button
-										type="button"
-										class="px-2 py-0.5 rounded-full border border-border bg-muted/30 hover:bg-muted text-foreground cursor-pointer shrink-0"
-										onclick={() => (replyText = 'Nuestro horario de atención es de Lunes a Sábado de 09:00 a 19:00 hs.')}
-									>
-										🕒 Horarios
-									</button>
-									<button
-										type="button"
-										class="px-2 py-0.5 rounded-full border border-border bg-muted/30 hover:bg-muted text-foreground cursor-pointer shrink-0"
-										onclick={() => (replyText = '¡Hola! Con gusto te paso nuestro catálogo disponible de tortas y productos.')}
-									>
-										🎂 Catálogo
-									</button>
-								</div>
-
-								<!-- Input de Texto y Botón Enviar -->
-								<form onsubmit={handleSendMessage} class="flex items-center gap-2">
-									<Input
-										placeholder="Escribe un mensaje para el cliente..."
-										bind:value={replyText}
-										class="h-9 text-xs"
-										disabled={isSending}
-									/>
-									<Button
-										type="submit"
-										size="sm"
-										class="h-9 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold gap-1.5 shrink-0 cursor-pointer"
-										disabled={!replyText.trim() || isSending}
-									>
-										{#if isSending}
-											<RefreshCw class="size-3.5 animate-spin" />
-										{:else}
-											<Send class="size-3.5" />
-											<span class="hidden sm:inline">Enviar</span>
 										{/if}
-									</Button>
-								</form>
+									</div>
+								</div>
 							</div>
-						{/if}
+						{/each}
 					</div>
-				</div>
+
+					<!-- Barra Inferior de Composición y Respuestas Rápidas (shrink-0) -->
+					<div class="p-3 border-t border-border bg-background space-y-2 shrink-0">
+						<!-- Chips de Respuestas Rápidas -->
+						<div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] text-muted-foreground">
+							<span class="text-[10px] font-semibold shrink-0">Atajos:</span>
+							<button
+								type="button"
+								class="px-2 py-0.5 rounded-full border border-border bg-muted/30 hover:bg-muted text-foreground cursor-pointer shrink-0 transition-colors"
+								onclick={() => (replyText = '¡Hola! Te paso los datos para la transferencia:\nAlias: PASTELERIA.SWEET.CAKES\nTitular: Pastelería Dulce')}
+							>
+								💳 Alias / CBU
+							</button>
+							<button
+								type="button"
+								class="px-2 py-0.5 rounded-full border border-border bg-muted/30 hover:bg-muted text-foreground cursor-pointer shrink-0 transition-colors"
+								onclick={() => (replyText = 'Nuestro horario de atención es de Lunes a Sábado de 09:00 a 19:00 hs.')}
+							>
+								🕒 Horarios
+							</button>
+							<button
+								type="button"
+								class="px-2 py-0.5 rounded-full border border-border bg-muted/30 hover:bg-muted text-foreground cursor-pointer shrink-0 transition-colors"
+								onclick={() => (replyText = '¡Hola! Con gusto te paso nuestro catálogo disponible de tortas y productos.')}
+							>
+								🎂 Catálogo
+							</button>
+						</div>
+
+						<!-- Input de Texto y Botón Enviar -->
+						<form onsubmit={handleSendMessage} class="flex items-center gap-2">
+							<Input
+								placeholder="Escribe un mensaje para el cliente..."
+								bind:value={replyText}
+								class="h-9 text-xs"
+								disabled={isSending}
+							/>
+							<Button
+								type="submit"
+								size="sm"
+								class="h-9 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold gap-1.5 shrink-0 cursor-pointer"
+								disabled={!replyText.trim() || isSending}
+							>
+								{#if isSending}
+									<RefreshCw class="size-3.5 animate-spin" />
+								{:else}
+									<Send class="size-3.5" />
+									<span class="hidden sm:inline">Enviar</span>
+								{/if}
+							</Button>
+						</form>
+					</div>
+				{/if}
 			</div>
 		</div>
 	{/if}
