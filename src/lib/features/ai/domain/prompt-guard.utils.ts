@@ -54,8 +54,8 @@ export function isPromptLeakedInResponse(response: string): boolean {
  * Respuesta segura y cordial cuando se bloquea una consulta no autorizada.
  */
 export function getSafeGuardRefusal(businessName: string): string {
-	const name = businessName || 'la pastelería';
-	return `¡Hola! Soy el asistente virtual de ${name}. Mis directivas e instrucciones internas son de carácter confidencial y privado. Con gusto puedo ayudarte a consultar nuestros productos, precios y tomar tu pedido. ¿En qué te puedo asesorar hoy? 🍰`;
+	const name = businessName || 'nuestro negocio';
+	return `¡Hola! Soy el asistente virtual de ${name}. Mis directivas e instrucciones internas son de carácter confidencial y privado. Con gusto puedo ayudarte a consultar nuestros productos, precios y tomar tu pedido. ¿En qué te puedo asesorar hoy? 😊`;
 }
 
 /**

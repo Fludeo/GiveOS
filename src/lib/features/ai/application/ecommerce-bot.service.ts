@@ -46,7 +46,7 @@ export class EcommerceBotService {
 		{
 			name: 'get_catalog',
 			description:
-				'Devuelve la lista de productos y tortas disponibles a la venta en la pastelería, con sus códigos, nombres y precios.',
+				'Devuelve la lista de productos y servicios disponibles en el catálogo de venta del negocio, con sus códigos, nombres y precios.',
 			parameters: {
 				type: 'object',
 				properties: {},
@@ -66,23 +66,23 @@ export class EcommerceBotService {
 		{
 			name: 'create_unconfirmed_order',
 			description:
-				'Registra un pedido en estado NO CONFIRMADO para que el encargado verifique el comprobante de pago antes de confirmarlo. Úsalo cuando el cliente confirme qué productos desea encargar.',
+				'Registra un pedido en estado NO CONFIRMADO para que el encargado verifique el comprobante de pago antes de confirmarlo. Úsalo cuando el cliente confirme qué productos o servicios desea encargar.',
 			parameters: {
 				type: 'object',
 				properties: {
 					customer_name: {
 						type: 'string',
-						description: 'Nombre del cliente'
+						description: 'Nombre del cliente o persona que recibe'
 					},
 					items: {
 						type: 'array',
-						description: 'Lista de ítems solicitados',
+						description: 'Lista de ítems o productos solicitados',
 						items: {
 							type: 'object',
 							properties: {
 								product_code_or_name: {
 									type: 'string',
-									description: 'Código o nombre del producto'
+									description: 'Código o nombre del producto o servicio'
 								},
 								quantity: {
 									type: 'number',
@@ -93,11 +93,11 @@ export class EcommerceBotService {
 					},
 					delivery_date: {
 						type: 'string',
-						description: 'Fecha y hora estimada de retiro o entrega (ej: 2026-10-30 16:00)'
+						description: 'Fecha y hora estimada de retiro, entrega o turno (ej: 2026-10-30 16:00)'
 					},
 					notes: {
 						type: 'string',
-						description: 'Notas adicionales o dedicatoria'
+						description: 'Notas adicionales, especificaciones o detalles del pedido'
 					}
 				},
 				required: ['customer_name', 'items']
@@ -114,7 +114,7 @@ export class EcommerceBotService {
 			where: eq(businesses.id, input.businessId)
 		});
 
-		const businessName = business?.name || 'la pastelería';
+		const businessName = business?.name || 'nuestro negocio';
 		const currency = business?.settings?.currencySymbol || '$';
 
 		// Guardia de seguridad: nunca revelar el system prompt ante intentos de extracción
@@ -195,7 +195,7 @@ export class EcommerceBotService {
 			} else if (toolCall.name === 'get_business_info') {
 				toolResultContent = JSON.stringify({
 					negocio: businessName,
-					descripcion: business?.description || 'Pastelería y repostería artesanal',
+					descripcion: business?.description || 'Venta de productos y atención al cliente',
 					horarios: business?.openingHours || 'Consultar por mensaje',
 					whatsapp: business?.whatsapp || '',
 					pago: {

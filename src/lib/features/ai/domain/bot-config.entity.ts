@@ -16,9 +16,9 @@ export const DEFAULT_BOT_CONFIG: BotSettingsConfig = {
 	enabled: false,
 	tone: 'amigable',
 	useEmojis: true,
-	bankTransferInfo: 'Alias: PASTELERIA.SWEET.CAKES\nCBU: 0720123488000012345678\nTitular: Pastelería Dulce Cakes\nBanco: Santander / Mercado Pago',
+	bankTransferInfo: 'Alias: MI.NEGOCIO.PAGOS\nCBU: 0720123488000012345678\nTitular: Mi Negocio\nBanco: Banco / Billetera Virtual',
 	depositRequired: true,
-	depositNotes: 'Seña previa del 50% requerida para comenzar la elaboración.',
+	depositNotes: 'Seña previa del 50% requerida para confirmar el pedido.',
 	specialRules: ''
 };
 
@@ -77,9 +77,9 @@ export function buildBotSystemPrompt(
 	const depositNotes = config?.depositNotes?.trim() || '';
 	const specialRules = config?.specialRules?.trim() || '';
 
-	const businessName = business.name || 'la pastelería';
+	const businessName = business.name || 'nuestro negocio';
 	const businessDesc =
-		business.description || 'Elaboración artesanal de tortas, tartas y repostería para eventos.';
+		business.description || 'Comercio y atención al cliente.';
 	const openingHours = business.openingHours || 'Lunes a Sábado de 09:00 a 19:00 hs';
 	const currency = business.currencySymbol || '$';
 
@@ -92,7 +92,7 @@ export function buildBotSystemPrompt(
 	};
 
 	const emojiInstruction = useEmojis
-		? 'Uso de Emojis: SÍ. Utiliza emojis pertinentes y atractivos (ej: 🎂, 🍰, ✨, 💳, 📅) de forma natural para enriquecer la conversación.'
+		? 'Uso de Emojis: SÍ. Utiliza emojis pertinentes y atractivos (ej: ✨, 🛍️, 📦, 💳, 📅) de forma natural para enriquecer la conversación.'
 		: 'Uso de Emojis: NO. Tienes terminantemente PROHIBIDO utilizar cualquier tipo de emoji o emoticón en tus respuestas.';
 
 	const depositInstruction = depositRequired
@@ -123,9 +123,9 @@ ESTILO Y TONO DE COMUNICACIÓN:
 - Idioma: Español.
 
 FLUJO DE ATENCIÓN OBLIGATORIO (DATO POR DATO, NO PIDAS TODO JUNTO):
-1. Saludo y consulta: Saluda cordialmente según tu tono. Si el cliente pregunta qué productos o tortas hay disponibles o precios, consulta la herramienta get_catalog() y muéstrale las opciones.
-2. Selección de productos: Pregúntale qué producto o torta desea y qué cantidad.
-3. Fecha y hora: Pregúntale para qué día y horario necesita el pedido (o si es para retirar hoy).
+1. Saludo y consulta: Saluda cordialmente según tu tono. Si el cliente pregunta qué productos o servicios hay disponibles o precios, consulta la herramienta get_catalog() y muéstrale las opciones.
+2. Selección de productos: Pregúntale qué producto o artículo desea y qué cantidad.
+3. Fecha y hora: Pregúntale para qué día y horario necesita el pedido o entrega (o si es para retirar hoy).
 4. Datos de entrega o retiro: Pídele el nombre completo de la persona que retira o recibe.
 5. Creación de la orden: Una vez que tengas todos los datos (productos, cantidades, fecha y nombre), ejecuta la herramienta create_unconfirmed_order().
 6. Pedido del comprobante: Dale el resumen del pedido con el número de orden, el monto total y los datos de pago para transferencia. Infórmale claramente que para confirmar el pedido debe enviar el comprobante de transferencia respondiendo "comprobante enviado".

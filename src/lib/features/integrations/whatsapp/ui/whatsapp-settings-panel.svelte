@@ -107,7 +107,7 @@
 	const compiledPrompt = $derived(
 		buildBotSystemPrompt(
 			{
-				name: business?.name || 'la pastelería',
+				name: business?.name || 'mi negocio',
 				description: business?.description,
 				openingHours: business?.openingHours,
 				currencySymbol: business?.currencySymbol || '$'
@@ -498,7 +498,7 @@
 				<div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
 					<div class="rounded-lg bg-background p-2.5 border border-border space-y-1">
 						<span class="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block">Nombre</span>
-						<p class="font-medium text-foreground truncate">{business?.name || 'la pastelería'}</p>
+						<p class="font-medium text-foreground truncate">{business?.name || 'Mi Negocio'}</p>
 					</div>
 					<div class="rounded-lg bg-background p-2.5 border border-border space-y-1">
 						<span class="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block">Horarios</span>
@@ -506,7 +506,7 @@
 					</div>
 					<div class="rounded-lg bg-background p-2.5 border border-border space-y-1">
 						<span class="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block">Descripción</span>
-						<p class="font-medium text-foreground truncate">{business?.description || 'Repostería y pastelería artesanal'}</p>
+						<p class="font-medium text-foreground truncate">{business?.description || 'Comercio y atención al cliente'}</p>
 					</div>
 				</div>
 				<p class="text-[11px] text-muted-foreground">
@@ -639,7 +639,7 @@
 					bind:value={bankTransferInfo}
 					rows="3"
 					class="w-full rounded-xl border border-input bg-background p-3 text-xs font-mono leading-relaxed placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y"
-					placeholder="Alias: PASTELERIA.SWEET.CAKES&#10;CBU: 0720123488000012345678&#10;Titular: Pastelería Dulce&#10;Banco: Santander"
+					placeholder="Alias: MI.NEGOCIO.PAGOS&#10;CBU: 0720123488000012345678&#10;Titular: Mi Negocio&#10;Banco: Santander / Mercado Pago"
 				></textarea>
 				<p class="text-[11px] text-muted-foreground">
 					Estos son los datos exactos que el bot le enviará al cliente cuando termine de armar su orden.

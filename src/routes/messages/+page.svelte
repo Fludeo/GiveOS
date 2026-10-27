@@ -1100,23 +1100,28 @@
 								<button
 									type="button"
 									class="px-2 py-0.5 rounded-full border border-border bg-muted/30 hover:bg-muted text-foreground cursor-pointer shrink-0 transition-colors"
-									onclick={() => (replyText = '¡Hola! Te paso los datos para la transferencia:\nAlias: PASTELERIA.SWEET.CAKES\nTitular: Pastelería Dulce')}
+									onclick={() =>
+										(replyText = data.botSettings?.bankTransferInfo
+											? `¡Hola! Te paso los datos para la transferencia:\n${data.botSettings.bankTransferInfo}`
+											: '¡Hola! Te paso los datos para la transferencia bancaria.')
+									}
 								>
 									💳 Alias / CBU
 								</button>
 								<button
 									type="button"
 									class="px-2 py-0.5 rounded-full border border-border bg-muted/30 hover:bg-muted text-foreground cursor-pointer shrink-0 transition-colors"
-									onclick={() => (replyText = 'Nuestro horario de atención es de Lunes a Sábado de 09:00 a 19:00 hs.')}
+									onclick={() =>
+										(replyText = `Nuestro horario de atención es ${data.activeBusiness?.openingHours || 'de Lunes a Sábado de 09:00 a 19:00 hs.'}`)}
 								>
 									🕒 Horarios
 								</button>
 								<button
 									type="button"
 									class="px-2 py-0.5 rounded-full border border-border bg-muted/30 hover:bg-muted text-foreground cursor-pointer shrink-0 transition-colors"
-									onclick={() => (replyText = '¡Hola! Con gusto te paso nuestro catálogo disponible de tortas y productos.')}
+									onclick={() => (replyText = '¡Hola! Con gusto te paso nuestro catálogo disponible de productos y servicios.')}
 								>
-									🎂 Catálogo
+									🛍️ Catálogo
 								</button>
 							</div>
 

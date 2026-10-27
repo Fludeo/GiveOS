@@ -637,7 +637,7 @@ export class WhatsAppSessionManager {
 				normalized === 'ya transferí' ||
 				normalized === 'transferido'
 			) {
-				const reply = `¡Muchas gracias ${customerName}! 🍰 Recibimos tu aviso de pago. Un encargado de la pastelería está verificando la transferencia en la cuenta para confirmar tu pedido en breve.`;
+				const reply = `¡Muchas gracias ${customerName}! ✨ Recibimos tu aviso de pago. Un encargado del negocio está verificando la transferencia en la cuenta para confirmar tu pedido a la brevedad.`;
 				await this.sendMessage(businessId, customerPhone, reply, true);
 
 				this.broadcast(holder, {
