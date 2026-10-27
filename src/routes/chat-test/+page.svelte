@@ -188,7 +188,7 @@
 	user={data.user}
 	activeBusiness={data.activeBusiness}
 	businesses={data.businesses}
-	currentSection="integrations"
+	currentSection="messages"
 	title="Simulador de IA & Prompt (Local)"
 	description="Prueba y depura el comportamiento de Gemma 4 y sus herramientas en tu GPU sin tocar WhatsApp."
 >
@@ -222,12 +222,12 @@
 
 			<div class="flex items-center gap-2">
 				<Button
-					href="/integrations"
+					href="/messages"
 					variant="outline"
 					size="sm"
 					class="h-8 text-xs font-medium"
 				>
-					Ir a WhatsApp
+					Ir a Mensajes
 				</Button>
 			</div>
 		</div>

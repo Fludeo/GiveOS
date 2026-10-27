@@ -33,10 +33,21 @@
 	import X from '@lucide/svelte/icons/x';
 	import { pwaStore } from '#lib/pwa.svelte';
 	import { toast } from '#lib/components/ui/toast/toast.svelte';
+	import { page } from '$app/state';
+	import Blocks from '@lucide/svelte/icons/blocks';
+	import WhatsAppSettingsPanel from '#lib/features/integrations/whatsapp/ui/whatsapp-settings-panel.svelte';
 
 	let { data }: PageProps = $props();
 
-	let currentTab = $state<'general' | 'costs' | 'schedule'>('general');
+	let currentTab = $state<'general' | 'costs' | 'schedule' | 'integrations'>('general');
+
+	// Sincronizar pestaña si viene en el query param (ej: /settings?tab=integrations)
+	$effect(() => {
+		const tabParam = page.url.searchParams.get('tab');
+		if (tabParam && ['general', 'costs', 'schedule', 'integrations'].includes(tabParam)) {
+			currentTab = tabParam as any;
+		}
+	});
 	let weeklySchedule = $state<DaySchedule[]>(createDefaultWeeklySchedule());
 
 	// Sincronizar horario cuando cambia el negocio activo
@@ -134,8 +145,8 @@
 	description="Administra la identidad, costos operativos y bloques horarios por día de tu negocio"
 >
 	<div class="max-w-4xl space-y-6">
-		<!-- Barra de Pestañas Unificada de Configuración (Segmented Control 3 columnas en mobile) -->
-		<div class="sticky top-2 z-20 grid grid-cols-3 gap-1 rounded-2xl border border-border bg-card/95 p-1.5 shadow-xs backdrop-blur-md sm:inline-flex sm:w-auto sm:gap-1.5">
+		<!-- Barra de Pestañas Unificada de Configuración (Segmented Control 4 columnas en mobile) -->
+		<div class="sticky top-2 z-20 grid grid-cols-2 gap-1 rounded-2xl border border-border bg-card/95 p-1.5 shadow-xs backdrop-blur-md sm:inline-flex sm:w-auto sm:gap-1.5">
 			<button
 				type="button"
 				onclick={() => (currentTab = 'general')}
@@ -174,9 +185,32 @@
 				<span class="truncate sm:hidden">Horarios</span>
 				<span class="hidden sm:inline">Horarios de Atención</span>
 			</button>
+
+			<button
+				type="button"
+				onclick={() => (currentTab = 'integrations')}
+				class="inline-flex items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-xs sm:px-3.5 sm:text-sm font-medium transition-colors cursor-pointer {currentTab ===
+				'integrations'
+					? 'bg-primary text-primary-foreground shadow-xs font-semibold'
+					: 'text-muted-foreground hover:text-foreground'}"
+			>
+				<Blocks class="size-3.5 sm:size-4 shrink-0" />
+				<span class="truncate sm:hidden">WhatsApp</span>
+				<span class="hidden sm:inline">WhatsApp & Bot IA</span>
+			</button>
 		</div>
 
-		<Card>
+		{#if currentTab === 'integrations'}
+			<WhatsAppSettingsPanel
+				businessId={data.activeBusiness.id}
+				initialStatus={data.initialWhatsAppSession?.status}
+				initialPhone={data.initialWhatsAppSession?.phone}
+				initialPushName={data.initialWhatsAppSession?.pushName}
+				initialQr={data.initialWhatsAppSession?.qr}
+				initialBotSettings={data.botSettings}
+			/>
+		{:else}
+			<Card>
 			<CardHeader class="space-y-1.5 p-5 sm:p-8 sm:pb-4">
 				<CardTitle class="text-lg sm:text-xl">
 					{#if currentTab === 'general'}
@@ -437,6 +471,7 @@
 				</form>
 			</CardContent>
 		</Card>
+		{/if}
 
 		<!-- Instalación de Aplicación Móvil (PWA) y Acceso al Sistema de Diseño UI -->
 		{#if currentTab === 'general'}

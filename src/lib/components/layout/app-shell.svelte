@@ -17,6 +17,7 @@
 	import ShoppingCart from '@lucide/svelte/icons/shopping-cart';
 	import Package from '@lucide/svelte/icons/package';
 	import Blocks from '@lucide/svelte/icons/blocks';
+	import MessageSquare from '@lucide/svelte/icons/message-square';
 	import Settings from '@lucide/svelte/icons/settings';
 	import Store from '@lucide/svelte/icons/store';
 	import LogOut from '@lucide/svelte/icons/log-out';
@@ -46,7 +47,14 @@
 		user: AuthUser;
 		activeBusiness: Business;
 		businesses?: Array<Business & { role: BusinessRole }>;
-		currentSection: 'dashboard' | 'orders' | 'recipes' | 'inventory' | 'settings' | 'integrations';
+		currentSection:
+			| 'dashboard'
+			| 'orders'
+			| 'recipes'
+			| 'inventory'
+			| 'settings'
+			| 'integrations'
+			| 'messages';
 		title: string;
 		description: string;
 		headerActions?: Snippet;
@@ -109,18 +117,18 @@
 			icon: ShoppingBag
 		},
 		{
+			id: 'messages' as const,
+			label: 'Mensajes',
+			mobileLabel: 'Mensajes',
+			href: '/messages',
+			icon: MessageSquare
+		},
+		{
 			id: 'inventory' as const,
 			label: 'Inventario y Recetas',
 			mobileLabel: 'Inventario',
 			href: '/inventory',
 			icon: Package
-		},
-		{
-			id: 'integrations' as const,
-			label: 'Integraciones',
-			mobileLabel: 'Integraciones',
-			href: '/integrations',
-			icon: Blocks
 		},
 		{
 			id: 'settings' as const,
@@ -132,7 +140,7 @@
 	]);
 
 	const leftDockItems = $derived(navItems.slice(0, 2));
-	const rightDockItems = $derived([navItems[2], navItems[3]]);
+	const rightDockItems = $derived([navItems[2], navItems[4]]);
 </script>
 
 <div class="flex h-screen h-dvh w-full overflow-hidden bg-muted/20">
@@ -319,7 +327,7 @@
 				>
 					<div class="relative">
 						<Icon class="size-4 shrink-0" />
-						{#if item.id === 'integrations' && unconfirmedOrdersCount > 0}
+						{#if item.id === 'messages' && unconfirmedOrdersCount > 0}
 							<span
 								class="absolute -top-1.5 -right-1.5 flex size-2.5 rounded-full bg-amber-500 ring-2 ring-background animate-pulse"
 							></span>
@@ -327,7 +335,7 @@
 					</div>
 					{#if !isCollapsed}
 						<span class="truncate flex-1">{item.label}</span>
-						{#if item.id === 'integrations' && unconfirmedOrdersCount > 0}
+						{#if item.id === 'messages' && unconfirmedOrdersCount > 0}
 							<span
 								class="ml-auto inline-flex items-center justify-center rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300 font-bold text-[10px] px-1.5 py-0.5"
 								title={`${unconfirmedOrdersCount} pedido${unconfirmedOrdersCount > 1 ? 's' : ''} por confirmar`}
@@ -505,7 +513,7 @@
 							: 'group-hover:bg-muted/60'}"
 					>
 						<Icon class="size-4.5 shrink-0" />
-						{#if item.id === 'integrations' && unconfirmedOrdersCount > 0}
+						{#if item.id === 'messages' && unconfirmedOrdersCount > 0}
 							<span
 								class="absolute top-0.5 right-1.5 flex size-2 rounded-full bg-amber-500 ring-2 ring-background animate-pulse"
 							></span>
@@ -565,7 +573,7 @@
 							: 'group-hover:bg-muted/60'}"
 					>
 						<Icon class="size-4.5 shrink-0" />
-						{#if item.id === 'integrations' && unconfirmedOrdersCount > 0}
+						{#if item.id === 'messages' && unconfirmedOrdersCount > 0}
 							<span
 								class="absolute top-0.5 right-1.5 flex size-2 rounded-full bg-amber-500 ring-2 ring-background animate-pulse"
 							></span>
