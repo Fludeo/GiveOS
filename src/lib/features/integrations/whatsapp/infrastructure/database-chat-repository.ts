@@ -211,7 +211,8 @@ export class DatabaseChatRepository {
 				isRead: chatMessages.isRead,
 				rawKey: chatMessages.rawKey,
 				timestamp: chatMessages.timestamp,
-				customerPhone: chatSessions.customerPhone
+				customerPhone: chatSessions.customerPhone,
+				customerName: chatSessions.customerName
 			})
 			.from(chatMessages)
 			.innerJoin(chatSessions, eq(chatMessages.sessionId, chatSessions.id))
@@ -223,7 +224,7 @@ export class DatabaseChatRepository {
 			id: m.id,
 			businessId: m.businessId,
 			from: m.customerPhone,
-			senderName: m.senderName,
+			senderName: m.customerName || m.senderName,
 			text: m.text,
 			fromMe: m.fromMe,
 			timestamp: m.timestamp.getTime(),
@@ -257,6 +258,26 @@ export class DatabaseChatRepository {
 			.update(chatSessions)
 			.set({ unreadCount: 0, updatedAt: new Date() })
 			.where(eq(chatSessions.id, session.id));
+	}
+
+	/**
+	 * Actualiza el nombre personalizado del contacto / sesión
+	 */
+	static async updateContactName(businessId: string, customerPhone: string, newName: string): Promise<void> {
+		const db = getDb();
+		const cleanPhone = customerPhone.replace(/\D/g, '');
+		const trimmedName = newName.trim();
+		if (!trimmedName) return;
+
+		await db
+			.update(chatSessions)
+			.set({ customerName: trimmedName, updatedAt: new Date() })
+			.where(
+				and(
+					eq(chatSessions.businessId, businessId),
+					eq(chatSessions.customerPhone, cleanPhone)
+				)
+			);
 	}
 
 	/**

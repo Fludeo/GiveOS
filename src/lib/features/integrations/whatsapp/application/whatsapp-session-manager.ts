@@ -319,7 +319,20 @@ export class WhatsAppSessionManager {
 							continue;
 						}
 
-						const cleanFrom = remoteJid.replace('@s.whatsapp.net', '').replace(/:\d+/, '');
+						let cleanFrom = remoteJid.replace('@s.whatsapp.net', '').replace('@lid', '').replace(/:\d+/, '');
+
+						// Si el JID viene en formato LID (@lid), intentar resolver el número de teléfono real (PN)
+						if (remoteJid.endsWith('@lid')) {
+							try {
+								const pn = await (sock.signalRepository as any)?.lidMapping?.getPNForLID?.(remoteJid);
+								if (pn) {
+									cleanFrom = pn.replace('@s.whatsapp.net', '').replace(/:\d+/, '');
+								} else if (m.key.participant && m.key.participant.endsWith('@s.whatsapp.net')) {
+									cleanFrom = m.key.participant.replace('@s.whatsapp.net', '').replace(/:\d+/, '');
+								}
+							} catch (_) {}
+						}
+
 						const senderName = m.pushName || cleanFrom;
 						const timestamp = typeof m.messageTimestamp === 'number' ? m.messageTimestamp * 1000 : Date.now();
 

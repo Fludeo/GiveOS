@@ -23,6 +23,7 @@
 	import Settings2 from '@lucide/svelte/icons/settings-2';
 	import AlertCircle from '@lucide/svelte/icons/alert-circle';
 	import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
+	import Pencil from '@lucide/svelte/icons/pencil';
 	import { toast } from '#lib/components/ui/toast';
 	import { DEFAULT_BOT_PROMPT } from '#lib/features/ai/domain/bot-prompt.constants';
 	import type {
@@ -65,6 +66,11 @@
 	let confirmPaidAmount = $state<number>(0);
 	let sendWhatsAppConfirm = $state(true);
 	let isConfirmingOrder = $state(false);
+
+	let showRenameModal = $state(false);
+	let renameContactInput = $state('');
+	let isRenamingContact = $state(false);
+	let customContactNames = $state<Record<string, string>>({});
 
 	const unconfirmedCount = $derived(unconfirmedOrders.length);
 
@@ -190,9 +196,10 @@
 			let conv = map.get(phoneKey);
 			let seenIds = seenMsgIdsByConv.get(phoneKey);
 			if (!conv || !seenIds) {
+				const customName = customContactNames[phoneKey];
 				conv = {
 					phone: phoneKey,
-					contactName: msg.fromMe ? phoneKey : msg.senderName || phoneKey,
+					contactName: customName || (msg.fromMe ? phoneKey : msg.senderName || phoneKey),
 					lastMessage: msg,
 					unreadCount: 0,
 					messages: []
@@ -210,7 +217,10 @@
 				seenIds.add(msg.id);
 			}
 
-			if (!msg.fromMe && msg.senderName && conv.contactName === conv.phone) {
+			const customName = customContactNames[phoneKey];
+			if (customName) {
+				conv.contactName = customName;
+			} else if (!msg.fromMe && msg.senderName && conv.contactName === conv.phone) {
 				conv.contactName = msg.senderName;
 			}
 
@@ -496,6 +506,57 @@
 		showNewChatInput = false;
 	}
 
+	function formatPhoneNumber(raw: string) {
+		if (!raw) return '';
+		const clean = raw.replace(/\D/g, '');
+		// Número móvil estándar de Argentina (549341xxxxxxx)
+		if (clean.startsWith('549') && clean.length >= 12) {
+			const area = clean.slice(3, 6);
+			const first = clean.slice(6, 9);
+			const rest = clean.slice(9);
+			return `+54 9 ${area} ${first}-${rest}`;
+		}
+		if (clean.length >= 10) {
+			return `+${clean}`;
+		}
+		return clean;
+	}
+
+	async function handleRenameContact() {
+		if (!activeConversation) return;
+		const targetPhone = activeConversation.phone;
+		const newName = renameContactInput.trim();
+		if (!newName) return;
+
+		isRenamingContact = true;
+		try {
+			const res = await fetch('/api/integrations/whatsapp/chat/rename', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					businessId: data.activeBusiness.id,
+					phone: targetPhone,
+					name: newName
+				})
+			});
+			const result = await res.json();
+			if (result.success) {
+				customContactNames = { ...customContactNames, [targetPhone]: newName };
+				messages = messages.map((m) =>
+					m.from === targetPhone && !m.fromMe ? { ...m, senderName: newName } : m
+				);
+				toast.success('Nombre actualizado', `El contacto ahora se muestra como "${newName}".`);
+				showRenameModal = false;
+			} else {
+				toast.error('Error al renombrar', result.error || 'No se pudo guardar el nombre.');
+			}
+		} catch (e: any) {
+			toast.error('Error de red', e.message || 'No se pudo conectar.');
+		} finally {
+			isRenamingContact = false;
+		}
+	}
+
 	function formatTime(timestamp: number) {
 		return new Intl.DateTimeFormat('es-AR', {
 			hour: '2-digit',
@@ -770,7 +831,9 @@
 											<div class="flex items-center justify-between gap-1">
 												<div class="flex items-center gap-1.5 min-w-0">
 													<span class="text-xs font-bold text-foreground truncate">
-														{conv.contactName}
+														{conv.contactName === conv.phone
+															? formatPhoneNumber(conv.phone)
+															: conv.contactName}
 													</span>
 													{#if hasUnconfirmed}
 														<span
@@ -784,6 +847,12 @@
 													{formatTime(conv.lastMessage.timestamp)}
 												</span>
 											</div>
+
+											{#if conv.contactName !== conv.phone}
+												<span class="block text-[10.5px] font-mono text-muted-foreground/80 truncate -mt-0.5">
+													{formatPhoneNumber(conv.phone)}
+												</span>
+											{/if}
 
 											<div class="flex items-center justify-between gap-2">
 												<p class="text-[11px] text-muted-foreground truncate leading-tight">
@@ -821,12 +890,32 @@
 										{activeConversation.contactName.charAt(0).toUpperCase()}
 									</div>
 									<div class="min-w-0">
-										<h4 class="text-xs font-bold text-foreground truncate">
-											{activeConversation.contactName}
-										</h4>
-										<span class="font-mono text-[10px] text-muted-foreground">
-											+{activeConversation.phone}
-										</span>
+										<div class="flex items-center gap-1.5">
+											<h4 class="text-xs font-bold text-foreground truncate">
+												{activeConversation.contactName === activeConversation.phone
+													? formatPhoneNumber(activeConversation.phone)
+													: activeConversation.contactName}
+											</h4>
+											<button
+												type="button"
+												class="text-muted-foreground/60 hover:text-foreground transition-colors p-0.5 rounded hover:bg-muted cursor-pointer"
+												title="Editar nombre del contacto"
+												onclick={() => {
+													renameContactInput =
+														activeConversation.contactName === activeConversation.phone
+															? ''
+															: activeConversation.contactName;
+													showRenameModal = true;
+												}}
+											>
+												<Pencil class="size-3" />
+											</button>
+										</div>
+										{#if activeConversation.contactName !== activeConversation.phone}
+											<span class="font-mono text-[10.5px] text-muted-foreground block -mt-0.5">
+												{formatPhoneNumber(activeConversation.phone)}
+											</span>
+										{/if}
 									</div>
 								</div>
 
@@ -1466,6 +1555,91 @@
 						{/if}
 					</Button>
 				</div>
+			</div>
+		</div>
+	{/if}
+
+	<!-- MODAL: RENOMBRAR CONTACTO -->
+	{#if showRenameModal && activeConversation}
+		<div
+			class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-foreground/40 p-0 sm:p-4 backdrop-blur-[1px] animate-in fade-in"
+			role="dialog"
+			aria-modal="true"
+		>
+			<div
+				class="w-full max-w-full sm:max-w-sm overflow-hidden rounded-t-2xl sm:rounded-2xl border-t sm:border border-border bg-card shadow-2xl animate-in zoom-in-95"
+			>
+				<div class="flex items-center justify-between border-b border-border bg-card/95 p-4">
+					<div class="flex items-center gap-2">
+						<div
+							class="flex size-8 items-center justify-center rounded-xl bg-primary/10 text-primary"
+						>
+							<Pencil class="size-4" />
+						</div>
+						<div>
+							<h3 class="text-xs font-bold text-foreground">Editar Nombre</h3>
+							<p class="text-[10px] text-muted-foreground font-mono">
+								{formatPhoneNumber(activeConversation.phone)}
+							</p>
+						</div>
+					</div>
+					<Button
+						type="button"
+						size="icon"
+						variant="ghost"
+						class="size-7"
+						onclick={() => (showRenameModal = false)}
+						disabled={isRenamingContact}
+					>
+						<X class="size-3.5" />
+					</Button>
+				</div>
+
+				<form
+					onsubmit={(e) => {
+						e.preventDefault();
+						handleRenameContact();
+					}}
+					class="p-4 space-y-3"
+				>
+					<div class="space-y-1">
+						<label for="rename-contact-input" class="text-xs font-medium text-foreground">
+							Nombre del contacto o cliente
+						</label>
+						<Input
+							id="rename-contact-input"
+							bind:value={renameContactInput}
+							placeholder="Ej: Rita o Marcos Gómez..."
+							class="h-9 text-xs"
+						/>
+					</div>
+
+					<div class="flex items-center justify-end gap-2 pt-2">
+						<Button
+							type="button"
+							size="sm"
+							variant="outline"
+							onclick={() => (showRenameModal = false)}
+							disabled={isRenamingContact}
+						>
+							Cancelar
+						</Button>
+						<Button
+							type="submit"
+							size="sm"
+							class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+							disabled={isRenamingContact || !renameContactInput.trim()}
+						>
+							{#if isRenamingContact}
+								<RefreshCw class="size-3.5 animate-spin mr-1" />
+								<span>Guardando...</span>
+							{:else}
+								<Check class="size-3.5 mr-1" />
+								<span>Guardar</span>
+							{/if}
+						</Button>
+					</div>
+				</form>
 			</div>
 		</div>
 	{/if}
