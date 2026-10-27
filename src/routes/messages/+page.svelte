@@ -15,6 +15,7 @@
 	import ShoppingBag from '@lucide/svelte/icons/shopping-bag';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import Bot from '@lucide/svelte/icons/bot';
+	import Loader2 from '@lucide/svelte/icons/loader-2';
 	import Settings2 from '@lucide/svelte/icons/settings-2';
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import ArrowRight from '@lucide/svelte/icons/arrow-right';
@@ -46,6 +47,7 @@
 	let phone = $state<string | null>(null);
 	let pushName = $state<string | null>(null);
 	let messages = $state<WhatsAppMessage[]>([]);
+	let isResolvingStatus = $state(true);
 
 	let isSending = $state(false);
 	let replyText = $state('');
@@ -108,6 +110,12 @@
 		if (data.unconfirmedOrders) {
 			unconfirmedOrders = data.unconfirmedOrders;
 		}
+
+		const timer = setTimeout(() => {
+			isResolvingStatus = false;
+		}, 700);
+
+		return () => clearTimeout(timer);
 	});
 
 	// Conectar a EventSource SSE para eventos en tiempo real
@@ -122,6 +130,9 @@
 				status = payload.status;
 				phone = payload.phone ?? null;
 				pushName = payload.pushName ?? null;
+				if (status === 'connected') {
+					isResolvingStatus = false;
+				}
 			} catch (_) {}
 		});
 
@@ -673,10 +684,32 @@
 					<span class="hidden sm:inline">Ajustes</span>
 				</Button>
 			</div>
+		{:else if status === 'connecting' || isResolvingStatus}
+			<div class="flex items-center gap-2 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-xs">
+				<Loader2 class="size-3 animate-spin text-amber-600 dark:text-amber-400" />
+				<span class="text-[11px] font-medium text-amber-700 dark:text-amber-400">
+					{phone ? `Conectando (+${phone})...` : 'Conectando WhatsApp...'}
+				</span>
+			</div>
 		{/if}
 	{/snippet}
 
-	{#if !isConnected}
+	{#if isResolvingStatus && !isConnected && (status === 'connecting' || data.hasConfiguredSession)}
+		<!-- LOADER ELEGANTE MIENTRAS SE COMPRUEBA / CONECTA EL ESTADO -->
+		<div class="flex h-[calc(100vh-140px)] w-full items-center justify-center rounded-2xl border border-border bg-card shadow-xs">
+			<div class="text-center space-y-4 max-w-sm px-4">
+				<div class="flex size-14 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 mx-auto shadow-xs">
+					<Loader2 class="size-7 animate-spin" />
+				</div>
+				<div class="space-y-1.5">
+					<h3 class="text-base font-semibold text-foreground">Conectando con WhatsApp...</h3>
+					<p class="text-xs text-muted-foreground leading-relaxed">
+						Comprobando sesión y sincronizando mensajes en tiempo real.
+					</p>
+				</div>
+			</div>
+		</div>
+	{:else if !isConnected && !data.hasConfiguredSession && messages.length === 0}
 		<!-- ESTADO VACÍO: WHATSAPP NO CONECTADO -->
 		<div class="mx-auto max-w-xl py-16 px-4 text-center space-y-6">
 			<div class="flex size-20 items-center justify-center rounded-3xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 mx-auto shadow-xs">

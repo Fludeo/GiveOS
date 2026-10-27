@@ -20,7 +20,17 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 	);
 
 	const { whatsAppSessionManager } = getServices();
-	const initialWhatsAppSession = whatsAppSessionManager.getSessionInfo(activeBusiness.id);
+	const initialWhatsAppSession =
+		typeof whatsAppSessionManager.getSessionInfoAsync === 'function'
+			? await whatsAppSessionManager.getSessionInfoAsync(activeBusiness.id)
+			: whatsAppSessionManager.getSessionInfo(activeBusiness.id);
+
+	// Determinar si el negocio tiene credenciales guardadas en DB o configuración activa
+	const hasConfiguredSession = !!(
+		initialWhatsAppSession.phone ||
+		activeBusiness.settings?.integrations?.whatsapp?.phone ||
+		activeBusiness.settings?.integrations?.whatsapp?.status === 'connected'
+	);
 
 	// Cargar historial de mensajes persistidos desde PostgreSQL
 	const dbMessages = await DatabaseChatRepository.getConversationsWithMessages(activeBusiness.id);
@@ -65,6 +75,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		activeBusiness,
 		businesses: memberships.map((m) => ({ ...m.business, role: m.role })),
 		initialWhatsAppSession,
+		hasConfiguredSession,
 		unconfirmedOrders,
 		botSettings
 	};

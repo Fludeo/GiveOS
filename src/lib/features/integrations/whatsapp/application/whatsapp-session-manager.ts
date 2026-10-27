@@ -132,6 +132,42 @@ export class WhatsAppSessionManager {
 		};
 	}
 
+	async getSessionInfoAsync(businessId: string): Promise<WhatsAppSessionInfo> {
+		const holder = this.getOrCreateHolder(businessId);
+
+		// Si el socket en RAM no está activo, verificar si existen credenciales en PostgreSQL para auto-reconectar
+		if (holder.status === 'disconnected' && !holder.sock && !holder.connectingPromise) {
+			try {
+				const { phone, pushName } = await getDatabaseSessionPhone(businessId);
+				if (phone) {
+					holder.phone = phone;
+					holder.pushName = pushName;
+					holder.status = 'connecting';
+					this.broadcast(holder, {
+						type: 'whatsapp:status',
+						businessId,
+						status: 'connecting',
+						phone,
+						pushName
+					});
+					this.connect(businessId).catch((err) =>
+						console.error(`[WhatsAppSessionManager] Error auto-conectando ${businessId}:`, err)
+					);
+				}
+			} catch (_) {}
+		}
+
+		return {
+			businessId,
+			status: holder.status,
+			phone: holder.phone,
+			pushName: holder.pushName,
+			qr: holder.qr,
+			connectedAt: holder.connectedAt,
+			messages: holder.messages
+		};
+	}
+
 	syncHolderMessages(businessId: string, messages: WhatsAppMessage[]): void {
 		const holder = this.getOrCreateHolder(businessId);
 		if (holder.messages.length === 0 && messages.length > 0) {
