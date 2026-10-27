@@ -1020,7 +1020,7 @@
 											: 'bg-card border border-border text-foreground rounded-tl-xs'}"
 									>
 										{#if msg.fromMe}
-											<div class="flex items-center gap-1.5 text-[10px] font-semibold {msg.isBot ? 'text-primary-foreground/90' : 'text-white/90'} pb-0.5 border-b {msg.isBot ? 'border-primary-foreground/15' : 'border-white/20'}">
+											<div class="flex items-center gap-1.5 text-[10px] font-semibold {msg.isBot ? 'text-primary-foreground/90' : 'text-white/90'}">
 												{#if msg.isBot}
 													<Bot class="size-3" />
 													<span>Bot IA</span>
