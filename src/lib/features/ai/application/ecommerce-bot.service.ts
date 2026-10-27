@@ -20,6 +20,8 @@ export { DEFAULT_BOT_PROMPT };
 export interface BotProcessOutput {
 	replyText: string;
 	toolExecuted?: string;
+	toolArgs?: any;
+	toolResult?: any;
 	orderCreated?: {
 		orderId: string;
 		orderNumber: string;
@@ -251,6 +253,8 @@ ${rawPrompt}`;
 			return {
 				replyText: secondResponse.content,
 				toolExecuted,
+				toolArgs: toolCall.arguments,
+				toolResult: toolResultContent,
 				orderCreated
 			};
 		}

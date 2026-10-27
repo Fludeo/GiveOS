@@ -24,6 +24,7 @@
 	import AlertCircle from '@lucide/svelte/icons/alert-circle';
 	import RotateCcw from '@lucide/svelte/icons/rotate-ccw';
 	import Pencil from '@lucide/svelte/icons/pencil';
+	import Sparkles from '@lucide/svelte/icons/sparkles';
 	import { toast } from '#lib/components/ui/toast';
 	import { DEFAULT_BOT_PROMPT } from '#lib/features/ai/domain/bot-prompt.constants';
 	import type {
@@ -711,6 +712,16 @@
 				</div>
 
 				<div class="flex items-center gap-2.5 shrink-0 self-end sm:self-center">
+					<Button
+						href="/chat-test"
+						variant="outline"
+						size="sm"
+						class="h-8 text-xs gap-1.5 font-medium border-purple-500/30 text-purple-700 dark:text-purple-300 hover:bg-purple-500/10"
+					>
+						<Sparkles class="size-3.5 text-purple-600" />
+						<span>Probar Bot</span>
+					</Button>
+
 					<Button
 						type="button"
 						variant="outline"
