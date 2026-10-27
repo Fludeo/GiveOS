@@ -1,4 +1,4 @@
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 import { getDb } from '#lib/server/db/index';
 import { chatSessions, chatMessages } from '#lib/server/db/schema';
@@ -260,25 +260,66 @@ export class DatabaseChatRepository {
 	static async markSessionAsRead(businessId: string, customerPhone: string): Promise<void> {
 		const db = getDb();
 		const cleanPhone = customerPhone.replace(/\D/g, '');
+		if (!cleanPhone) return;
 
-		const session = await db.query.chatSessions.findFirst({
+		const sessions = await db.query.chatSessions.findMany({
+			where: eq(chatSessions.businessId, businessId)
+		});
+
+		const matchingSessions = sessions.filter((s) => {
+			const sPhone = s.customerPhone.replace(/\D/g, '');
+			return sPhone === cleanPhone || sPhone.endsWith(cleanPhone) || cleanPhone.endsWith(sPhone);
+		});
+
+		for (const session of matchingSessions) {
+			await db
+				.update(chatMessages)
+				.set({ isRead: true })
+				.where(eq(chatMessages.sessionId, session.id));
+
+			await db
+				.update(chatSessions)
+				.set({ unreadCount: 0, updatedAt: new Date() })
+				.where(eq(chatSessions.id, session.id));
+		}
+	}
+
+	/**
+	 * Marca un mensaje específico como leído y recalcula el contador de la sesión
+	 */
+	static async markMessageAsRead(businessId: string, messageId: string): Promise<void> {
+		const db = getDb();
+		const msg = await db.query.chatMessages.findFirst({
 			where: and(
-				eq(chatSessions.businessId, businessId),
-				eq(chatSessions.customerPhone, cleanPhone)
+				eq(chatMessages.id, messageId),
+				eq(chatMessages.businessId, businessId)
 			)
 		});
 
-		if (!session) return;
+		if (!msg) return;
 
 		await db
 			.update(chatMessages)
 			.set({ isRead: true })
-			.where(eq(chatMessages.sessionId, session.id));
+			.where(eq(chatMessages.id, msg.id));
+
+		const unreadRemaining = await db
+			.select({ count: sql<number>`count(*)::int` })
+			.from(chatMessages)
+			.where(
+				and(
+					eq(chatMessages.sessionId, msg.sessionId),
+					eq(chatMessages.fromMe, false),
+					eq(chatMessages.isRead, false)
+				)
+			);
+
+		const remainingCount = unreadRemaining[0]?.count ?? 0;
 
 		await db
 			.update(chatSessions)
-			.set({ unreadCount: 0, updatedAt: new Date() })
-			.where(eq(chatSessions.id, session.id));
+			.set({ unreadCount: remainingCount, updatedAt: new Date() })
+			.where(eq(chatSessions.id, msg.sessionId));
 	}
 
 	/**

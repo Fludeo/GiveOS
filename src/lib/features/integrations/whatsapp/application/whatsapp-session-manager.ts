@@ -553,27 +553,101 @@ export class WhatsAppSessionManager {
 		} as any);
 	}
 
-	async markAsRead(businessId: string, messageKey: WhatsAppMessageKey): Promise<boolean> {
+	/**
+	 * Marca todos los mensajes de un contacto como leídos (memoria, BD y WhatsApp)
+	 */
+	async markSessionAsRead(businessId: string, phone: string): Promise<boolean> {
+		const cleanPhone = phone.replace(/\D/g, '');
 		const holder = this.getOrCreateHolder(businessId);
-		if (!holder.sock || holder.status !== 'connected') {
-			return false;
+
+		// 1. Actualizar memoria en vivo
+		for (const msg of holder.messages) {
+			const cleanFrom = msg.from.replace(/\D/g, '');
+			if (cleanFrom === cleanPhone || cleanFrom.endsWith(cleanPhone) || cleanPhone.endsWith(cleanFrom)) {
+				if (!msg.fromMe) {
+					msg.isRead = true;
+				}
+			}
 		}
 
-		if (!messageKey.remoteJid || !messageKey.id) {
-			return false;
-		}
-
+		// 2. Persistir en la base de datos (PostgreSQL)
 		try {
-			await holder.sock.readMessages([messageKey as any]);
-			const found = holder.messages.find((m) => m.id === messageKey.id);
+			await DatabaseChatRepository.markSessionAsRead(businessId, cleanPhone);
+		} catch (err) {
+			console.error('[WhatsAppSessionManager] Error al marcar sesión como leída en BD:', err);
+		}
+
+		// 3. Notificar a WhatsApp (Baileys) si el socket está conectado
+		if (holder.sock && holder.status === 'connected') {
+			try {
+				const unreadKeys = holder.messages
+					.filter((m) => {
+						const cleanFrom = m.from.replace(/\D/g, '');
+						return (
+							(cleanFrom === cleanPhone || cleanFrom.endsWith(cleanPhone) || cleanPhone.endsWith(cleanFrom)) &&
+							!m.fromMe &&
+							m.key?.id &&
+							m.key?.remoteJid
+						);
+					})
+					.map((m) => m.key as any);
+
+				if (unreadKeys.length > 0) {
+					await holder.sock.readMessages(unreadKeys);
+				}
+			} catch (sockErr) {
+				console.error('[WhatsAppSessionManager] Error al enviar confirmación de lectura a Baileys:', sockErr);
+			}
+		}
+
+		// 4. Emitir evento por SSE a todos los clientes web conectados
+		this.broadcast(holder, {
+			type: 'whatsapp:session_read',
+			businessId,
+			phone: cleanPhone
+		} as any);
+
+		return true;
+	}
+
+	/**
+	 * Marca un mensaje específico como leído (memoria, BD y WhatsApp)
+	 */
+	async markAsRead(
+		businessId: string,
+		messageKey?: WhatsAppMessageKey,
+		messageId?: string
+	): Promise<boolean> {
+		const holder = this.getOrCreateHolder(businessId);
+		const targetId = messageId || messageKey?.id;
+
+		// 1. Actualizar memoria en vivo
+		if (targetId) {
+			const found = holder.messages.find((m) => m.id === targetId || m.key?.id === targetId);
 			if (found) {
 				found.isRead = true;
 			}
-			return true;
-		} catch (err) {
-			console.error('[WhatsApp] Error al marcar mensaje como leído:', err);
-			return false;
 		}
+
+		// 2. Persistir en base de datos (PostgreSQL)
+		if (targetId) {
+			try {
+				await DatabaseChatRepository.markMessageAsRead(businessId, targetId);
+			} catch (err) {
+				console.error('[WhatsAppSessionManager] Error al marcar mensaje en BD:', err);
+			}
+		}
+
+		// 3. Notificar a WhatsApp (Baileys) si está conectado
+		if (holder.sock && holder.status === 'connected' && messageKey?.remoteJid && messageKey?.id) {
+			try {
+				await holder.sock.readMessages([messageKey as any]);
+			} catch (err) {
+				console.error('[WhatsAppSessionManager] Error al marcar mensaje como leído en Baileys:', err);
+			}
+		}
+
+		return true;
 	}
 
 	async disconnect(businessId: string, isLogout = false): Promise<void> {

@@ -4,7 +4,6 @@ import { drizzle as drizzlePglite } from 'drizzle-orm/pglite';
 import type { PgDatabase } from 'drizzle-orm/pg-core';
 import postgres from 'postgres';
 import { PGlite } from '@electric-sql/pglite';
-import { dev } from '$app/env';
 
 import * as schema from './schema';
 

@@ -8,16 +8,25 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	}
 
 	const body = await request.json().catch(() => ({}));
-	const { businessId, messageKey } = body;
+	const { businessId, messageKey, messageId, phone } = body;
 
-	if (!businessId || !messageKey) {
-		return json({ error: 'businessId y messageKey son requeridos' }, { status: 400 });
+	if (!businessId || (!messageKey && !phone && !messageId)) {
+		return json(
+			{ error: 'businessId y al menos uno de (phone, messageKey, messageId) son requeridos' },
+			{ status: 400 }
+		);
 	}
 
 	await resolveBusinessOrRedirect(locals.user.id, businessId);
 
 	const { whatsAppSessionManager } = getServices();
-	const ok = await whatsAppSessionManager.markAsRead(businessId, messageKey);
+
+	if (phone) {
+		const ok = await whatsAppSessionManager.markSessionAsRead(businessId, phone);
+		return json({ success: ok });
+	}
+
+	const ok = await whatsAppSessionManager.markAsRead(businessId, messageKey, messageId);
 
 	return json({ success: ok });
 };

@@ -176,6 +176,32 @@
 			} catch (_) {}
 		});
 
+		es.addEventListener('whatsapp:session_read', (e) => {
+			try {
+				const payload = JSON.parse(e.data);
+				const cleanTarget = (payload.phone || '').replace(/\D/g, '');
+				if (cleanTarget) {
+					let changed = false;
+					for (const m of messages) {
+						const cleanFrom = m.from.replace(/\D/g, '');
+						if (
+							(cleanFrom === cleanTarget ||
+								cleanFrom.endsWith(cleanTarget) ||
+								cleanTarget.endsWith(cleanFrom)) &&
+							!m.fromMe &&
+							!m.isRead
+						) {
+							m.isRead = true;
+							changed = true;
+						}
+					}
+					if (changed) {
+						messages = [...messages];
+					}
+				}
+			} catch (_) {}
+		});
+
 		return () => {
 			es.close();
 		};
@@ -454,28 +480,44 @@
 	}
 
 	async function handleMarkAsRead(msg: WhatsAppMessage) {
+		msg.isRead = true;
+		messages = [...messages];
 		try {
 			await fetch('/api/integrations/whatsapp/read', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
 					businessId: data.activeBusiness.id,
-					messageKey: msg.key
+					messageKey: msg.key,
+					messageId: msg.id
 				})
 			});
-			msg.isRead = true;
-			messages = [...messages];
 		} catch (e) {
 			console.error(e);
 		}
 	}
 
 	async function handleMarkAllAsRead(conv: Conversation) {
-		const unread = conv.messages.filter((m) => !m.fromMe && !m.isRead);
-		for (const m of unread) {
-			await handleMarkAsRead(m);
+		for (const m of conv.messages) {
+			if (!m.fromMe) {
+				m.isRead = true;
+			}
 		}
-		toast.success('Leídos', `Mensajes de ${conv.contactName} marcados como vistos.`);
+		messages = [...messages];
+
+		try {
+			await fetch('/api/integrations/whatsapp/read', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					businessId: data.activeBusiness.id,
+					phone: conv.phone
+				})
+			});
+			toast.success('Leídos', `Mensajes de ${conv.contactName} marcados como vistos.`);
+		} catch (e) {
+			console.error(e);
+		}
 	}
 
 	async function handleClearChat() {
