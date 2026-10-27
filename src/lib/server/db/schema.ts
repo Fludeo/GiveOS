@@ -310,3 +310,71 @@ export const whatsappAuthKeys = pgTable(
 		uniqueIndex('whatsapp_auth_keys_business_key_idx').on(table.businessId, table.key)
 	]
 );
+
+
+// ==========================================
+// Domain Schema: Chat Sessions & Messages
+// ==========================================
+
+export const chatSessions = pgTable(
+	'chat_sessions',
+	{
+		id: text('id')
+			.primaryKey()
+			.$defaultFn(() => uuidv7()),
+		businessId: text('business_id')
+			.notNull()
+			.references(() => businesses.id, { onDelete: 'cascade' }),
+		channel: text('channel').notNull().default('whatsapp'),
+		customerPhone: text('customer_phone').notNull(),
+		customerName: text('customer_name').notNull().default(''),
+		lastMessageText: text('last_message_text').notNull().default(''),
+		lastMessageAt: timestamp('last_message_at', { mode: 'date' })
+			.notNull()
+			.$defaultFn(() => new Date()),
+		unreadCount: integer('unread_count').notNull().default(0),
+		createdAt: timestamp('created_at', { mode: 'date' })
+			.notNull()
+			.$defaultFn(() => new Date()),
+		updatedAt: timestamp('updated_at', { mode: 'date' })
+			.notNull()
+			.$defaultFn(() => new Date())
+	},
+	(table) => [
+		index('chat_sessions_business_idx').on(table.businessId),
+		uniqueIndex('chat_sessions_business_phone_channel_idx').on(
+			table.businessId,
+			table.customerPhone,
+			table.channel
+		)
+	]
+);
+
+export const chatMessages = pgTable(
+	'chat_messages',
+	{
+		id: text('id').primaryKey(),
+		sessionId: text('session_id')
+			.notNull()
+			.references(() => chatSessions.id, { onDelete: 'cascade' }),
+		businessId: text('business_id')
+			.notNull()
+			.references(() => businesses.id, { onDelete: 'cascade' }),
+		fromMe: boolean('from_me').notNull().default(false),
+		senderName: text('sender_name').notNull().default(''),
+		text: text('text').notNull(),
+		isRead: boolean('is_read').notNull().default(false),
+		rawKey: jsonb('raw_key'),
+		timestamp: timestamp('timestamp', { mode: 'date' })
+			.notNull()
+			.$defaultFn(() => new Date()),
+		createdAt: timestamp('created_at', { mode: 'date' })
+			.notNull()
+			.$defaultFn(() => new Date())
+	},
+	(table) => [
+		index('chat_messages_session_idx').on(table.sessionId),
+		index('chat_messages_business_idx').on(table.businessId),
+		index('chat_messages_timestamp_idx').on(table.timestamp)
+	]
+);

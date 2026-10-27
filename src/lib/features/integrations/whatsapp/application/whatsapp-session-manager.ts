@@ -14,6 +14,7 @@ import {
 	getDatabaseSessionPhone,
 	getAllActiveSessionBusinessIds
 } from '../infrastructure/database-auth-state';
+import { DatabaseChatRepository } from '../infrastructure/database-chat-repository';
 import type {
 	WhatsAppMessage,
 	WhatsAppMessageKey,
@@ -316,25 +317,23 @@ export class WhatsAppSessionManager {
 						const senderName = m.pushName || cleanFrom;
 						const timestamp = typeof m.messageTimestamp === 'number' ? m.messageTimestamp * 1000 : Date.now();
 
-						const newMsg: WhatsAppMessage = {
-							id: m.key.id || uuidv7(),
+						const newMsg = await DatabaseChatRepository.saveIncomingMessage({
 							businessId,
-							from: cleanFrom,
+							customerPhone: cleanFrom,
 							senderName,
 							text,
-							fromMe: !!m.key.fromMe,
 							timestamp,
-							isRead: !!m.key.fromMe,
-							key: {
+							messageId: m.key.id || undefined,
+							rawKey: {
 								remoteJid: m.key.remoteJid,
 								id: m.key.id,
 								fromMe: m.key.fromMe,
 								participant: m.key.participant
 							}
-						};
+						});
 
 						holder.messages.unshift(newMsg);
-						if (holder.messages.length > 100) {
+						if (holder.messages.length > 200) {
 							holder.messages.pop();
 						}
 
@@ -373,24 +372,20 @@ export class WhatsAppSessionManager {
 
 		const result = await holder.sock.sendMessage(jid, { text });
 
-		const msgObj: WhatsAppMessage = {
-			id: result?.key?.id || uuidv7(),
+		const msgObj = await DatabaseChatRepository.saveOutgoingMessage({
 			businessId,
-			from: cleanPhone,
-			senderName: 'Yo (GiveOS)',
+			toPhone: cleanPhone,
 			text,
-			fromMe: true,
-			timestamp: Date.now(),
-			isRead: true,
-			key: {
+			messageId: result?.key?.id || undefined,
+			rawKey: {
 				remoteJid: result?.key?.remoteJid || jid,
 				id: result?.key?.id,
 				fromMe: true
 			}
-		};
+		});
 
 		holder.messages.unshift(msgObj);
-		if (holder.messages.length > 100) {
+		if (holder.messages.length > 200) {
 			holder.messages.pop();
 		}
 
@@ -401,6 +396,18 @@ export class WhatsAppSessionManager {
 		});
 
 		return msgObj;
+	}
+
+	async clearChatHistory(businessId: string, phone: string): Promise<void> {
+		const clean = phone.replace(/\D/g, '');
+		await DatabaseChatRepository.clearChatHistory(businessId, clean);
+		const holder = this.getOrCreateHolder(businessId);
+		holder.messages = holder.messages.filter((m) => m.from !== clean);
+		this.broadcast(holder, {
+			type: 'whatsapp:message_cleared',
+			businessId,
+			phone: clean
+		} as any);
 	}
 
 	async markAsRead(businessId: string, messageKey: WhatsAppMessageKey): Promise<boolean> {

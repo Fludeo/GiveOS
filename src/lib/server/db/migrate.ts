@@ -45,6 +45,37 @@ export async function runMigrations() {
 						);
 						CREATE INDEX IF NOT EXISTS "whatsapp_auth_keys_business_idx" ON "whatsapp_auth_keys" ("business_id");
 						CREATE UNIQUE INDEX IF NOT EXISTS "whatsapp_auth_keys_business_key_idx" ON "whatsapp_auth_keys" ("business_id", "key");
+
+						CREATE TABLE IF NOT EXISTS "chat_sessions" (
+							"id" text PRIMARY KEY NOT NULL,
+							"business_id" text NOT NULL REFERENCES "businesses"("id") ON DELETE CASCADE,
+							"channel" text DEFAULT 'whatsapp' NOT NULL,
+							"customer_phone" text NOT NULL,
+							"customer_name" text DEFAULT '' NOT NULL,
+							"last_message_text" text DEFAULT '' NOT NULL,
+							"last_message_at" timestamp DEFAULT now() NOT NULL,
+							"unread_count" integer DEFAULT 0 NOT NULL,
+							"created_at" timestamp DEFAULT now() NOT NULL,
+							"updated_at" timestamp DEFAULT now() NOT NULL
+						);
+						CREATE INDEX IF NOT EXISTS "chat_sessions_business_idx" ON "chat_sessions" ("business_id");
+						CREATE UNIQUE INDEX IF NOT EXISTS "chat_sessions_business_phone_channel_idx" ON "chat_sessions" ("business_id", "customer_phone", "channel");
+
+						CREATE TABLE IF NOT EXISTS "chat_messages" (
+							"id" text PRIMARY KEY NOT NULL,
+							"session_id" text NOT NULL REFERENCES "chat_sessions"("id") ON DELETE CASCADE,
+							"business_id" text NOT NULL REFERENCES "businesses"("id") ON DELETE CASCADE,
+							"from_me" boolean DEFAULT false NOT NULL,
+							"sender_name" text DEFAULT '' NOT NULL,
+							"text" text NOT NULL,
+							"is_read" boolean DEFAULT false NOT NULL,
+							"raw_key" jsonb,
+							"timestamp" timestamp DEFAULT now() NOT NULL,
+							"created_at" timestamp DEFAULT now() NOT NULL
+						);
+						CREATE INDEX IF NOT EXISTS "chat_messages_session_idx" ON "chat_messages" ("session_id");
+						CREATE INDEX IF NOT EXISTS "chat_messages_business_idx" ON "chat_messages" ("business_id");
+						CREATE INDEX IF NOT EXISTS "chat_messages_timestamp_idx" ON "chat_messages" ("timestamp");
 					`)
 					.catch(() => {});
 			}

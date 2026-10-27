@@ -18,6 +18,7 @@
 	import Plus from '@lucide/svelte/icons/plus';
 	import Search from '@lucide/svelte/icons/search';
 	import ShoppingBag from '@lucide/svelte/icons/shopping-bag';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import { toast } from '#lib/components/ui/toast';
 	import type {
 		WhatsAppMessage,
@@ -29,6 +30,8 @@
 	let showQrModal = $state(false);
 	let showDisconnectModal = $state(false);
 	let isDisconnecting = $state(false);
+	let showClearChatModal = $state(false);
+	let isClearingChat = $state(false);
 
 	// Estado reactivo de la sesión
 	let status = $state<WhatsAppSessionStatus>('disconnected');
@@ -270,6 +273,37 @@
 			await handleMarkAsRead(m);
 		}
 		toast.success('Leídos', `Mensajes de ${conv.contactName} marcados como vistos.`);
+	}
+
+	async function handleClearChat() {
+		if (!activeConversation) return;
+		const targetPhone = activeConversation.phone;
+		isClearingChat = true;
+		try {
+			const res = await fetch('/api/integrations/whatsapp/chat/clear', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					businessId: data.activeBusiness.id,
+					phone: targetPhone
+				})
+			});
+			const result = await res.json();
+			if (result.success) {
+				messages = messages.filter((m) => m.from !== targetPhone);
+				if (selectedRecipient === targetPhone) {
+					selectedRecipient = '';
+				}
+				toast.success('Historial borrado', 'Se eliminaron los mensajes de esta conversación.');
+			} else {
+				toast.error('Error al borrar', result.error || 'No se pudo eliminar el historial.');
+			}
+		} catch (e: any) {
+			toast.error('Error al borrar', e.message || 'Error de red.');
+		} finally {
+			isClearingChat = false;
+			showClearChatModal = false;
+		}
 	}
 
 	function handleStartNewChat() {
@@ -561,6 +595,16 @@
 										<ShoppingBag class="size-3.5 text-primary" />
 										<span>Crear Orden</span>
 									</Button>
+									<Button
+										type="button"
+										variant="ghost"
+										size="icon"
+										class="size-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+										onclick={() => (showClearChatModal = true)}
+										title="Borrar historial de este chat"
+									>
+										<Trash2 class="size-3.5" />
+									</Button>
 								</div>
 							</div>
 
@@ -822,6 +866,83 @@
 						{:else}
 							<LogOut class="size-3.5 mr-1" />
 							<span>Sí, desvincular</span>
+						{/if}
+					</Button>
+				</div>
+			</div>
+		</div>
+	{/if}
+
+	<!-- MODAL: CONFIRMACIÓN BORRAR HISTORIAL DE CHAT -->
+	{#if showClearChatModal && activeConversation}
+		<div
+			class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-foreground/40 p-0 sm:p-4 backdrop-blur-[1px] animate-in fade-in"
+			role="dialog"
+			aria-modal="true"
+		>
+			<div
+				class="w-full max-w-full sm:max-w-md overflow-hidden rounded-t-2xl sm:rounded-2xl border-t sm:border border-border bg-card shadow-2xl animate-in zoom-in-95"
+			>
+				<div class="flex items-center justify-between border-b border-border bg-card/95 p-5">
+					<div class="flex items-center gap-2.5">
+						<div
+							class="flex size-9 items-center justify-center rounded-xl bg-destructive/15 text-destructive"
+						>
+							<Trash2 class="size-5" />
+						</div>
+						<div>
+							<h3 class="text-sm font-bold text-foreground">¿Borrar historial de chat?</h3>
+							<p class="text-xs text-muted-foreground">Eliminación permanente</p>
+						</div>
+					</div>
+					<Button
+						type="button"
+						size="icon"
+						variant="ghost"
+						class="size-8"
+						onclick={() => (showClearChatModal = false)}
+						disabled={isClearingChat}
+					>
+						<X class="size-4" />
+					</Button>
+				</div>
+
+				<div class="p-6 space-y-3">
+					<p class="text-xs text-muted-foreground leading-relaxed">
+						Se eliminarán todos los mensajes guardados de la conversación con
+						<strong class="text-foreground">{activeConversation.contactName}</strong>
+						<span class="font-mono text-[11px] text-muted-foreground">(+{activeConversation.phone})</span>.
+					</p>
+					<div
+						class="rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive leading-relaxed"
+					>
+						⚠️ Esta acción eliminará los mensajes de la base de datos de GiveOS de forma irreversible.
+					</div>
+				</div>
+
+				<div class="flex items-center justify-end gap-2 border-t border-border bg-muted/20 px-5 py-3">
+					<Button
+						type="button"
+						size="sm"
+						variant="outline"
+						onclick={() => (showClearChatModal = false)}
+						disabled={isClearingChat}
+					>
+						Cancelar
+					</Button>
+					<Button
+						type="button"
+						size="sm"
+						variant="destructive"
+						disabled={isClearingChat}
+						onclick={handleClearChat}
+					>
+						{#if isClearingChat}
+							<RefreshCw class="size-3.5 animate-spin mr-1" />
+							<span>Borrando...</span>
+						{:else}
+							<Trash2 class="size-3.5 mr-1" />
+							<span>Sí, borrar historial</span>
 						{/if}
 					</Button>
 				</div>

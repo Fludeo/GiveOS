@@ -2,6 +2,7 @@ import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { resolveBusinessOrRedirect } from '#lib/server/business-resolver';
 import { getServices } from '#lib/server/container';
+import { DatabaseChatRepository } from '#lib/features/integrations/whatsapp/infrastructure/database-chat-repository';
 
 export const load: PageServerLoad = async ({ url, locals }) => {
 	if (!locals.user) {
@@ -16,6 +17,12 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 
 	const { whatsAppSessionManager } = getServices();
 	const initialWhatsAppSession = whatsAppSessionManager.getSessionInfo(activeBusiness.id);
+
+	// Cargar historial de mensajes persistidos desde PostgreSQL
+	const dbMessages = await DatabaseChatRepository.getConversationsWithMessages(activeBusiness.id);
+	if (dbMessages.length > 0) {
+		initialWhatsAppSession.messages = dbMessages;
+	}
 
 	return {
 		user: locals.user,
