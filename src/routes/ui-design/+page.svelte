@@ -301,7 +301,7 @@
 							</tr>
 							<!-- Success (Emerald) -->
 							<tr class="hover:bg-muted/20">
-								<td class="p-3 pl-4 font-semibold text-emerald-600 dark:text-emerald-400">Success (Emerald)</td>
+								<td class="p-3 pl-4 font-semibold text-emerald-600 dark:text-success/90">Success (Emerald)</td>
 								<td class="p-3"><Button variant="success" size="sm">Small</Button></td>
 								<td class="p-3"><Button variant="success" size="default">Default</Button></td>
 								<td class="p-3"><Button variant="success" size="lg">Large</Button></td>

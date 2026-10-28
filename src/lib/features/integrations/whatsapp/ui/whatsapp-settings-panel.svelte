@@ -299,14 +299,14 @@
 		<CardHeader class="p-5 sm:p-6 pb-4 border-b border-border">
 			<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
 				<div class="flex items-center gap-3">
-					<div class="flex size-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+					<div class="flex size-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-success/90">
 						<Smartphone class="size-5" />
 					</div>
 					<div>
 						<CardTitle class="text-base sm:text-lg flex items-center gap-2">
 							<span>WhatsApp Web & Baileys</span>
 							{#if status === 'connected'}
-								<Badge variant="outline" class="border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs gap-1 py-0.5">
+								<Badge variant="outline" class="border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-success/90 text-xs gap-1 py-0.5">
 									<span class="size-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
 									Conectado
 								</Badge>
@@ -376,12 +376,12 @@
 			{#if status === 'connected'}
 				<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl border border-emerald-500/20 bg-emerald-500/5">
 					<div class="flex items-center gap-3">
-						<div class="flex size-10 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
+						<div class="flex size-10 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-600 dark:text-success/90">
 							<ShieldCheck class="size-5" />
 						</div>
 						<div>
 							<p class="text-xs font-semibold text-foreground">
-								Número Vinculado: <span class="font-mono text-emerald-700 dark:text-emerald-400 font-bold">+{phone || ''}</span>
+								Número Vinculado: <span class="font-mono text-emerald-700 dark:text-success/90 font-bold">+{phone || ''}</span>
 							</p>
 							<p class="text-xs text-muted-foreground">
 								Nombre en WhatsApp: <span class="text-foreground">{pushName || 'Sin nombre registrado'}</span>
@@ -739,8 +739,8 @@
 
 <!-- MODAL CÓDIGO QR -->
 {#if showQrModal && status !== 'connected'}
-	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
-		<div class="w-full max-w-sm rounded-2xl border border-border bg-card p-6 shadow-2xl space-y-4">
+	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-[2px] p-4 animate-in fade-in duration-200">
+		<div class="w-full max-w-sm rounded-2xl border border-border bg-card p-5 shadow-2xl space-y-3">
 			<div class="flex items-center justify-between border-b border-border pb-3">
 				<div class="flex items-center gap-2">
 					<Smartphone class="size-5 text-emerald-600" />
@@ -780,8 +780,8 @@
 
 <!-- MODAL CONFIRMAR DESCONEXIÓN -->
 {#if showDisconnectModal}
-	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
-		<div class="w-full max-w-sm rounded-2xl border border-border bg-card p-6 shadow-2xl space-y-4">
+	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-[2px] p-4 animate-in fade-in duration-200">
+		<div class="w-full max-w-sm rounded-2xl border border-border bg-card p-5 shadow-2xl space-y-3">
 			<div class="flex items-center gap-3 text-destructive">
 				<LogOut class="size-5" />
 				<h3 class="font-bold text-sm text-foreground">¿Desconectar WhatsApp?</h3>

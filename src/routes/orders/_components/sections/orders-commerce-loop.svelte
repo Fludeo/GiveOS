@@ -382,7 +382,7 @@
 
 				{#if missingRawCount === 0}
 					<span
-						class="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 font-mono text-xs font-bold text-emerald-600 dark:text-emerald-400"
+						class="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 font-mono text-xs font-bold text-emerald-600 dark:text-success/90"
 						title="Todos los insumos cubiertos"
 					>
 						<CheckCircle2 class="size-3.5" />
@@ -497,7 +497,7 @@
 					</span>
 				{:else}
 					<span
-						class="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 font-mono text-xs font-bold text-emerald-600 dark:text-emerald-400"
+						class="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 font-mono text-xs font-bold text-emerald-600 dark:text-success/90"
 						title="Producción al día"
 					>
 						<CheckCircle2 class="size-3.5" />
@@ -638,7 +638,7 @@
 		>
 			<div class="flex items-center justify-between gap-2 border-b border-border/60 pb-2.5">
 				<div class="flex items-center gap-2">
-					<span class="flex size-6 items-center justify-center rounded-lg bg-emerald-500/15 font-mono text-xs font-bold text-emerald-600 dark:text-emerald-400">
+					<span class="flex size-6 items-center justify-center rounded-lg bg-emerald-500/15 font-mono text-xs font-bold text-emerald-600 dark:text-success/90">
 						3
 					</span>
 					<PackageCheck class="size-4 text-emerald-500" />
@@ -646,7 +646,7 @@
 				</div>
 
 				<span
-					class="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 font-mono text-xs font-bold text-emerald-600 dark:text-emerald-400"
+					class="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 font-mono text-xs font-bold text-emerald-600 dark:text-success/90"
 					title="{readyOrders.length} listos de {ordersInHorizon.length} pedidos"
 				>
 					<PackageCheck class="size-3.5" />
@@ -676,7 +676,7 @@
 									<!-- Icono de Estado -->
 									{#if isReady}
 										<span
-											class="inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
+											class="inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-600 dark:text-success/90"
 											title="Listo para retirar"
 										>
 											<PackageCheck class="size-3.5" />

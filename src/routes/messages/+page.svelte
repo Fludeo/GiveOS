@@ -656,7 +656,7 @@
 			<div class="flex items-center gap-2">
 				<div class="flex items-center gap-2 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-xs">
 					<span class="size-2 rounded-full bg-emerald-500 animate-pulse"></span>
-					<span class="font-mono text-[11px] font-bold text-emerald-700 dark:text-emerald-400">+{phone}</span>
+					<span class="font-mono text-[11px] font-bold text-emerald-700 dark:text-success/90">+{phone}</span>
 				</div>
 
 				<div class="flex items-center gap-2 px-3 py-1 rounded-full bg-muted/60 border border-border text-xs">
@@ -698,7 +698,7 @@
 		<!-- LOADER ELEGANTE MIENTRAS SE COMPRUEBA / CONECTA EL ESTADO -->
 		<div class="flex h-[calc(100vh-140px)] w-full items-center justify-center rounded-2xl border border-border bg-card shadow-xs">
 			<div class="text-center space-y-4 max-w-sm px-4">
-				<div class="flex size-14 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 mx-auto shadow-xs">
+				<div class="flex size-14 items-center justify-center rounded-2xl bg-emerald-500/10 text-success dark:text-success/90 mx-auto shadow-xs">
 					<Loader2 class="size-7 animate-spin" />
 				</div>
 				<div class="space-y-1.5">
@@ -712,7 +712,7 @@
 	{:else if !isConnected && !data.hasConfiguredSession && messages.length === 0}
 		<!-- ESTADO VACÍO: WHATSAPP NO CONECTADO -->
 		<div class="mx-auto max-w-xl py-16 px-4 text-center space-y-6">
-			<div class="flex size-20 items-center justify-center rounded-3xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 mx-auto shadow-xs">
+			<div class="flex size-20 items-center justify-center rounded-3xl bg-emerald-500/10 text-success dark:text-success/90 mx-auto shadow-xs">
 				<svg class="size-10 fill-current" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
 					<path d="M12.004 2C6.48 2 2 6.48 2 12c0 1.83.498 3.55 1.364 5.035L2 22l5.12-1.33A9.957 9.957 0 0012.004 22c5.523 0 10.004-4.48 10.004-10S17.527 2 12.004 2zm5.827 14.185c-.244.686-1.42 1.309-1.96 1.353-.51.042-1.157.062-3.738-.974-3.13-1.258-5.114-4.444-5.27-4.65-.157-.207-1.264-1.684-1.264-3.212 0-1.528.8-2.28 1.083-2.589.284-.31.623-.387.83-.387.208 0 .416.002.599.012.193.01.45.074.704.64.265.592.906 2.215.986 2.378.08.163.133.354.026.568-.106.213-.16.347-.318.533-.16.186-.337.416-.48.558-.16.158-.328.33-.14.653.187.324.832 1.371 1.786 2.222 1.228 1.094 2.263 1.433 2.586 1.593.324.16.513.134.704-.085.191-.22.822-.958 1.042-1.286.22-.328.44-.274.743-.162.304.112 1.93.91 2.261 1.074.33.164.55.244.63.382.08.138.08.802-.164 1.488z"/>
 				</svg>
@@ -825,7 +825,7 @@
 								<!-- Avatar con Iniciales y Badge Flotante de Atención -->
 								<div class="relative shrink-0">
 									<div
-										class="flex size-9 items-center justify-center rounded-full {attention?.hasProofSubmitted ? 'bg-amber-500/20 text-amber-700 dark:text-amber-400 font-bold' : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 font-bold'} text-xs"
+										class="flex size-9 items-center justify-center rounded-full {attention?.hasProofSubmitted ? 'bg-amber-500/20 text-amber-700 dark:text-amber-400 font-bold' : 'bg-emerald-500/15 text-emerald-700 dark:text-success/90 font-bold'} text-xs"
 									>
 										{conv.contactName.charAt(0).toUpperCase()}
 									</div>
@@ -883,7 +883,7 @@
 									<div class="flex items-center justify-between gap-2">
 										<p class="text-[11px] text-muted-foreground truncate">
 											{#if conv.lastMessage.fromMe}
-												<span class="text-emerald-600 dark:text-emerald-400 font-semibold">Tú: </span>
+												<span class="text-success dark:text-success/90 font-semibold">Tú: </span>
 											{/if}
 											{conv.lastMessage.text}
 										</p>
@@ -924,7 +924,7 @@
 						<div class="p-3 sm:px-4 border-b border-border flex items-center justify-between gap-3 bg-muted/20 shrink-0">
 							<div class="flex items-center gap-2.5 min-w-0">
 								<div
-									class="flex size-8 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 font-bold text-xs text-emerald-700 dark:text-emerald-400"
+									class="flex size-8 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 font-bold text-xs text-emerald-700 dark:text-success/90"
 								>
 									{activeConversation.contactName.charAt(0).toUpperCase()}
 								</div>
@@ -1080,7 +1080,7 @@
 											{:else if !msg.isRead}
 												<button
 													type="button"
-													class="opacity-0 group-hover:opacity-100 hover:underline cursor-pointer text-emerald-600 dark:text-emerald-400"
+													class="opacity-0 group-hover:opacity-100 hover:underline cursor-pointer text-success dark:text-success/90"
 													onclick={() => handleMarkAsRead(msg)}
 												>
 													Leído
@@ -1302,10 +1302,10 @@
 
 <!-- MODAL RENOMBRAR CONTACTO -->
 {#if showRenameModal}
-	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
-		<div class="w-full max-w-sm rounded-2xl border border-border bg-card p-6 shadow-2xl space-y-4">
+	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-[2px] p-4 animate-in fade-in duration-200">
+		<div class="w-full max-w-sm rounded-2xl border border-border bg-card p-5 shadow-2xl space-y-3">
 			<div class="flex items-center gap-2">
-				<Pencil class="size-4 text-emerald-600" />
+				<Pencil class="size-4 text-success" />
 				<h3 class="font-bold text-sm">Editar nombre del contacto</h3>
 			</div>
 
@@ -1341,8 +1341,8 @@
 
 <!-- MODAL VACIAR CHAT -->
 {#if showClearChatModal}
-	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
-		<div class="w-full max-w-sm rounded-2xl border border-border bg-card p-6 shadow-2xl space-y-4">
+	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-[2px] p-4 animate-in fade-in duration-200">
+		<div class="w-full max-w-sm rounded-2xl border border-border bg-card p-5 shadow-2xl space-y-3">
 			<div class="flex items-center gap-3 text-destructive">
 				<Trash2 class="size-5" />
 				<h3 class="font-bold text-sm text-foreground">¿Vaciar este chat?</h3>
@@ -1385,11 +1385,11 @@
 
 <!-- MODAL CONFIRMAR PEDIDO DE WHATSAPP -->
 {#if showConfirmOrderModal && selectedOrderToConfirm}
-	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
-		<div class="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl space-y-4">
+	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-[2px] p-4 animate-in fade-in duration-200">
+		<div class="w-full max-w-md rounded-2xl border border-border bg-card p-5 shadow-2xl space-y-3">
 			<div class="flex items-center justify-between border-b border-border pb-3">
 				<div class="flex items-center gap-2">
-					<CircleCheck class="size-5 text-emerald-600" />
+					<CircleCheck class="size-5 text-success" />
 					<h3 class="font-bold text-sm">Confirmar Pedido #{selectedOrderToConfirm.orderNumber}</h3>
 				</div>
 				<button
@@ -1427,7 +1427,7 @@
 							⚠️ Se registrará como <strong>pago parcial</strong> (Saldo pendiente: ${(selectedOrderToConfirm.totalAmount - confirmPaidAmount).toLocaleString('es-AR')}).
 						</p>
 					{:else}
-						<p class="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
+						<p class="text-[11px] text-success dark:text-success/90 font-medium">
 							✓ Se registrará como <strong>pago completo</strong>.
 						</p>
 					{/if}
@@ -1437,7 +1437,7 @@
 					<input
 						type="checkbox"
 						bind:checked={sendWhatsAppConfirm}
-						class="rounded border-input text-emerald-600 focus:ring-emerald-500"
+						class="rounded border-input text-success focus:ring-success"
 					/>
 					<span class="text-xs text-muted-foreground">
 						Enviar mensaje de confirmación por WhatsApp al cliente automáticamente.
@@ -1478,8 +1478,8 @@
 
 <!-- MODAL RECHAZAR PEDIDO DE WHATSAPP -->
 {#if showRejectOrderModal && selectedOrderToReject}
-	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
-		<div class="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl space-y-4">
+	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-[2px] p-4 animate-in fade-in duration-200">
+		<div class="w-full max-w-md rounded-2xl border border-border bg-card p-5 shadow-2xl space-y-3">
 			<div class="flex items-center justify-between border-b border-border pb-3">
 				<div class="flex items-center gap-2 text-destructive">
 					<CircleX class="size-5" />

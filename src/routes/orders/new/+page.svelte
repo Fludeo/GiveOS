@@ -290,12 +290,12 @@
 			{#if isMobileCartOpen}
 				<div class="fixed inset-0 z-50 flex flex-col justify-end lg:hidden">
 					<!-- Backdrop -->
-					<!-- svelte-ignore a11y_click_events_have_key_events -->
-					<!-- svelte-ignore a11y_no_static_element_interactions -->
-					<div
-						class="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity"
+					<button
+						type="button"
+						class="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity cursor-default"
 						onclick={() => (isMobileCartOpen = false)}
-					></div>
+						aria-label="Cerrar carrito"
+					></button>
 
 					<!-- Panel Drawer -->
 					<div class="relative z-10 max-h-[90vh] flex flex-col rounded-t-3xl border-t border-border bg-card p-5 shadow-2xl overflow-hidden">
