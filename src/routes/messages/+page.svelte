@@ -712,9 +712,9 @@
 	{:else if !isConnected && !data.hasConfiguredSession && messages.length === 0}
 		<!-- ESTADO VACÍO: WHATSAPP NO CONECTADO -->
 		<div class="mx-auto max-w-xl py-16 px-4 text-center space-y-6">
-			<div class="flex size-20 items-center justify-center rounded-3xl bg-emerald-500/10 text-success dark:text-success/90 mx-auto shadow-xs">
-				<svg class="size-10 fill-current" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-					<path d="M12.004 2C6.48 2 2 6.48 2 12c0 1.83.498 3.55 1.364 5.035L2 22l5.12-1.33A9.957 9.957 0 0012.004 22c5.523 0 10.004-4.48 10.004-10S17.527 2 12.004 2zm5.827 14.185c-.244.686-1.42 1.309-1.96 1.353-.51.042-1.157.062-3.738-.974-3.13-1.258-5.114-4.444-5.27-4.65-.157-.207-1.264-1.684-1.264-3.212 0-1.528.8-2.28 1.083-2.589.284-.31.623-.387.83-.387.208 0 .416.002.599.012.193.01.45.074.704.64.265.592.906 2.215.986 2.378.08.163.133.354.026.568-.106.213-.16.347-.318.533-.16.186-.337.416-.48.558-.16.158-.328.33-.14.653.187.324.832 1.371 1.786 2.222 1.228 1.094 2.263 1.433 2.586 1.593.324.16.513.134.704-.085.191-.22.822-.958 1.042-1.286.22-.328.44-.274.743-.162.304.112 1.93.91 2.261 1.074.33.164.55.244.63.382.08.138.08.802-.164 1.488z"/>
+			<div class="flex size-20 items-center justify-center rounded-3xl bg-emerald-500/10 mx-auto shadow-xs">
+				<svg class="size-10 fill-[#25D366] text-[#25D366]" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+					<path fill="#25D366" d="M12.004 2C6.48 2 2 6.48 2 12c0 1.83.498 3.55 1.364 5.035L2 22l5.12-1.33A9.957 9.957 0 0012.004 22c5.523 0 10.004-4.48 10.004-10S17.527 2 12.004 2zm5.827 14.185c-.244.686-1.42 1.309-1.96 1.353-.51.042-1.157.062-3.738-.974-3.13-1.258-5.114-4.444-5.27-4.65-.157-.207-1.264-1.684-1.264-3.212 0-1.528.8-2.28 1.083-2.589.284-.31.623-.387.83-.387.208 0 .416.002.599.012.193.01.45.074.704.64.265.592.906 2.215.986 2.378.08.163.133.354.026.568-.106.213-.16.347-.318.533-.16.186-.337.416-.48.558-.16.158-.328.33-.14.653.187.324.832 1.371 1.786 2.222 1.228 1.094 2.263 1.433 2.586 1.593.324.16.513.134.704-.085.191-.22.822-.958 1.042-1.286.22-.328.44-.274.743-.162.304.112 1.93.91 2.261 1.074.33.164.55.244.63.382.08.138.08.802-.164 1.488z"/>
 				</svg>
 			</div>
 
@@ -1101,12 +1101,10 @@
 									type="button"
 									class="px-2 py-0.5 rounded-full border border-border bg-muted/30 hover:bg-muted text-foreground cursor-pointer shrink-0 transition-colors"
 									onclick={() =>
-										(replyText = data.botSettings?.bankTransferInfo
-											? `¡Hola! Te paso los datos para la transferencia:\n${data.botSettings.bankTransferInfo}`
-											: '¡Hola! Te paso los datos para la transferencia bancaria.')
+										(replyText = '¡Hola! Te paso los datos para realizar la transferencia bancaria y enviarnos el comprobante por aquí.')
 									}
 								>
-									💳 Alias / CBU
+									💳 Datos de Pago
 								</button>
 								<button
 									type="button"

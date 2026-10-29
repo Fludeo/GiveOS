@@ -11,7 +11,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	}
 
 	const body = await request.json().catch(() => ({}));
-	const { businessId, orderId, paidAmount, sendWhatsApp = true } = body;
+	const { businessId, orderId, paidAmount, sendWhatsApp = true, channel = 'whatsapp' } = body;
 
 	if (!businessId || !orderId) {
 		return json({ error: 'businessId y orderId son requeridos' }, { status: 400 });
@@ -42,19 +42,15 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		})
 		.where(eq(orders.id, orderId));
 
-	// Notificar al cliente por WhatsApp si hay un teléfono registrado
-	const customerPhone = order.transactionId?.replace(/\D/g, '');
-	if (customerPhone && sendWhatsApp) {
-		const { whatsAppSessionManager } = getServices();
-		const sessionInfo = whatsAppSessionManager.getSessionInfo(businessId);
-
-		if (sessionInfo.status === 'connected') {
-			const currency = '$';
-			const msg = `¡Hola ${order.customerName}! 🎉 Confirmamos el pago de ${currency}${payment.toLocaleString('es-AR')} para tu pedido #${order.orderNumber}. Ya está agendado e ingresó al horno/producción. ¡Muchas gracias por tu compra! 🍰`;
-			whatsAppSessionManager.sendMessage(businessId, customerPhone, msg).catch((err) => {
-				console.error('[Confirm Order] Error enviando WhatsApp al cliente:', err);
-			});
-		}
+	// Notificar al cliente por el canal de mensajería activo si hay un contacto registrado
+	const customerContact = order.transactionId?.trim();
+	if (customerContact && sendWhatsApp) {
+		const { chatService } = getServices();
+		const currency = '$';
+		const msg = `¡Hola ${order.customerName}! 🎉 Confirmamos el pago de ${currency}${payment.toLocaleString('es-AR')} para tu pedido #${order.orderNumber}. Ya está agendado e ingresó al horno/producción. ¡Muchas gracias por tu compra! 🍰`;
+		chatService.sendMessage(businessId, customerContact, msg, channel).catch((err) => {
+			console.error('[Confirm Order] Error enviando notificación al cliente:', err);
+		});
 	}
 
 	return json({

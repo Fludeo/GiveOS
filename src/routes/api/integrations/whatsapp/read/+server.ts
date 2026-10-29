@@ -8,7 +8,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	}
 
 	const body = await request.json().catch(() => ({}));
-	const { businessId, messageKey, messageId, messageIds, phone } = body;
+	const { businessId, messageKey, messageId, messageIds, phone, channel = 'whatsapp' } = body;
 
 	if (!businessId || (!messageKey && !phone && !messageId && (!messageIds || messageIds.length === 0))) {
 		return json(
@@ -19,14 +19,14 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	await resolveBusinessOrRedirect(locals.user.id, businessId);
 
-	const { whatsAppSessionManager } = getServices();
+	const { chatService } = getServices();
 
 	if (phone || (messageIds && messageIds.length > 0)) {
-		const ok = await whatsAppSessionManager.markSessionAsRead(businessId, phone || '', messageIds);
+		const ok = await chatService.markSessionAsRead(businessId, phone || '', messageIds, channel);
 		return json({ success: ok });
 	}
 
-	const ok = await whatsAppSessionManager.markAsRead(businessId, messageKey, messageId);
+	const ok = await chatService.markAsRead(businessId, messageKey, messageId, channel);
 
 	return json({ success: ok });
 };

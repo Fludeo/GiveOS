@@ -8,7 +8,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	}
 
 	const body = await request.json().catch(() => ({}));
-	const { businessId, phone } = body;
+	const { businessId, phone, channel = 'whatsapp' } = body;
 
 	if (!businessId || !phone) {
 		return json({ error: 'businessId y phone son requeridos' }, { status: 400 });
@@ -16,8 +16,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	await resolveBusinessOrRedirect(locals.user.id, businessId);
 
-	const { whatsAppSessionManager } = getServices();
-	await whatsAppSessionManager.clearChatHistory(businessId, phone);
+	const { chatService } = getServices();
+	await chatService.clearChatHistory(businessId, phone, channel);
 
 	return json({ success: true });
 };
