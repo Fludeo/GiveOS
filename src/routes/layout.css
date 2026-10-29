@@ -30,6 +30,8 @@
 		--accent-foreground: #1a2e05;
 
 		/* Estados y bordes (Tailwind Zinc) */
+		--success: #10b981;
+		--success-foreground: #ffffff;
 		--destructive: #ef4444;
 		--destructive-foreground: #fafafa;
 		--border: #e4e4e7;
@@ -64,6 +66,8 @@
 		--accent-foreground: #bef264;
 
 		/* Estados y bordes */
+		--success: #10b981;
+		--success-foreground: #ffffff;
 		--destructive: #7f1d1d;
 		--destructive-foreground: #fef2f2;
 		--border: #27272a;
@@ -99,6 +103,8 @@
 	--color-muted-foreground: var(--muted-foreground);
 	--color-accent: var(--accent);
 	--color-accent-foreground: var(--accent-foreground);
+	--color-success: var(--success);
+	--color-success-foreground: var(--success-foreground);
 	--color-destructive: var(--destructive);
 	--color-destructive-foreground: var(--destructive-foreground);
 	--color-border: var(--border);

@@ -288,7 +288,7 @@
 
 									<div class="flex items-center gap-2 shrink-0">
 										{#if extraQty > 0}
-											<span class="rounded-md bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 font-mono text-[10px] font-bold text-emerald-700 dark:text-emerald-400">
+											<span class="rounded-md bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 font-mono text-[10px] font-bold text-emerald-700 dark:text-success/90">
 												+{extraQty} a stock
 											</span>
 										{/if}

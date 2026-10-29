@@ -17,7 +17,10 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 	);
 
 	const { whatsAppSessionManager } = getServices();
-	const initialWhatsAppSession = whatsAppSessionManager.getSessionInfo(activeBusiness.id);
+	const initialWhatsAppSession =
+		typeof whatsAppSessionManager.getSessionInfoAsync === 'function'
+			? await whatsAppSessionManager.getSessionInfoAsync(activeBusiness.id)
+			: whatsAppSessionManager.getSessionInfo(activeBusiness.id);
 
 	const savedBot = activeBusiness.settings?.integrations?.bot || {};
 	const botSettings: BotSettingsConfig = {

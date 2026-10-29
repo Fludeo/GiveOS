@@ -164,7 +164,7 @@
 				<Button
 					size="sm"
 					class="shrink-0 whitespace-nowrap {filterStatus !== 'ready' && readyOrdersCount > 0
-						? 'border-emerald-500/40 text-emerald-700 dark:text-emerald-400 bg-emerald-500/10'
+						? 'border-emerald-500/40 text-emerald-700 dark:text-success/90 bg-emerald-500/10'
 						: ''}"
 					variant={filterStatus === 'ready' ? 'default' : 'outline'}
 					onclick={() => (filterStatus = 'ready')}
@@ -728,7 +728,7 @@
 											{:else if order.status === 'completed'}
 												<Badge
 													variant="outline"
-													class="border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-[11px]"
+													class="border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-success/90 text-[11px]"
 												>
 													{ORDER_STATUS_LABELS.completed}
 												</Badge>
@@ -746,7 +746,7 @@
 										<td class="px-4 py-4 align-middle whitespace-nowrap">
 											{#if order.status === 'completed' || order.paymentStatus === 'paid'}
 												<span
-													class="rounded bg-emerald-500/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400"
+													class="rounded bg-emerald-500/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:text-success/90"
 												>
 													Pagado
 												</span>

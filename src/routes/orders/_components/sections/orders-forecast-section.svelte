@@ -390,7 +390,7 @@
 				<div
 					class="flex size-8 sm:size-11 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl {totalLaborDeficit > 0
 						? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
-						: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'}"
+						: 'bg-emerald-500/15 text-emerald-600 dark:text-success/90'}"
 				>
 					<CalendarClock class="size-4 sm:size-6" />
 				</div>
@@ -398,7 +398,7 @@
 					<div
 						class="font-mono text-base sm:text-2xl font-bold tracking-tight truncate {totalLaborDeficit > 0
 							? 'text-amber-600 dark:text-amber-400'
-							: 'text-emerald-600 dark:text-emerald-400'}"
+							: 'text-emerald-600 dark:text-success/90'}"
 					>
 						{formatHoursAndMinutes(forecast.criticalPathMinutesForDeficit ?? totalLaborDeficit)}
 					</div>
@@ -443,14 +443,14 @@
 				<div
 					class="flex size-8 sm:size-11 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl {overallCoverageRate < 100
 						? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
-						: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'}"
+						: 'bg-emerald-500/15 text-emerald-600 dark:text-success/90'}"
 				>
 					<Boxes class="size-4 sm:size-6" />
 				</div>
 				<div
 					class="font-mono text-lg sm:text-3xl font-bold tracking-tight {overallCoverageRate < 100
 						? 'text-amber-600 dark:text-amber-400'
-						: 'text-emerald-600 dark:text-emerald-400'}"
+						: 'text-emerald-600 dark:text-success/90'}"
 				>
 					{overallCoverageRate}%
 				</div>
@@ -473,14 +473,14 @@
 				<div
 					class="flex size-8 sm:size-11 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl {totalShortagesCount > 0
 						? 'bg-red-500/15 text-red-600 dark:text-red-400'
-						: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'}"
+						: 'bg-emerald-500/15 text-emerald-600 dark:text-success/90'}"
 				>
 					<AlertTriangle class="size-4 sm:size-6" />
 				</div>
 				<div
 					class="font-mono text-lg sm:text-3xl font-bold tracking-tight {totalShortagesCount > 0
 						? 'text-red-600 dark:text-red-400'
-						: 'text-emerald-600 dark:text-emerald-400'}"
+						: 'text-emerald-600 dark:text-success/90'}"
 				>
 					{totalShortagesCount}
 				</div>
@@ -848,10 +848,10 @@
 									</div>
 								{:else if isFabricable}
 									<span class="text-muted-foreground">Producción:</span>
-									<span class="text-emerald-600 dark:text-emerald-400 font-medium">0 min (listo)</span>
+									<span class="text-emerald-600 dark:text-success/90 font-medium">0 min (listo)</span>
 								{:else}
 									<span class="text-muted-foreground">Insumo:</span>
-									<span class="{item.isShortage ? 'text-red-600 dark:text-red-400 font-bold' : item.isBelowMinStock ? 'text-amber-600 dark:text-amber-400 font-semibold' : 'text-emerald-600 dark:text-emerald-400 font-medium'}">
+									<span class="{item.isShortage ? 'text-red-600 dark:text-red-400 font-bold' : item.isBelowMinStock ? 'text-amber-600 dark:text-amber-400 font-semibold' : 'text-emerald-600 dark:text-success/90 font-medium'}">
 										{item.isShortage ? 'Requiere compra' : item.isBelowMinStock ? 'Reponer stock mín.' : 'Stock suficiente'}
 									</span>
 								{/if}
@@ -1047,7 +1047,7 @@
 														<span class="text-[10px] text-muted-foreground italic">0 min</span>
 													{/if}
 												{:else}
-													<span class="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">0 min</span>
+													<span class="text-[11px] text-emerald-600 dark:text-success/90 font-medium">0 min</span>
 												{/if}
 
 												{#if !item.isMakeToOrder && businessId}
@@ -1103,7 +1103,7 @@
 													Falta stock
 												</span>
 											{:else}
-												<span class="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">Cubierto</span>
+												<span class="text-[11px] text-emerald-600 dark:text-success/90 font-medium">Cubierto</span>
 											{/if}
 										{/if}
 									</td>

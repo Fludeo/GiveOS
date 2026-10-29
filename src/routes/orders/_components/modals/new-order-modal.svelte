@@ -1280,7 +1280,7 @@
 										}}
 										class="flex flex-col justify-between rounded-xl border p-4 text-left transition-all {draftPaymentStatus ===
 										'paid'
-											? 'border-emerald-500 bg-emerald-500/10 ring-2 ring-emerald-500/20'
+											? 'border-emerald-500 bg-emerald-500/10 ring-2 ring-success/20'
 											: 'border-border bg-card hover:bg-muted/30'}"
 									>
 										<div class="space-y-1">

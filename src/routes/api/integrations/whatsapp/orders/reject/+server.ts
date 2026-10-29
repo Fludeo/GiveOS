@@ -11,7 +11,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	}
 
 	const body = await request.json().catch(() => ({}));
-	const { businessId, orderId, reason, sendWhatsApp = true } = body;
+	const { businessId, orderId, reason, sendWhatsApp = true, channel = 'whatsapp' } = body;
 
 	if (!businessId || !orderId) {
 		return json({ error: 'businessId y orderId son requeridos' }, { status: 400 });
@@ -38,19 +38,15 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		})
 		.where(eq(orders.id, orderId));
 
-	// Notificar al cliente por WhatsApp si hay un teléfono registrado
-	const customerPhone = order.transactionId?.replace(/\D/g, '');
-	if (customerPhone && sendWhatsApp) {
-		const { whatsAppSessionManager } = getServices();
-		const sessionInfo = whatsAppSessionManager.getSessionInfo(businessId);
-
-		if (sessionInfo.status === 'connected') {
-			const reasonText = reason ? ` Motivo: ${reason}.` : '';
-			const msg = `¡Hola ${order.customerName}! Te informamos que tu pedido #${order.orderNumber} no pudo ser confirmado.${reasonText} Si deseas consultar alternativas o reprogramar tu pedido, escríbenos por aquí. ¡Muchas gracias!`;
-			whatsAppSessionManager.sendMessage(businessId, customerPhone, msg).catch((err) => {
-				console.error('[Reject Order] Error enviando WhatsApp al cliente:', err);
-			});
-		}
+	// Notificar al cliente por el canal de mensajería activo si hay un contacto registrado
+	const customerContact = order.transactionId?.trim();
+	if (customerContact && sendWhatsApp) {
+		const { chatService } = getServices();
+		const reasonText = reason ? ` Motivo: ${reason}.` : '';
+		const msg = `¡Hola ${order.customerName}! Te informamos que tu pedido #${order.orderNumber} no pudo ser confirmado.${reasonText} Si deseas consultar alternativas o reprogramar tu pedido, escríbenos por aquí. ¡Muchas gracias!`;
+		chatService.sendMessage(businessId, customerContact, msg, channel).catch((err) => {
+			console.error('[Reject Order] Error enviando notificación al cliente:', err);
+		});
 	}
 
 	return json({

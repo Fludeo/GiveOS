@@ -4,30 +4,34 @@ import type { AiMessage, AiTool } from '../domain/ai-provider.interface';
 import { getDb } from '#lib/server/db/index';
 import { businesses, salesProducts, orders } from '#lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
+import type { MessagingChannelId } from '#lib/features/messaging/domain/chat.entity';
 
 import type { BotSettingsConfig } from '../domain/bot-config.entity';
-import { buildBotSystemPrompt, DEFAULT_BOT_CONFIG } from '../domain/bot-config.entity';
-
-export interface BotProcessInput {
-	businessId: string;
-	customerPhone: string;
-	customerName?: string;
-	messageText: string;
-	chatHistory: Array<{ role: 'user' | 'assistant'; text: string }>;
-	customSystemPrompt?: string;
-	botConfig?: Partial<BotSettingsConfig>;
-}
-
-import { DEFAULT_BOT_PROMPT } from '../domain/bot-prompt.constants';
+import {
+	buildBotSystemPrompt,
+	DEFAULT_BOT_CONFIG,
+	DEFAULT_BOT_PROMPT
+} from '../domain/bot-config.entity';
 import {
 	isPromptExtractionAttempt,
 	getSafeGuardRefusal,
 	sanitizeBotOutput
 } from '../domain/prompt-guard.utils';
+
 export { DEFAULT_BOT_PROMPT, buildBotSystemPrompt, DEFAULT_BOT_CONFIG };
 export { isPromptExtractionAttempt, getSafeGuardRefusal, sanitizeBotOutput };
 export type { BotSettingsConfig };
 export { getHumanDelaySeconds, getHumanDelayMs, waitHumanDelay } from '../domain/human-delay.utils';
+
+export interface BotProcessInput {
+	businessId: string;
+	channel?: MessagingChannelId;
+	customerPhone: string;
+	customerName?: string;
+	messageText: string;
+	chatHistory: Array<{ role: 'user' | 'assistant'; text: string }>;
+	customSystemPrompt?: string;
+}
 
 export interface BotProcessOutput {
 	replyText: string;
@@ -56,7 +60,7 @@ export class EcommerceBotService {
 		{
 			name: 'get_business_info',
 			description:
-				'Devuelve información sobre el negocio: horarios de atención, dirección y datos para pagar por transferencia (Alias/CBU).',
+				'Devuelve información general sobre el negocio: nombre, descripción, horarios de atención y datos de contacto.',
 			parameters: {
 				type: 'object',
 				properties: {},
@@ -66,7 +70,7 @@ export class EcommerceBotService {
 		{
 			name: 'create_unconfirmed_order',
 			description:
-				'Registra un pedido en estado NO CONFIRMADO para que el encargado verifique el comprobante de pago antes de confirmarlo. Úsalo cuando el cliente confirme qué productos o servicios desea encargar.',
+				'Registra un pedido en estado NO CONFIRMADO para que el encargado lo verifique antes de confirmarlo. Úsalo cuando el cliente confirme qué productos o servicios desea encargar.',
 			parameters: {
 				type: 'object',
 				properties: {
@@ -108,6 +112,7 @@ export class EcommerceBotService {
 	async processMessage(input: BotProcessInput): Promise<BotProcessOutput> {
 		const aiProvider = getAiProvider();
 		const db = getDb();
+		const channelLabel = (input.channel || 'whatsapp').toUpperCase();
 
 		// 1. Obtener datos del negocio y configuración para contextualizar al modelo
 		const business = await db.query.businesses.findFirst({
@@ -127,27 +132,16 @@ export class EcommerceBotService {
 			};
 		}
 
-		const savedBotConfig = (business?.settings?.integrations?.bot || {}) as Partial<BotSettingsConfig>;
-		const activeBotConfig: BotSettingsConfig = {
-			...DEFAULT_BOT_CONFIG,
-			...savedBotConfig,
-			...(input.botConfig || {})
-		};
-
-		let systemPrompt = '';
-		if (input.customSystemPrompt && !input.botConfig) {
-			systemPrompt = input.customSystemPrompt.trim();
-		} else {
-			systemPrompt = buildBotSystemPrompt(
-				{
-					name: businessName,
-					description: business?.description,
-					openingHours: business?.openingHours,
-					currencySymbol: currency
-				},
-				activeBotConfig
-			);
-		}
+		const savedPrompt = business?.settings?.integrations?.bot?.systemPrompt?.trim();
+		const systemPrompt =
+			input.customSystemPrompt?.trim() ||
+			savedPrompt ||
+			buildBotSystemPrompt({
+				name: businessName,
+				description: business?.description,
+				openingHours: business?.openingHours,
+				currencySymbol: currency
+			});
 
 		// 2. Construir historial de mensajes
 		const messages: AiMessage[] = [
@@ -160,7 +154,7 @@ export class EcommerceBotService {
 		];
 
 		// 3. Ejecutar primera llamada al modelo
-		let response = await aiProvider.chat({
+		const response = await aiProvider.chat({
 			messages,
 			tools: this.tools,
 			temperature: 0.1
@@ -197,14 +191,8 @@ export class EcommerceBotService {
 					negocio: businessName,
 					descripcion: business?.description || 'Venta de productos y atención al cliente',
 					horarios: business?.openingHours || 'Consultar por mensaje',
-					whatsapp: business?.whatsapp || '',
-					pago: {
-						metodo: 'Transferencia bancaria',
-						datos: activeBotConfig.bankTransferInfo,
-						seña_requerida: activeBotConfig.depositRequired
-							? `Sí (${activeBotConfig.depositNotes || '50%'})`
-							: 'No se requiere seña obligatoria'
-					}
+					contacto: business?.whatsapp || '',
+					moneda: currency
 				});
 			} else if (toolCall.name === 'create_unconfirmed_order') {
 				try {
@@ -238,13 +226,13 @@ export class EcommerceBotService {
 					if (lines.length > 0) {
 						const created = await orderService.createOrder({
 							businessId: input.businessId,
-							customerName: args.customer_name || input.customerName || 'Cliente WhatsApp',
+							customerName: args.customer_name || input.customerName || `Cliente ${channelLabel}`,
 							deliveryDate: args.delivery_date ? new Date(args.delivery_date) : undefined,
-							notes: `[Bot WhatsApp ${input.customerPhone}] ${args.notes || ''}`.trim(),
+							notes: `[Bot ${channelLabel} ${input.customerPhone}] ${args.notes || ''}`.trim(),
 							lines
 						});
 
-						// Asociar teléfono del cliente en transactionId para cruce rápido con el chat
+						// Asociar identificador del cliente en transactionId para cruce con el chat
 						await db
 							.update(orders)
 							.set({ transactionId: input.customerPhone })
@@ -294,9 +282,9 @@ export class EcommerceBotService {
 			if (toolCall.name === 'get_catalog') {
 				toolPromptInstruction = `[Resultado del sistema para get_catalog]:\n${toolResultContent}\n\nInstrucción: Presenta amablemente estos productos al cliente de forma atractiva, clara y con sus respectivos precios, e invítalo a elegir el que desee.`;
 			} else if (toolCall.name === 'get_business_info') {
-				toolPromptInstruction = `[Resultado del sistema para get_business_info]:\n${toolResultContent}\n\nInstrucción: Brinda amablemente los datos de atención, horarios o medios de pago al cliente de forma clara y cordial.`;
+				toolPromptInstruction = `[Resultado del sistema para get_business_info]:\n${toolResultContent}\n\nInstrucción: Brinda amablemente los datos del negocio al cliente de forma clara y cordial.`;
 			} else if (toolCall.name === 'create_unconfirmed_order') {
-				toolPromptInstruction = `[Resultado del sistema para create_unconfirmed_order]:\n${toolResultContent}\n\nInstrucción: Confirma al cliente que su pedido fue registrado con el número de orden y monto total, e indícale amablemente los siguientes pasos para coordinar la entrega o transferencia.`;
+				toolPromptInstruction = `[Resultado del sistema para create_unconfirmed_order]:\n${toolResultContent}\n\nInstrucción: Confirma al cliente que su pedido fue registrado con el número de orden y monto total, e indícale amablemente los siguientes pasos para coordinar la entrega o confirmación según tus directivas.`;
 			} else {
 				toolPromptInstruction = `[Resultado del sistema para ${toolCall.name}]:\n${toolResultContent}\n\nInstrucción: Responde amablemente al cliente utilizando esta información.`;
 			}
