@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { superForm } from 'sveltekit-superforms';
 	import type { PageProps } from './$types';
 	import {
 		generateNextSalesProductCode,
@@ -25,6 +25,23 @@
 
 	let { data, form }: PageProps = $props();
 
+	// @ts-ignore
+	const { form: superFormData, errors, enhance, delayed, message } = superForm(() => data.form, {
+		dataType: 'json',
+		taintedMessage: null,
+	});
+
+	// Bind form values to superforms
+	$effect(() => {
+		$superFormData.name = name;
+		$superFormData.code = code;
+		$superFormData.description = description;
+		$superFormData.salePrice = salePrice;
+		$superFormData.isShortcut = isShortcut;
+		$superFormData.components = components;
+		$superFormData.pricingTiers = pricingTiers;
+	});
+
 	// Permitir vincular cualquier ítem del inventario (materia prima, sub-ensamble o producto final)
 	const linkableItems = $derived(data.items);
 
@@ -34,7 +51,7 @@
 	let description = $state('');
 	let salePrice = $state(0);
 	let isShortcut = $state(false);
-	let isSubmitting = $state(false);
+	// isSubmitting handled by superforms
 
 	// Componentes asociados
 	let components = $state<SalesProductComponentInput[]>([]);
@@ -136,26 +153,17 @@
 		</div>
 	{:else}
 		<form
+			action="?/createSalesProductAction"
 			method="POST"
-			action="?/createSalesProduct"
-			use:enhance={() => {
-				isSubmitting = true;
-				return async ({ update }) => {
-					await update();
-					isSubmitting = false;
-				};
-			}}
+			use:enhance
 			class="mx-auto max-w-4xl space-y-8 pb-12"
 		>
-			<input type="hidden" name="businessId" value={data.activeBusiness.id} />
-			<input type="hidden" name="componentsJson" value={JSON.stringify(components)} />
-			<input type="hidden" name="pricingTiersJson" value={JSON.stringify(pricingTiers)} />
-			<input type="hidden" name="isShortcut" value={isShortcut ? 'true' : 'false'} />
 
-			{#if form?.error}
+
+			{#if $message || (form && typeof form === 'object' && 'error' in form ? form.error : null)}
 				<div class="flex items-center gap-3 rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-destructive">
 					<AlertTriangle class="size-5 shrink-0" />
-					<p class="text-sm font-semibold">{form.error}</p>
+					<p class="text-sm font-semibold">{$message || (form && typeof form === 'object' && 'error' in form ? form.error : null)}</p>
 				</div>
 			{/if}
 
@@ -195,6 +203,7 @@
 							class="font-medium"
 							required
 						/>
+						{#if $errors.name}<p class="text-xs text-destructive">{$errors.name}</p>{/if}
 					</div>
 
 					<div class="space-y-2 sm:col-span-12">
@@ -336,6 +345,7 @@
 							placeholder="0.00"
 							required
 						/>
+						{#if $errors.salePrice}<p class="text-xs text-destructive">{$errors.salePrice}</p>{/if}
 					</div>
 
 					<div class="rounded-xl border border-border bg-muted/20 p-4 sm:col-span-7 space-y-2">
@@ -504,7 +514,7 @@
 					Cancelar
 				</Button>
 
-				<Button type="submit" disabled={isSubmitting} class="gap-2 font-bold px-6 h-11">
+				<Button type="submit" disabled={$delayed} class="gap-2 font-bold px-6 h-11">
 					<Check class="size-4" />
 					<span>Guardar Producto para Venta</span>
 				</Button>

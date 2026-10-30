@@ -1,0 +1,1 @@
+ALTER TABLE "chat_messages" ADD COLUMN "is_bot" boolean DEFAULT false NOT NULL;
