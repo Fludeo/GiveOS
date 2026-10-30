@@ -207,7 +207,7 @@
 					<div class="flex items-center gap-2">
 						<h3 class="text-xs font-bold text-foreground">Ambiente de Pruebas Local</h3>
 						<span
-							class="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-400 font-mono"
+							class="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-success/90 font-mono"
 						>
 							<span class="size-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
 							Ollama (gemma4:e2b en GPU)
@@ -320,7 +320,7 @@
 				<div class="p-3.5 border-b border-border bg-muted/20 flex items-center justify-between gap-3 shrink-0">
 					<div class="flex items-center gap-2">
 						<div
-							class="flex size-7 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold"
+							class="flex size-7 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-success/90 font-bold"
 						>
 							<Bot class="size-4" />
 						</div>
@@ -378,7 +378,7 @@
 											<span>Gemma 4</span>
 										</div>
 										{#if msg.durationMs}
-											<span class="font-mono text-emerald-600 dark:text-emerald-400 font-bold">
+											<span class="font-mono text-emerald-600 dark:text-success/90 font-bold">
 												⏱️ {(msg.durationMs / 1000).toFixed(1)}s
 											</span>
 										{/if}
@@ -434,7 +434,7 @@
 													Pedido creado: <strong>#{msg.orderCreated.orderNumber}</strong> (${msg.orderCreated.totalAmount.toLocaleString('es-AR')})
 												</span>
 											</div>
-											<span class="text-[10px] font-bold text-emerald-700 dark:text-emerald-400">No confirmado</span>
+											<span class="text-[10px] font-bold text-emerald-700 dark:text-success/90">No confirmado</span>
 										</div>
 									{/if}
 								{/if}

@@ -289,7 +289,7 @@
 					draftPaidAmount = Number(draftTotalAmount.toFixed(2));
 				}}
 				class="rounded-xl border p-2.5 text-center transition-all cursor-pointer active:scale-95 {draftPaymentStatus === 'paid'
-					? 'border-emerald-500 bg-emerald-500/10 ring-1 ring-emerald-500'
+					? 'border-emerald-500 bg-emerald-500/10 ring-1 ring-success'
 					: 'border-border bg-card hover:bg-muted'}"
 			>
 				<span class="block text-xs font-bold text-foreground">Total</span>

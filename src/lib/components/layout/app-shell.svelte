@@ -241,7 +241,7 @@
 						title="{activeBusiness.name} — {openStatus.isOpen ? 'Abierto' : 'Cerrado'} (Clic para ver horarios)"
 					>
 						<span
-							class="size-2.5 rounded-full {openStatus.isOpen ? 'bg-emerald-500 ring-2 ring-emerald-500/20' : 'bg-red-500 ring-2 ring-red-500/20'}"
+							class="size-2.5 rounded-full {openStatus.isOpen ? 'bg-emerald-500 ring-2 ring-success/20' : 'bg-red-500 ring-2 ring-red-500/20'}"
 						></span>
 					</button>
 				</div>

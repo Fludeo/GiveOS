@@ -415,7 +415,7 @@
 									{totalPendingOverall} en espera
 								</Badge>
 							{:else}
-								<Badge variant="outline" class="border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-[11px]">
+								<Badge variant="outline" class="border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-success/90 text-[11px]">
 									Al día
 								</Badge>
 							{/if}
@@ -702,7 +702,7 @@
 													<Check class="size-2.5" /> Entregada
 												</span>
 											{:else if isReady}
-												<span class="inline-flex items-center gap-0.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+												<span class="inline-flex items-center gap-0.5 text-[10px] font-bold text-emerald-600 dark:text-success/90">
 													<PackageCheck class="size-3" /> Listo p/ retirar
 												</span>
 											{:else if order.status === 'unconfirmed'}
@@ -755,7 +755,7 @@
 									<!-- Estado de Pago -->
 									<td class="py-3 px-3 align-top whitespace-nowrap">
 										{#if order.status === 'completed' || order.paymentStatus === 'paid'}
-											<Badge variant="outline" class="border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-[10px]">
+											<Badge variant="outline" class="border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-success/90 text-[10px]">
 												Pagado
 											</Badge>
 										{:else if order.paymentStatus === 'partially_paid'}
@@ -946,7 +946,7 @@
 								<div class="flex items-center justify-between">
 									<div>
 										{#if order.status === 'completed' || order.paymentStatus === 'paid'}
-											<Badge variant="outline" class="border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-[10px]">
+											<Badge variant="outline" class="border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-success/90 text-[10px]">
 												Pagado
 											</Badge>
 										{:else if order.paymentStatus === 'partially_paid'}

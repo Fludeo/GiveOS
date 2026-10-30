@@ -485,7 +485,7 @@
 						<div class="flex items-center gap-2">
 							<h4 class="text-sm font-bold text-foreground">Aplicación Móvil y Escritorio (PWA)</h4>
 							{#if pwaStore.isStandalone}
-								<span class="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-400">
+								<span class="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-success/90">
 									Instalada
 								</span>
 							{/if}

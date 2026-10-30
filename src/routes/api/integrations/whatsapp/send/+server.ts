@@ -8,7 +8,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	}
 
 	const body = await request.json().catch(() => ({}));
-	const { businessId, to, text } = body;
+	const { businessId, to, text, channel = 'whatsapp' } = body;
 
 	if (!businessId || !to || !text?.trim()) {
 		return json({ error: 'businessId, to y text son requeridos' }, { status: 400 });
@@ -16,12 +16,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	await resolveBusinessOrRedirect(locals.user.id, businessId);
 
-	const { whatsAppSessionManager } = getServices();
+	const { chatService } = getServices();
 	try {
-		const sentMessage = await whatsAppSessionManager.sendMessage(businessId, to, text.trim());
+		const sentMessage = await chatService.sendMessage(businessId, to, text.trim(), channel);
 		return json({ success: true, message: sentMessage });
 	} catch (e: any) {
-		console.error('[API WhatsApp Send] Error:', e);
+		console.error('[API Chat Send] Error:', e);
 		return json({ error: e.message || 'Error al enviar mensaje' }, { status: 500 });
 	}
 };

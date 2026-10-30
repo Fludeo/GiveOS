@@ -5,7 +5,6 @@ import { getServices } from '#lib/server/container';
 import { getDb } from '#lib/server/db/index';
 import { orders, orderItems } from '#lib/server/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
-import { DatabaseChatRepository } from '#lib/features/integrations/whatsapp/infrastructure/database-chat-repository';
 import { DEFAULT_BOT_CONFIG, type BotSettingsConfig } from '#lib/features/ai/domain/bot-config.entity';
 
 export const load: PageServerLoad = async ({ url, locals }) => {
@@ -19,7 +18,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		requestedBusinessId
 	);
 
-	const { whatsAppSessionManager } = getServices();
+	const { whatsAppSessionManager, chatService } = getServices();
 	const initialWhatsAppSession =
 		typeof whatsAppSessionManager.getSessionInfoAsync === 'function'
 			? await whatsAppSessionManager.getSessionInfoAsync(activeBusiness.id)
@@ -32,8 +31,8 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		activeBusiness.settings?.integrations?.whatsapp?.status === 'connected'
 	);
 
-	// Cargar historial de mensajes persistidos desde PostgreSQL
-	const dbMessages = await DatabaseChatRepository.getConversationsWithMessages(activeBusiness.id);
+	// Cargar historial de mensajes persistidos desde PostgreSQL (agnóstico al canal)
+	const dbMessages = await chatService.getConversationsWithMessages(activeBusiness.id);
 	if (dbMessages.length > 0) {
 		initialWhatsAppSession.messages = dbMessages;
 		if (typeof whatsAppSessionManager.syncHolderMessages === 'function') {

@@ -3,6 +3,7 @@ import { resolveBusinessOrRedirect } from '#lib/server/business-resolver';
 import { getDb } from '#lib/server/db/index';
 import { businesses } from '#lib/server/db/schema';
 import { eq } from 'drizzle-orm';
+import { buildBotSystemPrompt } from '#lib/features/ai/domain/bot-config.entity';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	if (!locals.user) {
@@ -10,17 +11,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	}
 
 	const body = await request.json().catch(() => ({}));
-	const {
-		businessId,
-		enabled,
-		tone,
-		useEmojis,
-		bankTransferInfo,
-		depositRequired,
-		depositNotes,
-		specialRules,
-		systemPrompt
-	} = body;
+	const { businessId, enabled, systemPrompt } = body;
 
 	if (!businessId) {
 		return json({ error: 'businessId requerido' }, { status: 400 });
@@ -39,26 +30,21 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	const currentSettings = existing.settings || {};
 	const currentIntegrations = currentSettings.integrations || {};
-	const existingBot = currentIntegrations.bot || {};
+	const existingBot = currentIntegrations.bot || { enabled: false };
+
+	const defaultPrompt = buildBotSystemPrompt({
+		name: existing.name,
+		description: existing.description,
+		openingHours: existing.openingHours,
+		currencySymbol: currentSettings.currencySymbol || '$'
+	});
 
 	const updatedBot = {
-		...existingBot,
 		enabled: typeof enabled === 'boolean' ? enabled : (existingBot.enabled ?? false),
-		tone: typeof tone === 'string' ? tone : (existingBot.tone || 'amigable'),
-		useEmojis: typeof useEmojis === 'boolean' ? useEmojis : (existingBot.useEmojis ?? true),
-		bankTransferInfo:
-			typeof bankTransferInfo === 'string'
-				? bankTransferInfo
-				: (existingBot.bankTransferInfo ?? ''),
-		depositRequired:
-			typeof depositRequired === 'boolean'
-				? depositRequired
-				: (existingBot.depositRequired ?? true),
-		depositNotes:
-			typeof depositNotes === 'string' ? depositNotes : (existingBot.depositNotes ?? ''),
-		specialRules:
-			typeof specialRules === 'string' ? specialRules : (existingBot.specialRules ?? ''),
-		systemPrompt: typeof systemPrompt === 'string' ? systemPrompt : existingBot.systemPrompt,
+		systemPrompt:
+			typeof systemPrompt === 'string' && systemPrompt.trim()
+				? systemPrompt.trim()
+				: existingBot.systemPrompt || defaultPrompt,
 		updatedAt: new Date().toISOString()
 	};
 
@@ -77,6 +63,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	return json({
 		success: true,
-		botSettings: updatedSettings.integrations.bot
+		botSettings: updatedBot
 	});
 };

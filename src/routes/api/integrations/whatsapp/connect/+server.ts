@@ -9,6 +9,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	const body = await request.json().catch(() => ({}));
 	const businessId = body.businessId;
+	const forceNew = Boolean(body.forceNew);
 
 	if (!businessId) {
 		return json({ error: 'businessId requerido' }, { status: 400 });
@@ -17,6 +18,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	await resolveBusinessOrRedirect(locals.user.id, businessId);
 
 	const { whatsAppSessionManager } = getServices();
+
+	if (forceNew) {
+		await whatsAppSessionManager.disconnect(businessId, true);
+	}
+
 	whatsAppSessionManager.connect(businessId).catch((err) => {
 		console.error('[API WhatsApp Connect] Error:', err);
 	});

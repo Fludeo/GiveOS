@@ -164,12 +164,12 @@
 			</span>
 			<div class="flex items-center gap-2 sm:gap-3 pt-0.5">
 				<div
-					class="flex size-8 sm:size-11 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+					class="flex size-8 sm:size-11 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl bg-emerald-500/15 text-emerald-600 dark:text-success/90"
 				>
 					<Check class="size-4 sm:size-6" />
 				</div>
 				<div
-					class="font-mono text-lg sm:text-3xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400"
+					class="font-mono text-lg sm:text-3xl font-bold tracking-tight text-emerald-600 dark:text-success/90"
 				>
 					{completedOrdersCount}
 				</div>
@@ -189,14 +189,14 @@
 			<div class="flex items-center gap-2 sm:gap-3 pt-0.5">
 				<div
 					class="flex size-8 sm:size-11 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl {totalProfit > 0
-						? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+						? 'bg-emerald-500/15 text-emerald-600 dark:text-success/90'
 						: 'bg-muted text-muted-foreground'}"
 				>
 					<TrendingUp class="size-4 sm:size-6" />
 				</div>
 				<div
 					class="font-mono text-base sm:text-3xl font-bold tracking-tight truncate {totalProfit > 0
-						? 'text-emerald-600 dark:text-emerald-400'
+						? 'text-emerald-600 dark:text-success/90'
 						: 'text-foreground'}"
 				>
 					{formatCurrency(totalProfit)}
