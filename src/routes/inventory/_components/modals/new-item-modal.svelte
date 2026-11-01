@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { superForm } from 'sveltekit-superforms';
 	import type { SuperValidated, Infer } from 'sveltekit-superforms';
-	import type { CreateItemSchema } from '$lib/schemas/item.schema';
+	import type { CreateItemSchema } from '#lib/schemas/item.schema';
 	import {
 		generateNextItemCode,
 		UNITS_OF_MEASURE,

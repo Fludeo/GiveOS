@@ -4,7 +4,7 @@ import { zod4 } from 'sveltekit-superforms/adapters';
 import type { Actions, PageServerLoad } from './$types';
 import { getServices } from '#lib/server/container';
 import { resolveBusinessOrRedirect } from '#lib/server/business-resolver';
-import { createOrderSchema } from '$lib/schemas/order.schema';
+import { createOrderSchema } from '#lib/schemas/order.schema';
 import * as newOrderActions from './_actions';
 
 export const load: PageServerLoad = async ({ url, locals }) => {

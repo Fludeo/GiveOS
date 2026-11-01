@@ -3,7 +3,7 @@ import { superValidate } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { getServices } from '#lib/server/container';
 import { resolveBusinessOrRedirect } from '#lib/server/business-resolver';
-import { createOrderSchema } from '$lib/schemas/order.schema';
+import { createOrderSchema } from '#lib/schemas/order.schema';
 
 export async function createOrderAction({ request, locals, url }: RequestEvent) {
 	if (!locals.user) throw redirect(302, '/login');

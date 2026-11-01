@@ -2,7 +2,7 @@ import { fail, redirect, type RequestEvent } from '@sveltejs/kit';
 import { superValidate } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { getServices } from '#lib/server/container';
-import { registerSchema } from '$lib/schemas/auth.schema';
+import { registerSchema } from '#lib/schemas/auth.schema';
 
 export async function registerAction({ request }: RequestEvent) {
 	const form = await superValidate(request, zod4(registerSchema));

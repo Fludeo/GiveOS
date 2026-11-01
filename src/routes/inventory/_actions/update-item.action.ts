@@ -4,7 +4,7 @@ import { zod4 } from 'sveltekit-superforms/adapters';
 import { getServices } from '#lib/server/container';
 import type { ItemType, UnitOfMeasure } from '#lib/features/items/domain/item.entity';
 import { resolveBusinessOrRedirect } from '#lib/server/business-resolver';
-import { updateItemSchema } from '$lib/schemas/item.schema';
+import { updateItemSchema } from '#lib/schemas/item.schema';
 
 export async function updateItemAction({ request, locals, url }: RequestEvent) {
 	if (!locals.user) throw redirect(302, '/login');

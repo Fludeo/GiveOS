@@ -5,8 +5,8 @@ import type { Actions, PageServerLoad } from './$types';
 import type { ForecastHorizon } from '#lib/features/orders/domain/order.entity';
 import { getServices } from '#lib/server/container';
 import { resolveBusinessOrRedirect } from '#lib/server/business-resolver';
-import { createOrderSchema, updatePaymentSchema } from '$lib/schemas/order.schema';
-import { addStockBatchSchema } from '$lib/schemas/stock-batch.schema';
+import { createOrderSchema, updatePaymentSchema } from '#lib/schemas/order.schema';
+import { addStockBatchSchema } from '#lib/schemas/stock-batch.schema';
 import * as orderActions from './_actions';
 
 export const load: PageServerLoad = async ({ url, locals }) => {

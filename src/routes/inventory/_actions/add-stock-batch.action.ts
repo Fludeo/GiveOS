@@ -3,7 +3,7 @@ import { superValidate, message } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { getServices } from '#lib/server/container';
 import { resolveBusinessOrRedirect } from '#lib/server/business-resolver';
-import { addStockBatchSchema } from '$lib/schemas/stock-batch.schema';
+import { addStockBatchSchema } from '#lib/schemas/stock-batch.schema';
 
 export async function addStockBatchAction({ request, locals, url }: RequestEvent) {
 	if (!locals.user) throw redirect(302, '/login');

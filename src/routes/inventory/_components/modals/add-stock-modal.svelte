@@ -2,7 +2,7 @@
 	import { enhance as nativeEnhance } from '$app/forms';
 	import { superForm } from 'sveltekit-superforms';
 	import type { SuperValidated, Infer } from 'sveltekit-superforms';
-	import type { AddStockBatchSchema } from '$lib/schemas/stock-batch.schema';
+	import type { AddStockBatchSchema } from '#lib/schemas/stock-batch.schema';
 	import type { Item, ItemStockBatch } from '#lib/features/items/domain/item.entity';
 	import {
 		getDirectUnitCost,

@@ -2,7 +2,7 @@ import { fail, redirect, type RequestEvent } from '@sveltejs/kit';
 import { superValidate } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { getServices } from '#lib/server/container';
-import { createBusinessSchema } from '$lib/schemas/business.schema';
+import { createBusinessSchema } from '#lib/schemas/business.schema';
 
 export async function createBusinessAction({ request, locals }: RequestEvent) {
 	if (!locals.user) {

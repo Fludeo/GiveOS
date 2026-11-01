@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { superForm } from 'sveltekit-superforms';
 	import type { SuperValidated, Infer } from 'sveltekit-superforms';
-	import type { CreateOrderSchema } from '$lib/schemas/order.schema';
+	import type { CreateOrderSchema } from '#lib/schemas/order.schema';
 	import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
 	import {
 		calculateEffectiveUnitPrice,

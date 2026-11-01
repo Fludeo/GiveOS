@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { superForm } from 'sveltekit-superforms';
 	import type { SuperValidated, Infer } from 'sveltekit-superforms';
-	import type { SaveRecipeOperationalCostsSchema } from '$lib/schemas/recipe-operational-costs.schema';
+	import type { SaveRecipeOperationalCostsSchema } from '#lib/schemas/recipe-operational-costs.schema';
 	import type { Item, RecipeOperationalCost } from '#lib/features/items/domain/item.entity';
 	import type { BusinessSettings, OperationalCostResource } from '#lib/features/businesses/domain/business.entity';
 	import { Button } from '#lib/components/ui/button';

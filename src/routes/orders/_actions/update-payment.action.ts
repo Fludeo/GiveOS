@@ -4,7 +4,7 @@ import { zod4 } from 'sveltekit-superforms/adapters';
 import { getServices } from '#lib/server/container';
 import type { PaymentStatus } from '#lib/features/orders/domain/order.entity';
 import { resolveBusinessOrRedirect } from '#lib/server/business-resolver';
-import { updatePaymentSchema } from '$lib/schemas/order.schema';
+import { updatePaymentSchema } from '#lib/schemas/order.schema';
 
 export async function updatePaymentAction({ request, locals, url }: RequestEvent) {
 	if (!locals.user) throw redirect(302, '/login');

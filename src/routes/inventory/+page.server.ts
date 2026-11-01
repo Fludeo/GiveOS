@@ -4,11 +4,11 @@ import { zod4 } from 'sveltekit-superforms/adapters';
 import type { Actions, PageServerLoad } from './$types';
 import { getServices } from '#lib/server/container';
 import { resolveBusinessOrRedirect } from '#lib/server/business-resolver';
-import { addRecipeLineSchema } from '$lib/schemas/recipe-line.schema';
-import { saveRecipeOperationalCostsSchema } from '$lib/schemas/recipe-operational-costs.schema';
-import { createItemSchema, updateItemSchema } from '$lib/schemas/item.schema';
-import { createSalesProductSchema, updateSalesProductSchema } from '$lib/schemas/sales-product.schema';
-import { addStockBatchSchema } from '$lib/schemas/stock-batch.schema';
+import { addRecipeLineSchema } from '#lib/schemas/recipe-line.schema';
+import { saveRecipeOperationalCostsSchema } from '#lib/schemas/recipe-operational-costs.schema';
+import { createItemSchema, updateItemSchema } from '#lib/schemas/item.schema';
+import { createSalesProductSchema, updateSalesProductSchema } from '#lib/schemas/sales-product.schema';
+import { addStockBatchSchema } from '#lib/schemas/stock-batch.schema';
 import * as inventoryActions from './_actions';
 
 export const load: PageServerLoad = async ({ url, locals }) => {

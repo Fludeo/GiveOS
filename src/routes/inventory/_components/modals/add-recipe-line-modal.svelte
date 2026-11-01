@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { superForm } from 'sveltekit-superforms';
 	import type { SuperValidated, Infer } from 'sveltekit-superforms';
-	import type { AddRecipeLineSchema } from '$lib/schemas/recipe-line.schema';
+	import type { AddRecipeLineSchema } from '#lib/schemas/recipe-line.schema';
 	import {
 		areUnitsCompatible,
 		ITEM_TYPE_LABELS,

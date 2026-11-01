@@ -4,7 +4,7 @@ import { zod4 } from 'sveltekit-superforms/adapters';
 import { getServices } from '#lib/server/container';
 import { resolveBusinessOrRedirect } from '#lib/server/business-resolver';
 import type { RecipeOperationalCost } from '#lib/features/items/domain/item.entity';
-import { saveRecipeOperationalCostsSchema } from '$lib/schemas/recipe-operational-costs.schema';
+import { saveRecipeOperationalCostsSchema } from '#lib/schemas/recipe-operational-costs.schema';
 
 export async function saveRecipeOperationalCostsAction({ request, locals, url }: RequestEvent) {
 	if (!locals.user) throw redirect(302, '/login');

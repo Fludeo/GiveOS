@@ -5,7 +5,7 @@ import type { Actions, PageServerLoad } from './$types';
 import { resolveBusinessOrRedirect } from '#lib/server/business-resolver';
 import { getServices } from '#lib/server/container';
 import { DEFAULT_BOT_CONFIG, type BotSettingsConfig } from '#lib/features/ai/domain/bot-config.entity';
-import { updateBusinessSchema } from '$lib/schemas/business.schema';
+import { updateBusinessSchema } from '#lib/schemas/business.schema';
 import * as settingsActions from './_actions';
 
 export const load: PageServerLoad = async ({ url, locals }) => {

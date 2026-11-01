@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { superForm } from 'sveltekit-superforms';
 	import type { SuperValidated, Infer } from 'sveltekit-superforms';
-	import type { UpdateSalesProductSchema } from '$lib/schemas/sales-product.schema';
+	import type { UpdateSalesProductSchema } from '#lib/schemas/sales-product.schema';
 	import { ITEM_TYPE_LABELS, type Item } from '#lib/features/items/domain/item.entity';
 	import type { SalesProductWithItems } from '#lib/features/orders/domain/order.entity';
 	import { Button } from '#lib/components/ui/button';

@@ -3,7 +3,7 @@ import { superValidate } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import type { Actions, PageServerLoad } from './$types';
 import { getServices } from '#lib/server/container';
-import { createBusinessSchema } from '$lib/schemas/business.schema';
+import { createBusinessSchema } from '#lib/schemas/business.schema';
 import * as onboardingActions from './_actions';
 
 export const load: PageServerLoad = async ({ locals }) => {

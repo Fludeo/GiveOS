@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { superForm } from 'sveltekit-superforms';
 	import type { SuperValidated, Infer } from 'sveltekit-superforms';
-	import type { UpdatePaymentSchema } from '$lib/schemas/order.schema';
+	import type { UpdatePaymentSchema } from '#lib/schemas/order.schema';
 	import type { OrderWithItems, PaymentStatus } from '#lib/features/orders/domain/order.entity';
 	import { Button } from '#lib/components/ui/button';
 	import { Input } from '#lib/components/ui/input';
