@@ -320,30 +320,19 @@
 										{/if}
 									</div>
 
-									<!-- HERO: Stock Actual Protagonista Grande con Ícono -->
+									<!-- HERO: Stock Actual Protagonista Grande -->
 									<div class="mt-3.5 flex items-center justify-between rounded-xl border border-border/70 bg-muted/20 p-3">
-										<div class="flex items-center gap-3">
-											<div
-												class="flex size-11 shrink-0 items-center justify-center rounded-2xl {isLow
-													? 'bg-destructive/15 text-destructive'
-													: item.type === 'prepared'
-														? 'bg-secondary/15 text-secondary'
-														: 'bg-amber-500/15 text-amber-600 dark:text-amber-400'}"
-											>
-												<Package class="size-6" />
-											</div>
-											<div>
-												<span class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block">
-													Stock Disponible
+										<div>
+											<span class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block">
+												Stock Disponible
+											</span>
+											<div class="flex items-baseline gap-1.5 font-mono">
+												<span class="text-2xl sm:text-3xl font-black tracking-tight {isLow ? 'text-destructive' : 'text-foreground'}">
+													{formatQuantity(item.currentStock)}
 												</span>
-												<div class="flex items-baseline gap-1.5 font-mono">
-													<span class="text-2xl sm:text-3xl font-black tracking-tight {isLow ? 'text-destructive' : 'text-foreground'}">
-														{formatQuantity(item.currentStock)}
-													</span>
-													<span class="text-xs font-semibold text-muted-foreground uppercase font-sans">
-														{item.baseUnit === 'unit' ? 'un' : item.baseUnit}
-													</span>
-												</div>
+												<span class="text-xs font-semibold text-muted-foreground uppercase font-sans">
+													{item.baseUnit === 'unit' ? 'un' : item.baseUnit}
+												</span>
 											</div>
 										</div>
 
