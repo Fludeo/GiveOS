@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 	import type { Item } from '#lib/features/items/domain/item.entity';
 	import {
+		doesOrderMatchHorizon,
 		isOrderReadyToDeliver,
 		type ForecastHorizon,
 		type OrderWithItems,
@@ -102,22 +103,9 @@
 
 	function getOrdersCountForHorizon(hId: ForecastHorizon): number {
 		const now = new Date();
-		const endWindow = new Date(now);
-		if (hId === 'today' || hId === '1d') {
-			endWindow.setHours(23, 59, 59, 999);
-		} else if (typeof hId === 'string' && hId.endsWith('d')) {
-			const days = parseInt(hId, 10);
-			if (!Number.isNaN(days) && days > 0) {
-				endWindow.setDate(endWindow.getDate() + (days - 1));
-				endWindow.setHours(23, 59, 59, 999);
-			}
-		}
-
 		return orders.filter((o) => {
 			if (o.status === 'cancelled' || o.status === 'completed') return false;
-			if (hId === 'all') return true;
-			if (!o.deliveryDate) return true;
-			return new Date(o.deliveryDate).getTime() <= endWindow.getTime();
+			return doesOrderMatchHorizon(o.deliveryDate, hId, now);
 		}).length;
 	}
 
@@ -132,23 +120,11 @@
 	// Filtrar órdenes según el mismo horizonte seleccionado
 	const ordersInHorizon = $derived.by(() => {
 		const now = new Date();
-		const endWindow = new Date(now);
-		if (forecastHorizon === 'today' || forecastHorizon === '1d') {
-			endWindow.setHours(23, 59, 59, 999);
-		} else if (typeof forecastHorizon === 'string' && forecastHorizon.endsWith('d')) {
-			const days = parseInt(forecastHorizon, 10);
-			if (!Number.isNaN(days) && days > 0) {
-				endWindow.setDate(endWindow.getDate() + (days - 1));
-				endWindow.setHours(23, 59, 59, 999);
-			}
-		}
 
 		return orders
 			.filter((o) => {
 				if (o.status === 'cancelled' || o.status === 'completed') return false;
-				if (forecastHorizon === 'all') return true;
-				if (!o.deliveryDate) return true;
-				return new Date(o.deliveryDate).getTime() <= endWindow.getTime();
+				return doesOrderMatchHorizon(o.deliveryDate, forecastHorizon, now);
 			})
 			.sort((a, b) => {
 				const tA = a.deliveryDate ? new Date(a.deliveryDate).getTime() : Number.MAX_SAFE_INTEGER;

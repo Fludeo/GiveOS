@@ -62,6 +62,48 @@ export type ForecastHorizon =
 	| 'all';
 
 /**
+ * Determina si una orden con cierta fecha de entrega corresponde al día/horizonte seleccionado:
+ * - 'all': incluye todas las órdenes activas.
+ * - 'today' / '1d': órdenes para hoy (o vencidas/sin fecha asignada).
+ * - '2d'..'7d': órdenes programadas específicamente para ese día (hoy + (N - 1) días).
+ */
+export function doesOrderMatchHorizon(
+	deliveryDate: Date | string | null | undefined,
+	horizon: ForecastHorizon,
+	referenceDate: Date = new Date()
+): boolean {
+	if (horizon === 'all') return true;
+
+	const year = referenceDate.getFullYear();
+	const month = referenceDate.getMonth();
+	const day = referenceDate.getDate();
+
+	if (horizon === 'today' || horizon === '1d') {
+		if (!deliveryDate) return true;
+		const deliveryMs = new Date(deliveryDate).getTime();
+		if (Number.isNaN(deliveryMs)) return true;
+		const endOfTodayMs = new Date(year, month, day, 23, 59, 59, 999).getTime();
+		return deliveryMs <= endOfTodayMs;
+	}
+
+	if (typeof horizon === 'string' && horizon.endsWith('d')) {
+		const days = parseInt(horizon, 10);
+		if (!Number.isNaN(days) && days > 1) {
+			if (!deliveryDate) return false;
+			const deliveryMs = new Date(deliveryDate).getTime();
+			if (Number.isNaN(deliveryMs)) return false;
+
+			const offsetDays = days - 1;
+			const startOfDayMs = new Date(year, month, day + offsetDays, 0, 0, 0, 0).getTime();
+			const endOfDayMs = new Date(year, month, day + offsetDays, 23, 59, 59, 999).getTime();
+			return deliveryMs >= startOfDayMs && deliveryMs <= endOfDayMs;
+		}
+	}
+
+	return true;
+}
+
+/**
  * Línea de la tabla intermedia `sales_product_items` que vincula un Producto Comercial
  * con uno o varios ítems de inventario (insumos o elaboraciones) para soportar productos simples y combos.
  */
@@ -232,6 +274,7 @@ export interface CreateOrderLineInput {
 	quantity: number;
 	unitPrice?: number;
 	fulfillmentType: OrderItemFulfillmentType;
+	deliveryDate?: Date | null;
 	notes?: string | null;
 }
 

@@ -11,6 +11,7 @@ import type { RecipeTreeNode } from '#lib/features/recipes/domain/recipe.entity'
 import {
 	computeOrderStatusFromItems,
 	computePaymentStatus,
+	doesOrderMatchHorizon,
 	generateNextOrderNumber,
 	generateNextSalesProductCode,
 	getProductAvailableStock,
@@ -332,6 +333,11 @@ export class OrderService {
 			input.paymentStatus
 		);
 
+		const effectiveDeliveryDate =
+			input.deliveryDate ??
+			input.lines.find((l) => l.deliveryDate)?.deliveryDate ??
+			null;
+
 		return this.orderRepo.createOrderWithItems(
 			{
 				businessId: input.businessId,
@@ -341,7 +347,7 @@ export class OrderService {
 				paymentStatus,
 				totalAmount: Number(totalAmount.toFixed(2)),
 				paidAmount: Number(normalizedPaidAmount.toFixed(2)),
-				deliveryDate: input.deliveryDate ?? null,
+				deliveryDate: effectiveDeliveryDate,
 				notes: input.notes?.trim() || null,
 				transactionId: input.transactionId?.trim() || null
 			},
@@ -756,37 +762,11 @@ export class OrderService {
 		const salesProductsById = new Map(salesProducts.map((sp) => [sp.id, sp]));
 
 		const now = new Date();
-		const endOfToday = new Date(
-			now.getFullYear(),
-			now.getMonth(),
-			now.getDate(),
-			23,
-			59,
-			59,
-			999
-		);
-		let horizonLimitMs: number | null = null;
-		if (horizon === 'today' || horizon === '1d') {
-			horizonLimitMs = endOfToday.getTime();
-		} else if (horizon === 'all') {
-			horizonLimitMs = null;
-		} else if (typeof horizon === 'string' && horizon.endsWith('d')) {
-			const days = parseInt(horizon, 10);
-			if (!Number.isNaN(days) && days > 0) {
-				horizonLimitMs = endOfToday.getTime() + (days - 1) * 86400_000;
-			}
-		}
 
 		const pendingOrders = orders.filter((o) => {
 			if (o.status !== 'pending') return false;
 			if (!o.items.some((i) => i.status === 'pending_delivery')) return false;
-			if (horizonLimitMs !== null && o.deliveryDate) {
-				const deliveryMs = new Date(o.deliveryDate).getTime();
-				if (!Number.isNaN(deliveryMs) && deliveryMs > horizonLimitMs) {
-					return false;
-				}
-			}
-			return true;
+			return doesOrderMatchHorizon(o.deliveryDate, horizon, now);
 		});
 
 		const productDemandMap = new Map<string, number>();
