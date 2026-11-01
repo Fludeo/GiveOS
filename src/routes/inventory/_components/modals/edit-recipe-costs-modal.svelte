@@ -1,5 +1,7 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { superForm } from 'sveltekit-superforms';
+	import type { SuperValidated, Infer } from 'sveltekit-superforms';
+	import type { SaveRecipeOperationalCostsSchema } from '$lib/schemas/recipe-operational-costs.schema';
 	import type { Item, RecipeOperationalCost } from '#lib/features/items/domain/item.entity';
 	import type { BusinessSettings, OperationalCostResource } from '#lib/features/businesses/domain/business.entity';
 	import { Button } from '#lib/components/ui/button';
@@ -13,19 +15,36 @@
 	import Coins from '@lucide/svelte/icons/coins';
 	import Sparkles from '@lucide/svelte/icons/sparkles';
 	import Settings from '@lucide/svelte/icons/settings';
+	import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
 
 	interface Props {
 		open: boolean;
+		formData: SuperValidated<Infer<SaveRecipeOperationalCostsSchema>>;
 		item: Item | null;
 		businessSettings?: BusinessSettings | null;
 		businessId: string;
 		onClose: () => void;
 	}
 
-	let { open = $bindable(), item, businessSettings, businessId, onClose }: Props = $props();
+	let {
+		open = $bindable(),
+		formData,
+		item,
+		businessSettings,
+		businessId,
+		onClose
+	}: Props = $props();
 
-	let costs = $state<RecipeOperationalCost[]>([]);
-	let isSubmitting = $state(false);
+	// svelte-ignore state_referenced_locally
+	const { form, errors, enhance, delayed, message, reset } = superForm(formData, {
+		dataType: 'json',
+		resetForm: false,
+		onResult: ({ result }) => {
+			if (result.type === 'success') {
+				handleClose();
+			}
+		}
+	});
 
 	const availableBusinessResources = $derived<OperationalCostResource[]>(
 		businessSettings?.operationalCosts ?? []
@@ -33,30 +52,35 @@
 
 	$effect(() => {
 		if (open && item) {
+			$form.businessId = businessId;
+			$form.itemId = item.id;
 			const existing = item.recipeConfig?.operationalCosts;
 			if (existing && existing.length > 0) {
 				// Sincronizar nombres y tarifas por hora directamente desde businessSettings si coinciden por resourceId o name
-				costs = existing.map((c) => {
+				$form.costs = existing.map((c) => {
 					const matched = availableBusinessResources.find(
 						(r) => (c.resourceId && r.id === c.resourceId) || r.name.toLowerCase() === c.name.toLowerCase()
 					);
 					return {
-						...c,
+						id: c.id,
 						resourceId: matched?.id ?? c.resourceId,
 						name: matched?.name ?? c.name,
 						type: matched?.type ?? c.type,
-						ratePerHour: matched ? matched.ratePerHour : c.ratePerHour
+						durationMinutes: c.durationMinutes,
+						ratePerHour: matched ? matched.ratePerHour : c.ratePerHour,
+						isScalable: Boolean(c.isScalable),
+						notes: c.notes ?? null
 					};
 				});
 			} else {
-				costs = [];
+				$form.costs = [];
 			}
 		}
 	});
 
 	function addFromCatalog(resource: OperationalCostResource) {
-		costs = [
-			...costs,
+		$form.costs = [
+			...$form.costs,
 			{
 				id: crypto.randomUUID(),
 				resourceId: resource.id,
@@ -64,41 +88,41 @@
 				type: resource.type,
 				durationMinutes: resource.type === 'active' ? 15 : 30,
 				ratePerHour: resource.ratePerHour,
-				isScalable: false
+				isScalable: false,
+				notes: null
 			}
 		];
 	}
 
 	function removeCost(index: number) {
-		costs = costs.filter((_, i) => i !== index);
+		$form.costs = $form.costs.filter((_, i) => i !== index);
 	}
 
 	function handleClose() {
 		open = false;
+		reset();
 		onClose();
 	}
 
 	// Cálculos en vivo
 	const totalActiveMinutes = $derived(
-		costs.filter((c) => c.type === 'active').reduce((acc, c) => acc + (Number(c.durationMinutes) || 0), 0)
+		($form.costs || []).filter((c) => c.type === 'active').reduce((acc, c) => acc + (Number(c.durationMinutes) || 0), 0)
 	);
 
 	const totalPassiveMinutes = $derived(
-		costs.filter((c) => c.type === 'passive').reduce((acc, c) => acc + (Number(c.durationMinutes) || 0), 0)
+		($form.costs || []).filter((c) => c.type === 'passive').reduce((acc, c) => acc + (Number(c.durationMinutes) || 0), 0)
 	);
 
 	const totalBatchCost = $derived.by(() => {
 		if (!item) return 0;
 		const yieldQty = item.yieldQuantity > 0 ? item.yieldQuantity : 1;
-		return costs.reduce((acc, c) => {
+		return ($form.costs || []).reduce((acc, c) => {
 			const dur = Number(c.durationMinutes) || 0;
 			const rate = Number(c.ratePerHour) || 0;
 			const batchMin = c.isScalable ? dur * yieldQty : dur;
 			return acc + (batchMin / 60) * rate;
 		}, 0);
 	});
-
-	const costsJson = $derived(JSON.stringify(costs));
 </script>
 
 {#if open && item}
@@ -159,93 +183,114 @@
 
 				<div class="rounded-xl border border-border/60 bg-card p-2.5">
 					<span class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
-						Costo Operativo Lote
+						Costo Operativo/Lote
 					</span>
-					<div class="flex items-center justify-center gap-1.5 text-primary font-mono font-bold text-base mt-0.5">
+					<div class="flex items-center justify-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-mono font-bold text-base mt-0.5">
 						<Coins class="size-4" />
 						<span>${totalBatchCost.toFixed(2)}</span>
 					</div>
 				</div>
 			</div>
 
-			<!-- Contenido con scroll -->
-			<div class="flex-1 overflow-y-auto p-5 sm:p-6 space-y-5">
-				<!-- Selector de Recursos desde Ajustes del Negocio -->
-				<div class="space-y-2 rounded-2xl border border-border bg-muted/20 p-4">
-					<div class="flex items-center justify-between gap-2">
-						<div class="flex items-center gap-2">
-							<Sparkles class="size-4 text-primary" />
-							<span class="text-xs font-bold text-foreground">Tarifas del Negocio disponibles</span>
+			<!-- Mensaje de error / feedback -->
+			{#if $message}
+				<div class="m-5 mb-0 flex items-center gap-3 rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-destructive">
+					<AlertTriangle class="size-4 shrink-0" />
+					<p class="text-xs font-semibold">{$message}</p>
+				</div>
+			{/if}
+
+			<!-- Contenido con Scroll -->
+			<div class="flex-1 overflow-y-auto p-5 sm:p-6 space-y-6">
+				<!-- Catálogo de recursos disponibles para agregar -->
+				<div class="space-y-3">
+					<div class="flex items-center justify-between">
+						<div class="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+							<Sparkles class="size-3.5 text-secondary" />
+							<span>Añadir Recursos Disponibles</span>
 						</div>
 						<a
 							href="/settings"
-							target="_blank"
-							class="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-primary transition-colors"
+							class="flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors"
 						>
 							<Settings class="size-3" />
-							<span>Gestionar tarifas</span>
+							<span>Configurar Tarifas</span>
 						</a>
 					</div>
 
-					{#if availableBusinessResources.length > 0}
-						<div class="flex flex-wrap gap-2 pt-1">
-							{#each availableBusinessResources as res}
+					{#if availableBusinessResources.length === 0}
+						<div class="rounded-xl border border-dashed border-border p-4 text-center">
+							<p class="text-xs text-muted-foreground">
+								No hay recursos operativos configurados en Ajustes.
+							</p>
+							<a
+								href="/settings"
+								class="text-xs font-semibold text-secondary hover:underline mt-1 inline-block"
+							>
+								Crear recursos en Configuración →
+							</a>
+						</div>
+					{:else}
+						<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+							{#each availableBusinessResources as res (res.id)}
 								<button
 									type="button"
 									onclick={() => addFromCatalog(res)}
-									class="inline-flex items-center gap-2 rounded-xl border border-border/80 bg-card px-3 py-1.5 text-xs font-semibold text-foreground hover:border-primary hover:bg-primary/5 transition-all cursor-pointer shadow-2xs"
+									class="flex items-center justify-between p-3 rounded-xl border border-border bg-card hover:border-secondary/50 hover:bg-muted/40 transition-all text-left cursor-pointer group shadow-xs"
 								>
-									{#if res.type === 'active'}
-										<ChefHat class="size-3.5 text-secondary" />
-									{:else}
-										<Flame class="size-3.5 text-amber-500" />
-									{/if}
-									<span>{res.name}</span>
-									<span class="font-mono text-[11px] font-bold text-primary">
-										${res.ratePerHour}/h
-									</span>
-									<span class="rounded bg-muted px-1.5 py-0.2 text-[10px] text-muted-foreground uppercase font-semibold">
-										{res.type === 'active' ? 'Activo' : 'Pasivo'}
-									</span>
-									<Plus class="size-3 text-muted-foreground ml-0.5" />
+									<div class="space-y-0.5">
+										<div class="flex items-center gap-1.5">
+											{#if res.type === 'active'}
+												<ChefHat class="size-3.5 text-secondary" />
+											{:else}
+												<Flame class="size-3.5 text-amber-500" />
+											{/if}
+											<span class="text-xs font-bold text-foreground group-hover:text-secondary transition-colors">
+												{res.name}
+											</span>
+										</div>
+										<p class="text-[11px] text-muted-foreground font-mono">
+											${res.ratePerHour}/hora • {res.type === 'active' ? 'Mano de Obra' : 'Equipo/Horno'}
+										</p>
+									</div>
+									<div class="size-7 rounded-lg bg-muted flex items-center justify-center text-muted-foreground group-hover:bg-secondary group-hover:text-secondary-foreground transition-colors">
+										<Plus class="size-3.5" />
+									</div>
 								</button>
 							{/each}
-						</div>
-					{:else}
-						<div class="rounded-xl border border-dashed border-border p-3 text-center text-xs text-muted-foreground">
-							No tienes tarifas operativas registradas en la empresa.
-							<a href="/settings" class="text-primary underline font-medium ml-1">Configúralas en Ajustes</a> para agregarlas aquí.
 						</div>
 					{/if}
 				</div>
 
 				<!-- Lista de Costos Asignados a la Receta -->
 				<div class="space-y-3">
-					<div class="flex items-center justify-between">
-						<span class="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-							Costos Asignados a esta Receta ({costs.length})
-						</span>
-					</div>
+					<h3 class="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+						Costos Asignados a este Lote ({$form.costs.length})
+					</h3>
 
-					{#if costs.length === 0}
-						<div class="rounded-2xl border border-dashed border-border p-8 text-center text-xs text-muted-foreground">
-							No has agregado costos operativos a esta receta. Selecciona una de las tarifas disponibles arriba para asignar el tiempo.
+					{#if $form.costs.length === 0}
+						<div class="rounded-xl border border-dashed border-border/80 p-8 text-center bg-muted/10">
+							<Coins class="size-8 text-muted-foreground/40 mx-auto mb-2" />
+							<p class="text-xs font-semibold text-foreground">
+								Esta receta no tiene costos operativos cargados
+							</p>
+							<p class="text-[11px] text-muted-foreground max-w-xs mx-auto mt-1">
+								Haz clic en los recursos de arriba para sumar el tiempo de trabajo, horno o batido.
+							</p>
 						</div>
 					{:else}
-						<div class="space-y-2.5">
-							{#each costs as cost, idx}
-								<div class="rounded-2xl border border-border bg-card p-3.5 shadow-2xs space-y-3">
-									<div class="flex items-center justify-between gap-3">
+						<div class="space-y-3">
+							{#each $form.costs as cost, idx (cost.id || idx)}
+								<div class="rounded-xl border border-border bg-card p-4 space-y-3 shadow-xs">
+									<div class="flex items-start justify-between gap-3">
 										<div class="flex items-center gap-2">
-											{#if cost.type === 'active'}
-												<div class="flex size-7 items-center justify-center rounded-lg bg-secondary/15 text-secondary">
+											<div class="size-7 rounded-lg flex items-center justify-center {cost.type === 'active' ? 'bg-secondary/15 text-secondary' : 'bg-amber-500/15 text-amber-600 dark:text-amber-400'}">
+												{#if cost.type === 'active'}
 													<ChefHat class="size-4" />
-												</div>
-											{:else}
-												<div class="flex size-7 items-center justify-center rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400">
+												{:else}
 													<Flame class="size-4" />
-												</div>
-											{/if}
+												{/if}
+											</div>
 											<div>
 												<span class="text-sm font-bold text-foreground block leading-tight">
 													{cost.name}
@@ -314,26 +359,13 @@
 				method="POST"
 				action="?/saveRecipeOperationalCosts"
 				class="border-t border-border p-4 bg-muted/20 flex items-center justify-between gap-3"
-				use:enhance={() => {
-					isSubmitting = true;
-					return async ({ result, update }) => {
-						await update();
-						isSubmitting = false;
-						if (result.type === 'success') {
-							handleClose();
-						}
-					};
-				}}
+				use:enhance
 			>
-				<input type="hidden" name="businessId" value={businessId} />
-				<input type="hidden" name="itemId" value={item.id} />
-				<input type="hidden" name="costs" value={costsJson} />
-
 				<Button type="button" variant="outline" size="sm" onclick={handleClose}>
 					Cancelar
 				</Button>
 
-				<Button type="submit" variant="default" size="sm" disabled={isSubmitting} class="gap-1.5 font-semibold">
+				<Button type="submit" variant="default" size="sm" disabled={$delayed} class="gap-1.5 font-semibold">
 					<span>Guardar Costos y Tiempos</span>
 				</Button>
 			</form>

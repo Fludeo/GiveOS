@@ -1,5 +1,7 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { superForm } from 'sveltekit-superforms';
+	import type { SuperValidated, Infer } from 'sveltekit-superforms';
+	import type { UpdateItemSchema } from '$lib/schemas/item.schema';
 	import type { Item } from '#lib/features/items/domain/item.entity';
 	import ItemTypeBadge from '#lib/features/items/ui/item-type-badge.svelte';
 	import { Button } from '#lib/components/ui/button';
@@ -8,33 +10,45 @@
 	import X from '@lucide/svelte/icons/x';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import CirclePile from '@lucide/svelte/icons/circle-pile';
-	import Clock from '@lucide/svelte/icons/clock';
-	import ClockFading from '@lucide/svelte/icons/clock-fading';
 	import Check from '@lucide/svelte/icons/check';
 
 	interface Props {
 		open: boolean;
+		formData: SuperValidated<Infer<UpdateItemSchema>>;
 		item: Item | null;
 		businessId: string;
 		onClose: () => void;
 		onRequestDelete: (item: Item) => void;
 	}
 
-	let { open = $bindable(), item, businessId, onClose, onRequestDelete }: Props = $props();
+	let { open = $bindable(), formData, item, businessId, onClose, onRequestDelete }: Props = $props();
 
-	let editName = $state('');
-	let editYieldQuantity = $state<number | ''>(1);
-	let editIsMakeToOrder = $state(false);
-	let editNotes = $state('');
-	let isSubmitting = $state(false);
+	// svelte-ignore state_referenced_locally
+	const { form, errors, enhance, submitting, reset } = superForm(formData, {
+		onResult({ result }) {
+			if (result.type === 'success') {
+				handleClose();
+			}
+		}
+	});
 
 	$effect(() => {
 		if (open && item) {
-			editName = item.name;
-			editYieldQuantity = item.yieldQuantity > 0 ? item.yieldQuantity : 1;
-			editIsMakeToOrder = Boolean(item.recipeConfig?.isMakeToOrder);
-			editNotes = item.notes ?? '';
-			isSubmitting = false;
+			reset();
+			$form.id = item.id;
+			$form.businessId = businessId;
+			$form.type = item.type;
+			$form.baseUnit = item.baseUnit;
+			$form.referenceCost = item.referenceCost;
+			$form.purchaseQuantity = item.purchaseQuantity;
+			$form.minStock = item.minStock;
+			$form.name = item.name;
+			$form.yieldQuantity = item.yieldQuantity > 0 ? item.yieldQuantity : 1;
+			$form.isMakeToOrder = Boolean(item.recipeConfig?.isMakeToOrder);
+			$form.notes = item.notes ?? '';
+			$form.prepTimeMinutes = item.prepTimeMinutes ?? 0;
+			$form.passiveTimeMinutes = item.passiveTimeMinutes ?? 0;
+			$form.isPrepTimeScalable = item.isPrepTimeScalable ?? false;
 		}
 	});
 
@@ -84,24 +98,17 @@
 				method="POST"
 				action="?/updateItem"
 				class="flex-1 space-y-4 overflow-y-auto p-6"
-				use:enhance={() => {
-					isSubmitting = true;
-					return async ({ result, update }) => {
-						await update();
-						isSubmitting = false;
-						if (result.type === 'success') {
-							handleClose();
-						}
-					};
-				}}
+				use:enhance
 			>
-				<input type="hidden" name="businessId" value={businessId} />
-				<input type="hidden" name="id" value={item.id} />
-				<input type="hidden" name="type" value={item.type} />
-				<input type="hidden" name="baseUnit" value={item.baseUnit} />
-				<input type="hidden" name="referenceCost" value={item.referenceCost} />
-				<input type="hidden" name="purchaseQuantity" value={item.purchaseQuantity} />
-				<input type="hidden" name="minStock" value={item.minStock} />
+				<input type="hidden" name="businessId" value={$form.businessId} />
+				<input type="hidden" name="id" value={$form.id} />
+				<input type="hidden" name="type" value={$form.type} />
+				<input type="hidden" name="baseUnit" value={$form.baseUnit} />
+				<input type="hidden" name="referenceCost" value={$form.referenceCost} />
+				<input type="hidden" name="purchaseQuantity" value={$form.purchaseQuantity} />
+				<input type="hidden" name="minStock" value={$form.minStock} />
+				<input type="hidden" name="prepTimeMinutes" value={$form.prepTimeMinutes} />
+				<input type="hidden" name="passiveTimeMinutes" value={$form.passiveTimeMinutes} />
 
 				<!-- Nombre -->
 				<div class="space-y-1.5">
@@ -109,11 +116,14 @@
 					<Input
 						id="edit-name"
 						name="name"
-						bind:value={editName}
+						bind:value={$form.name}
 						placeholder="Ej. Plancha de Bizcochuelo"
 						class="h-10 text-sm font-medium"
 						required
 					/>
+					{#if $errors.name}
+						<p class="text-xs text-destructive">{$errors.name}</p>
+					{/if}
 				</div>
 
 				<!-- Parámetros de Receta: Rendimiento y Modalidad Make-to-Order -->
@@ -128,10 +138,13 @@
 						type="number"
 						step="any"
 						min="0.001"
-						bind:value={editYieldQuantity}
+						bind:value={$form.yieldQuantity}
 						class="h-10 font-mono text-sm"
 						required
 					/>
+					{#if $errors.yieldQuantity}
+						<p class="text-xs text-destructive">{$errors.yieldQuantity}</p>
+					{/if}
 					<p class="text-[11px] text-muted-foreground">
 						Cantidad producida por cada tanda completa.
 					</p>
@@ -143,8 +156,7 @@
 						<input
 							type="checkbox"
 							name="isMakeToOrder"
-							value="true"
-							bind:checked={editIsMakeToOrder}
+							bind:checked={$form.isMakeToOrder}
 							class="size-4 mt-0.5 rounded border-border text-secondary focus:ring-secondary/30 accent-secondary"
 						/>
 						<div class="space-y-0.5 select-none">
@@ -159,20 +171,20 @@
 					</label>
 				</div>
 
-										<!-- Notas -->
+				<!-- Notas -->
 				<div class="space-y-1.5">
 					<Label for="edit-notes" class="font-semibold text-foreground">Notas de la Elaboración (opcional)</Label>
 					<Input
 						id="edit-notes"
 						name="notes"
-						bind:value={editNotes}
+						bind:value={$form.notes}
 						placeholder="Ej. Hornear a 180°C durante 40 min, usar molde redondo 24cm"
 						class="h-10 text-sm"
 					/>
 				</div>
 			</form>
 
-			<!-- Footer con estilo consistente -->
+			<!-- Footer -->
 			<div class="flex items-center justify-between border-t border-border bg-muted/20 px-6 py-4">
 				<Button
 					type="button"
@@ -195,7 +207,7 @@
 						variant="outline"
 						size="sm"
 						onclick={handleClose}
-						disabled={isSubmitting}
+						disabled={$submitting}
 					>
 						Cancelar
 					</Button>
@@ -203,10 +215,10 @@
 						type="submit"
 						form="edit-recipe-item-form"
 						size="sm"
-						disabled={isSubmitting || !editName.trim() || Number(editYieldQuantity) <= 0}
+						disabled={$submitting || !$form.name.trim() || Number($form.yieldQuantity) <= 0}
 					>
 						<Check class="size-3.5 mr-1" />
-						<span>{isSubmitting ? 'Guardando...' : 'Guardar Cambios'}</span>
+						<span>{$submitting ? 'Guardando...' : 'Guardar Cambios'}</span>
 					</Button>
 				</div>
 			</div>

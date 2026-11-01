@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import { enhance } from '$app/forms';
+	import { superForm } from 'sveltekit-superforms';
 	import type { PageProps } from './$types';
 	import type { PaymentStatus } from '#lib/features/orders/domain/order.entity';
 	import AppShell from '#lib/components/layout/app-shell.svelte';
@@ -11,6 +11,7 @@
 	import Tag from '@lucide/svelte/icons/tag';
 	import X from '@lucide/svelte/icons/x';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
 	import { toast } from '#lib/components/ui/toast';
 	import { draftOrderStore } from '#lib/features/orders/ui/draft-order.svelte';
 	import { formatCurrency, type DraftOrderLine } from '../_components/utils';
@@ -19,6 +20,17 @@
 	import PosCart from './_components/pos-cart.svelte';
 
 	let { data }: PageProps = $props();
+
+	// svelte-ignore state_referenced_locally
+	const { form, errors, enhance, delayed, message } = superForm(data.form, {
+		dataType: 'json',
+		taintedMessage: null,
+		onResult: ({ result }) => {
+			if (result.type === 'redirect') {
+				draftOrderStore.clear();
+			}
+		}
+	});
 
 	let configuringProduct = $state<(typeof data.salesProducts)[number] | null>(null);
 
@@ -30,7 +42,6 @@
 	let draftNotes = $state('');
 	let draftTransactionId = $state('');
 	let draftCreateAsUnconfirmed = $state(false);
-	let isSubmitting = $state(false);
 	let isMobileCartOpen = $state(false);
 	let isLoadedFromStorage = $state(false);
 
@@ -80,6 +91,26 @@
 		}
 	});
 
+	// Sincronizar el estado del terminal con el form de superforms
+	$effect(() => {
+		$form.businessId = data.activeBusiness.id;
+		$form.customerName = draftCustomerName;
+		$form.paymentStatus = draftPaymentStatus;
+		$form.paidAmount = draftPaidAmount;
+		$form.deliveryDate = draftDeliveryDate || null;
+		$form.notes = draftNotes || null;
+		$form.transactionId = draftTransactionId || null;
+		$form.status = draftCreateAsUnconfirmed ? 'unconfirmed' : null;
+		$form.lines = draftLines.map((l) => ({
+			salesProductId: l.salesProductId,
+			quantity: l.quantity,
+			unitPrice: l.unitPrice,
+			notes: l.notes || null,
+			fulfillmentType: l.fulfillmentType,
+			deliveryDate: l.deliveryDate || null
+		}));
+	});
+
 	const draftTotalAmount = $derived(
 		draftLines.reduce((sum, l) => sum + (l.quantity > 0 ? l.quantity : 0) * (l.unitPrice >= 0 ? l.unitPrice : 0), 0)
 	);
@@ -90,11 +121,11 @@
 
 	async function handleToggleShortcut(product: (typeof data.salesProducts)[number]) {
 		product.isShortcut = !product.isShortcut;
-		const form = new FormData();
-		form.set('productId', product.id);
-		form.set('businessId', data.activeBusiness.id);
+		const formEl = new FormData();
+		formEl.set('productId', product.id);
+		formEl.set('businessId', data.activeBusiness.id);
 		try {
-			await fetch('?/toggleShortcut', { method: 'POST', body: form });
+			await fetch('?/toggleShortcut', { method: 'POST', body: formEl });
 		} catch (e) {
 			console.error(e);
 		}
@@ -222,19 +253,24 @@
 
 			<!-- COLUMNA DERECHA: COMANDERO / CARRITO EN VIVO (5 cols Desktop) -->
 			<div class="hidden lg:block lg:col-span-5">
+				{#if $message}
+					<div class="mb-4 flex items-center gap-3 rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-destructive">
+						<AlertTriangle class="size-4 shrink-0" />
+						<p class="text-xs font-semibold">{$message}</p>
+					</div>
+				{/if}
+
+				{#if $errors.lines?._errors}
+					<div class="mb-4 flex items-center gap-3 rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-destructive">
+						<AlertTriangle class="size-4 shrink-0" />
+						<p class="text-xs font-semibold">{$errors.lines._errors[0]}</p>
+					</div>
+				{/if}
+
 				<form
 					method="POST"
 					action="?/createOrder"
-					use:enhance={() => {
-						isSubmitting = true;
-						return async ({ update, result }) => {
-							if (result.type === 'redirect') {
-								draftOrderStore.clear();
-							}
-							await update();
-							isSubmitting = false;
-						};
-					}}
+					use:enhance
 					class="sticky top-6 rounded-2xl border border-border bg-card p-6 shadow-lg space-y-5"
 				>
 					<PosCart
@@ -247,7 +283,7 @@
 						bind:draftNotes
 						bind:draftTransactionId
 						bind:draftCreateAsUnconfirmed
-						{isSubmitting}
+						isSubmitting={$delayed}
 						isMobileDrawer={false}
 						onChangeLineQuantity={handleChangeLineQuantity}
 						onRemoveLine={handleRemoveLine}
@@ -256,7 +292,7 @@
 				</form>
 			</div>
 
-			<!-- Versión Mobile: Barra Flotante Inferior de Carrito (ubicada sobre el Bottom Dock) -->
+			<!-- Versión Mobile: Barra Flotante Inferior de Carrito -->
 			{#if draftLines.length > 0}
 				<div class="fixed bottom-20 inset-x-4 z-30 lg:hidden">
 					<button
@@ -331,20 +367,17 @@
 							</Button>
 						</div>
 
+						{#if $message}
+							<div class="mt-3 flex items-center gap-3 rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-destructive">
+								<AlertTriangle class="size-4 shrink-0" />
+								<p class="text-xs font-semibold">{$message}</p>
+							</div>
+						{/if}
+
 						<form
 							method="POST"
 							action="?/createOrder"
-							use:enhance={() => {
-								isSubmitting = true;
-								return async ({ update, result }) => {
-									if (result.type === 'redirect') {
-										draftOrderStore.clear();
-									}
-									await update();
-									isSubmitting = false;
-									isMobileCartOpen = false;
-								};
-							}}
+							use:enhance
 							class="overflow-y-auto space-y-5 pt-3"
 						>
 							<PosCart
@@ -357,7 +390,7 @@
 								bind:draftNotes
 								bind:draftTransactionId
 								bind:draftCreateAsUnconfirmed
-								{isSubmitting}
+								isSubmitting={$delayed}
 								isMobileDrawer={true}
 								onChangeLineQuantity={handleChangeLineQuantity}
 								onRemoveLine={handleRemoveLine}

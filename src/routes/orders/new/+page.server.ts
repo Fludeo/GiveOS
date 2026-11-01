@@ -1,7 +1,10 @@
 import { redirect } from '@sveltejs/kit';
+import { superValidate } from 'sveltekit-superforms';
+import { zod4 } from 'sveltekit-superforms/adapters';
 import type { Actions, PageServerLoad } from './$types';
 import { getServices } from '#lib/server/container';
 import { resolveBusinessOrRedirect } from '#lib/server/business-resolver';
+import { createOrderSchema } from '$lib/schemas/order.schema';
 import * as newOrderActions from './_actions';
 
 export const load: PageServerLoad = async ({ url, locals }) => {
@@ -19,11 +22,23 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 
 	const salesProducts = await orderService.listSalesProducts(activeBusiness.id);
 
+	const form = await superValidate(
+		{
+			businessId: activeBusiness.id,
+			customerName: 'Cliente Mostrador',
+			paymentStatus: 'paid',
+			paidAmount: 0,
+			lines: []
+		},
+		zod4(createOrderSchema)
+	);
+
 	return {
 		user: locals.user,
 		activeBusiness,
 		businesses: memberships.map((m) => ({ ...m.business, role: m.role })),
-		salesProducts: salesProducts.filter((p) => p.isActive)
+		salesProducts: salesProducts.filter((p) => p.isActive),
+		form
 	};
 };
 

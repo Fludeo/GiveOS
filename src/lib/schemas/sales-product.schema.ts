@@ -18,8 +18,21 @@ export const createSalesProductSchema = z.object({
 	description: z.string().optional().nullable(),
 	salePrice: z.number().min(0, 'El precio no puede ser negativo'),
 	isShortcut: z.boolean().default(false),
-	components: z.array(salesProductComponentSchema),
+	components: z.array(salesProductComponentSchema).min(1, 'Debe incluir al menos un componente'),
+	pricingTiers: z.array(priceTierSchema).default([])
+});
+
+export const updateSalesProductSchema = z.object({
+	id: z.string().optional(),
+	businessId: z.string().optional(),
+	name: z.string().min(1, 'El nombre comercial es requerido'),
+	description: z.string().optional().nullable(),
+	salePrice: z.number().min(0, 'El precio no puede ser negativo'),
+	isActive: z.boolean().default(true),
+	isShortcut: z.boolean().default(false),
+	components: z.array(salesProductComponentSchema).min(1, 'Debe incluir al menos un componente'),
 	pricingTiers: z.array(priceTierSchema).default([])
 });
 
 export type CreateSalesProductSchema = typeof createSalesProductSchema;
+export type UpdateSalesProductSchema = typeof updateSalesProductSchema;

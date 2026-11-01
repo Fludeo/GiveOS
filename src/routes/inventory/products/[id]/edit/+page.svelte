@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { superForm } from 'sveltekit-superforms';
 	import type { PageProps } from './$types';
 	import {
 		type PriceTier,
@@ -17,57 +17,37 @@
 	import Check from '@lucide/svelte/icons/check';
 	import Star from '@lucide/svelte/icons/star';
 	import Percent from '@lucide/svelte/icons/percent';
+	import Sparkles from '@lucide/svelte/icons/sparkles';
 	import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
 	import { formatQuantity } from '../../../_components/utils';
 
-	let { data, form }: PageProps = $props();
+	let { data, form: actionForm }: PageProps = $props();
 
 	// Permitir vincular cualquier ítem del inventario (materia prima, sub-ensamble o producto final)
 	const linkableItems = $derived(data.items);
 
 	// svelte-ignore state_referenced_locally
-	let name = $state(data.product.name);
-	// svelte-ignore state_referenced_locally
-	let description = $state(data.product.description ?? '');
-	// svelte-ignore state_referenced_locally
-	let salePrice = $state(data.product.salePrice);
-	// svelte-ignore state_referenced_locally
-	let isActive = $state(data.product.isActive);
-	// svelte-ignore state_referenced_locally
-	let isShortcut = $state(data.product.isShortcut);
-	let isSubmitting = $state(false);
-
-	// svelte-ignore state_referenced_locally
-	let components = $state<SalesProductComponentInput[]>(
-		data.product.components.map((c) => ({
-			itemId: c.itemId,
-			quantity: c.quantity
-		}))
-	);
-
-	// svelte-ignore state_referenced_locally
-	let pricingTiers = $state<PriceTier[]>(
-		data.product.pricingTiers && Array.isArray(data.product.pricingTiers)
-			? [...data.product.pricingTiers]
-			: []
-	);
+	const { form, errors, enhance, delayed, message } = superForm(data.form, {
+		dataType: 'json',
+		taintedMessage: null
+	});
 
 	function addComponentLine() {
 		const nextCandidate =
-			linkableItems.find((cand) => !components.some((c) => c.itemId === cand.id)) ??
+			linkableItems.find((cand) => !$form.components.some((c) => c.itemId === cand.id)) ??
 			linkableItems[0];
 		if (!nextCandidate) return;
-		components = [...components, { itemId: nextCandidate.id, quantity: 1 }];
+		$form.components = [...$form.components, { itemId: nextCandidate.id, quantity: 1 }];
 	}
 
 	function removeComponentLine(index: number) {
-		if (components.length <= 1) return;
-		components = components.filter((_, idx) => idx !== index);
+		if ($form.components.length <= 1) return;
+		$form.components = $form.components.filter((_, idx) => idx !== index);
 	}
 
 	function addTier(minQty = 6, type: 'percentage' | 'fixed_price' = 'percentage', val = 10) {
-		pricingTiers = [
-			...pricingTiers,
+		$form.pricingTiers = [
+			...$form.pricingTiers,
 			{
 				minQuantity: minQty,
 				type,
@@ -77,12 +57,12 @@
 	}
 
 	function removeTier(index: number) {
-		pricingTiers = pricingTiers.filter((_, idx) => idx !== index);
+		$form.pricingTiers = $form.pricingTiers.filter((_, idx) => idx !== index);
 	}
 
 	const estimatedRecipeCost = $derived.by(() => {
 		let sum = 0;
-		for (const comp of components) {
+		for (const comp of $form.components) {
 			const item = data.items.find((i) => i.id === comp.itemId);
 			if (!item) continue;
 			const unitCost =
@@ -92,9 +72,9 @@
 		return sum;
 	});
 
-	const marginAmount = $derived(salePrice - estimatedRecipeCost);
+	const marginAmount = $derived(($form.salePrice || 0) - estimatedRecipeCost);
 	const marginPercentage = $derived(
-		salePrice > 0 ? Math.round((marginAmount / salePrice) * 100) : 0
+		($form.salePrice || 0) > 0 ? Math.round((marginAmount / $form.salePrice) * 100) : 0
 	);
 
 	function formatCurrency(val: number): string {
@@ -127,25 +107,13 @@
 	<form
 		method="POST"
 		action="?/updateSalesProduct"
-		use:enhance={() => {
-			isSubmitting = true;
-			return async ({ update }) => {
-				await update();
-				isSubmitting = false;
-			};
-		}}
+		use:enhance
 		class="mx-auto max-w-4xl space-y-8 pb-12"
 	>
-		<input type="hidden" name="businessId" value={data.activeBusiness.id} />
-		<input type="hidden" name="componentsJson" value={JSON.stringify(components)} />
-		<input type="hidden" name="pricingTiersJson" value={JSON.stringify(pricingTiers)} />
-		<input type="hidden" name="isActive" value={isActive ? 'true' : 'false'} />
-		<input type="hidden" name="isShortcut" value={isShortcut ? 'true' : 'false'} />
-
-		{#if form?.error}
+		{#if $message || (actionForm && typeof actionForm === 'object' && 'error' in actionForm ? (actionForm as any).error : null)}
 			<div class="flex items-center gap-3 rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-destructive">
 				<AlertTriangle class="size-5 shrink-0" />
-				<p class="text-sm font-semibold">{form.error}</p>
+				<p class="text-sm font-semibold">{$message || (actionForm && typeof actionForm === 'object' && 'error' in actionForm ? (actionForm as any).error : null)}</p>
 			</div>
 		{/if}
 
@@ -164,63 +132,83 @@
 			</div>
 
 			<div class="grid grid-cols-1 gap-4 sm:grid-cols-12">
-				<div class="space-y-2 sm:col-span-9">
-					<Label for="f-name">Nombre del Producto</Label>
-					<Input id="f-name" name="name" bind:value={name} class="font-medium" required />
-				</div>
-
 				<div class="space-y-2 sm:col-span-3">
-					<Label for="f-active">Estado</Label>
-					<select
-						id="f-active"
-						bind:value={isActive}
-						class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm shadow-xs"
-					>
-						<option value={true}>Activo para Ventas</option>
-						<option value={false}>Pausado</option>
-					</select>
-				</div>
-
-				<div class="space-y-2 sm:col-span-12">
-					<Label for="f-desc">Descripción / Presentación (opcional)</Label>
+					<Label for="f-code">Código (no editable)</Label>
 					<Input
-						id="f-desc"
-						name="description"
-						bind:value={description}
-						placeholder="Ej. Incluye packaging especial, vela y cartel"
+						id="f-code"
+						value={data.product.code}
+						class="font-mono uppercase font-semibold bg-muted"
+						disabled
 					/>
 				</div>
 
-				<div class="sm:col-span-12 pt-2">
-					<label class="flex items-center gap-3 rounded-xl border border-border bg-muted/20 p-3.5 cursor-pointer hover:bg-muted/30 transition-colors">
+				<div class="space-y-2 sm:col-span-9">
+					<Label for="f-name">Nombre Comercial</Label>
+					<Input
+						id="f-name"
+						name="name"
+						bind:value={$form.name}
+						placeholder="Ej. Torta Selva Negra o Combo Cumpleaños"
+						class="font-medium"
+						required
+					/>
+					{#if $errors.name}<p class="text-xs text-destructive">{$errors.name}</p>{/if}
+				</div>
+
+				<div class="space-y-2 sm:col-span-12">
+					<Label for="f-desc">Descripción (opcional)</Label>
+					<Input
+						id="f-desc"
+						name="description"
+						bind:value={$form.description}
+						placeholder="Ej. Incluye packaging especial y vela"
+					/>
+					{#if $errors.description}<p class="text-xs text-destructive">{$errors.description}</p>{/if}
+				</div>
+
+				<!-- Atajo Rápido y Estado Activo -->
+				<div class="sm:col-span-12 grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+					<label class="flex items-center gap-3 rounded-xl border border-border bg-muted/20 p-3 cursor-pointer hover:bg-muted/30 transition-colors">
 						<input
 							type="checkbox"
-							bind:checked={isShortcut}
+							name="isShortcut"
+							bind:checked={$form.isShortcut}
 							class="size-4.5 rounded border-input text-amber-500 focus:ring-amber-500"
 						/>
 						<div>
-							<span class="flex items-center gap-1.5 text-sm font-bold text-foreground">
-								<Star class="size-4 {isShortcut ? 'fill-amber-500 text-amber-500' : 'text-muted-foreground'}" />
-								Fijar como Atajo Rápido ⭐ en la pantalla de Ventas
+							<span class="flex items-center gap-1.5 text-xs font-bold text-foreground">
+								<Star class="size-3.5 {$form.isShortcut ? 'fill-amber-500 text-amber-500' : 'text-muted-foreground'}" />
+								Fijar como atajo rápido en ventas
 							</span>
-							<p class="text-xs text-muted-foreground">
-								Aparecerá como botón de acceso rápido táctil al abrir el terminal de pedidos.
-							</p>
+						</div>
+					</label>
+
+					<label class="flex items-center gap-3 rounded-xl border border-border bg-muted/20 p-3 cursor-pointer hover:bg-muted/30 transition-colors">
+						<input
+							type="checkbox"
+							name="isActive"
+							bind:checked={$form.isActive}
+							class="size-4.5 rounded border-input text-emerald-600 focus:ring-emerald-600"
+						/>
+						<div>
+							<span class="text-xs font-bold text-foreground">
+								Producto habilitado para la venta
+							</span>
 						</div>
 					</label>
 				</div>
 			</div>
 		</div>
 
-		<!-- BLOQUE 2: PRODUCTOS FINALES / COMBOS -->
+		<!-- BLOQUE 2: COMPONENTES / COMBOS -->
 		<div class="rounded-2xl border border-border bg-card p-6 shadow-xs space-y-5">
 			<div class="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
 				<div>
 					<h3 class="text-base font-bold text-foreground">
-						2. Productos Finales Asociados ({components.length})
+						2. Componentes que Descuenta ({$form.components.length})
 					</h3>
 					<p class="text-xs text-muted-foreground">
-						Recetas vinculadas que se descuentan al producir o vender
+						Al vender este producto, se descontará automáticamente el stock de estos ítems
 					</p>
 				</div>
 				<Button
@@ -231,17 +219,21 @@
 					class="gap-1.5 text-xs"
 				>
 					<Plus class="size-3.5" />
-					<span>Agregar otro producto (Armar Combo)</span>
+					<span>Agregar ítem (Combo)</span>
 				</Button>
 			</div>
 
+			{#if $errors.components?._errors}
+				<p class="text-xs text-destructive font-medium">{$errors.components._errors[0]}</p>
+			{/if}
+
 			<div class="space-y-3">
-				{#each components as comp, idx (idx)}
+				{#each $form.components as comp, idx (idx)}
 					{@const selectedItem = data.items.find((i) => i.id === comp.itemId)}
 					{@const itemRecipeCost = selectedItem ? (data.recipeSummaries[selectedItem.id]?.estimatedUnitCost ?? getDirectUnitCost(selectedItem)) : 0}
-					<div class="flex flex-col gap-3 rounded-xl border border-border bg-muted/15 p-4 sm:flex-row sm:items-center">
+					<div class="flex flex-col gap-3 rounded-xl border border-border bg-muted/15 p-3.5 sm:flex-row sm:items-center">
 						<div class="min-w-0 flex-1 space-y-1">
-							<Label class="text-xs text-muted-foreground">Ítem del Inventario (Insumo, Sub-ensamble o Producto Final)</Label>
+							<Label class="text-xs text-muted-foreground">Ítem del Inventario</Label>
 							<select
 								bind:value={comp.itemId}
 								class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm shadow-xs"
@@ -279,7 +271,7 @@
 							</span>
 						</div>
 
-						{#if components.length > 1}
+						{#if $form.components.length > 1}
 							<div class="pt-2 sm:pt-4">
 								<Button
 									type="button"
@@ -297,12 +289,12 @@
 			</div>
 		</div>
 
-		<!-- BLOQUE 3: PRECIO BASE -->
+		<!-- BLOQUE 3: PRECIO BASE Y ANÁLISIS DE RENTABILIDAD -->
 		<div class="rounded-2xl border border-border bg-card p-6 shadow-xs space-y-5">
 			<div class="border-b border-border pb-3">
 				<h3 class="text-base font-bold text-foreground">3. Precio de Lista Base</h3>
 				<p class="text-xs text-muted-foreground">
-					Precio unitario de referencia para 1 unidad
+					Precio comercial estándar para 1 unidad antes de cualquier escala por cantidad
 				</p>
 			</div>
 
@@ -315,11 +307,12 @@
 						type="number"
 						step="any"
 						min="0"
-						bind:value={salePrice}
+						bind:value={$form.salePrice}
 						class="h-12 font-mono text-lg font-bold"
 						placeholder="0.00"
 						required
 					/>
+					{#if $errors.salePrice}<p class="text-xs text-destructive">{$errors.salePrice}</p>{/if}
 				</div>
 
 				<div class="rounded-xl border border-border bg-muted/20 p-4 sm:col-span-7 space-y-2">
@@ -339,22 +332,23 @@
 			</div>
 		</div>
 
-		<!-- BLOQUE 4: ESCALAS DE DESCUENTO POR CANTIDAD -->
+		<!-- BLOQUE 4: ESCALAS PREDEFINIDAS DE DESCUENTO POR CANTIDAD -->
 		<div class="rounded-2xl border border-primary/30 bg-card p-6 shadow-xs space-y-5">
 			<div class="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
-				<div class="space-y-0.5">
+				<div>
 					<div class="flex items-center gap-2">
 						<Percent class="size-4 text-primary" />
 						<h3 class="text-base font-bold text-foreground">
-							4. Descuentos por Cantidad Predefinidos
+							4. Escalas de Descuento por Volumen ({$form.pricingTiers.length})
 						</h3>
 					</div>
 					<p class="text-xs text-muted-foreground">
-						Al seleccionar la cantidad en la orden, el sistema aplicará automáticamente esta escala.
+						Precios mayoristas automáticos que se aplicarán en el punto de venta
 					</p>
 				</div>
 
-				<div class="flex items-center gap-2">
+				<div class="flex flex-wrap items-center gap-1.5">
+					<span class="text-xs font-semibold text-muted-foreground mr-1">Atajos:</span>
 					<Button
 						type="button"
 						variant="outline"
@@ -362,6 +356,7 @@
 						onclick={() => addTier(6, 'percentage', 10)}
 						class="h-8 gap-1 text-xs"
 					>
+						<Sparkles class="size-3 text-amber-500" />
 						<span>+ Media Docena (6u -10%)</span>
 					</Button>
 					<Button
@@ -371,6 +366,7 @@
 						onclick={() => addTier(12, 'percentage', 15)}
 						class="h-8 gap-1 text-xs"
 					>
+						<Sparkles class="size-3 text-amber-500" />
 						<span>+ Docena (12u -15%)</span>
 					</Button>
 					<Button
@@ -386,29 +382,29 @@
 				</div>
 			</div>
 
-			{#if pricingTiers.length === 0}
+			{#if $form.pricingTiers.length === 0}
 				<div class="rounded-xl border border-dashed border-border/80 bg-muted/10 p-6 text-center space-y-2">
 					<Percent class="mx-auto size-7 text-muted-foreground/50" />
 					<p class="text-xs font-medium text-foreground">
 						Sin descuentos por cantidad configurados
 					</p>
 					<p class="text-[11px] text-muted-foreground max-w-md mx-auto">
-						Se cobrará el precio de lista para cualquier cantidad. Agrega una regla arriba si tienes precio especial por volumen.
+						Si dejas esta sección vacía, se cobrará siempre el precio de lista.
 					</p>
 				</div>
 			{:else}
 				<div class="space-y-3">
-					{#each pricingTiers as tier, idx (idx)}
+					{#each $form.pricingTiers as tier, idx (idx)}
 						{@const tierUnitPrice =
 							tier.type === 'percentage'
-								? salePrice * (1 - (tier.value || 0) / 100)
+								? ($form.salePrice || 0) * (1 - (tier.value || 0) / 100)
 								: tier.value || 0}
-						{@const tierSavings = Math.max(0, salePrice - tierUnitPrice)}
+						{@const tierSavings = Math.max(0, ($form.salePrice || 0) - tierUnitPrice)}
 						<div class="flex flex-col gap-3 rounded-xl border border-border bg-muted/20 p-4 sm:flex-row sm:items-center">
 							<div class="w-full sm:w-44 space-y-1">
 								<Label class="text-xs text-muted-foreground">A partir de (unidades)</Label>
 								<div class="flex items-center gap-1.5">
-									<span class="text-xs font-bold text-muted-foreground">≥</span >
+									<span class="text-xs font-bold text-muted-foreground">≥</span>
 									<Input
 										type="number"
 										min="2"
@@ -483,7 +479,7 @@
 				Cancelar
 			</Button>
 
-			<Button type="submit" disabled={isSubmitting} class="gap-2 font-bold px-6 h-11">
+			<Button type="submit" disabled={$delayed} class="gap-2 font-bold px-6 h-11">
 				<Check class="size-4" />
 				<span>Guardar Cambios</span>
 			</Button>

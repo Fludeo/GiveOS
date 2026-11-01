@@ -1,28 +1,28 @@
 import { fail, redirect, type RequestEvent } from '@sveltejs/kit';
+import { superValidate } from 'sveltekit-superforms';
+import { zod4 } from 'sveltekit-superforms/adapters';
 import { getServices } from '#lib/server/container';
+import { registerSchema } from '$lib/schemas/auth.schema';
 
 export async function registerAction({ request }: RequestEvent) {
-	const { authService } = getServices();
-	const formData = await request.formData();
-	const name = String(formData.get('name') ?? '').trim();
-	const email = String(formData.get('email') ?? '').trim();
-	const password = String(formData.get('password') ?? '');
-	const confirmPassword = String(formData.get('confirmPassword') ?? '');
-
-	if (password !== confirmPassword) {
-		return fail(400, {
-			name,
-			email,
-			error: 'Las contraseñas no coinciden.'
-		});
+	const form = await superValidate(request, zod4(registerSchema));
+	if (!form.valid) {
+		return fail(400, { form });
 	}
 
+	const { authService } = getServices();
 	try {
-		await authService.signUp({ name, email, password }, request.headers);
+		await authService.signUp(
+			{
+				name: form.data.name.trim(),
+				email: form.data.email.trim(),
+				password: form.data.password
+			},
+			request.headers
+		);
 	} catch (e) {
 		return fail(400, {
-			name,
-			email,
+			form,
 			error:
 				e instanceof Error && e.message
 					? e.message

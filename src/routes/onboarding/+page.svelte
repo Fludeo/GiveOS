@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { superForm } from 'sveltekit-superforms';
 	import type { PageProps } from './$types';
 	import {
 		createDefaultWeeklySchedule,
@@ -26,15 +26,24 @@
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import Copy from '@lucide/svelte/icons/copy';
 
-	let { data, form }: PageProps = $props();
+	let { data, form: actionForm }: PageProps = $props();
+
+	// svelte-ignore state_referenced_locally
+	const { form, errors, enhance, delayed, message } = superForm(data.form, {
+		onSubmit: ({ cancel }) => {
+			const validationErr = validateWeeklySchedule(weeklySchedule);
+			if (validationErr) {
+				stepError = validationErr;
+				cancel();
+				return;
+			}
+			$form.openingHours = serializedOpeningHours;
+		}
+	});
 
 	let currentStep = $state<1 | 2 | 3>(1);
-	let loading = $state(false);
 	let stepError = $state<string | null>(null);
 
-	let name = $state('');
-	let description = $state('');
-	let whatsapp = $state('');
 	let weeklySchedule = $state<DaySchedule[]>(createDefaultWeeklySchedule());
 
 	const serializedOpeningHours = $derived(JSON.stringify(weeklySchedule));
@@ -81,92 +90,83 @@
 	function nextStep() {
 		stepError = null;
 		if (currentStep === 1) {
-			if (!name.trim()) {
-				stepError = 'Por favor ingresa el nombre de tu negocio.';
-				return;
-			}
-			if (!description.trim()) {
-				stepError = 'Por favor escribe una breve descripción de tu negocio.';
+			if (!$form.name.trim()) {
+				stepError = 'Por favor ingresa un nombre para el negocio.';
 				return;
 			}
 			currentStep = 2;
-		} else if (currentStep === 2) {
-			if (!whatsapp.trim()) {
-				stepError = 'Por favor ingresa un número de WhatsApp de contacto.';
-				return;
-			}
+			return;
+		}
+
+		if (currentStep === 2) {
 			currentStep = 3;
+			return;
 		}
 	}
 
 	function prevStep() {
 		stepError = null;
-		if (currentStep === 3) currentStep = 2;
-		else if (currentStep === 2) currentStep = 1;
+		if (currentStep > 1) {
+			currentStep = (currentStep - 1) as 1 | 2;
+		}
 	}
+
+	const DAY_LABELS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 </script>
 
 <svelte:head>
-	<title>Configurar Negocio — GiveOS</title>
+	<title>Configuración Inicial — GiveOS</title>
 </svelte:head>
 
 <div class="flex min-h-screen flex-col items-center justify-center bg-muted/20 px-6 py-12">
 	<div class="w-full max-w-2xl space-y-8">
-		<!-- Encabezado de bienvenida -->
-		<div class="flex flex-col items-center space-y-3 text-center">
+		<!-- Encabezado con Pasos -->
+		<div class="flex flex-col items-center space-y-4 text-center">
 			<div class="flex size-12 items-center justify-center rounded-xl bg-secondary text-secondary-foreground shadow-sm">
 				<ScanFace class="size-6" />
 			</div>
-			<div class="space-y-1.5">
-				<Badge variant="secondary" class="px-3 py-0.5 text-xs">
-					Paso {currentStep} de {TOTAL_STEPS}
-				</Badge>
-				<h1 class="text-2xl font-bold tracking-tight">
-					¡Bienvenido/a, {data.user.name}!
-				</h1>
+			<div class="space-y-1">
+				<h1 class="text-2xl font-bold tracking-tight">Bienvenido a GiveOS</h1>
 				<p class="text-sm text-muted-foreground">
-					Configura los datos principales de tu negocio para asociar tus insumos, recetas y costos.
+					Configura tu primer negocio en 3 sencillos pasos
 				</p>
 			</div>
-		</div>
 
-		<!-- Indicador de progreso paso a paso -->
-		<div class="grid grid-cols-3 gap-3">
-			{#each [
-				{ step: 1, title: '1. Identidad' },
-				{ step: 2, title: '2. WhatsApp' },
-				{ step: 3, title: '3. Horarios' }
-			] as item (item.step)}
-				<button
-					type="button"
-					onclick={() => {
-						if (item.step < currentStep) {
-							stepError = null;
-							currentStep = item.step as 1 | 2 | 3;
-						}
-					}}
-					class="flex flex-col gap-2 rounded-xl border p-3.5 text-left transition-all {currentStep ===
-					item.step
-						? 'border-primary bg-primary/5 ring-1 ring-primary'
-						: item.step < currentStep
-							? 'cursor-pointer border-border bg-card hover:bg-muted/40'
-							: 'cursor-default border-border/60 bg-muted/20 opacity-60'}"
-				>
-					<div class="flex items-center justify-between">
-						<span class="text-xs font-semibold text-foreground">{item.title}</span>
-						{#if item.step < currentStep}
-							<span class="flex size-4 items-center justify-center rounded-full bg-primary text-primary-foreground">
-								<Check class="size-2.5" />
+			<!-- Indicador de Progreso del Asistente -->
+			<div class="flex w-full max-w-md items-center justify-between pt-2">
+				{#each Array(TOTAL_STEPS) as _, idx}
+					{@const stepNum = idx + 1}
+					<div class="flex flex-1 items-center">
+						<div class="flex flex-col items-center gap-1.5 flex-1">
+							<div
+								class="flex size-8 items-center justify-center rounded-full text-xs font-bold transition-colors {currentStep === stepNum
+									? 'bg-secondary text-secondary-foreground shadow-xs'
+									: currentStep > stepNum
+										? 'bg-primary text-primary-foreground'
+										: 'bg-muted text-muted-foreground'}"
+							>
+								{#if currentStep > stepNum}
+									<Check class="size-4" />
+								{:else}
+									{stepNum}
+								{/if}
+							</div>
+							<span class="text-[11px] font-medium {currentStep === stepNum ? 'text-foreground font-semibold' : 'text-muted-foreground'}">
+								{#if stepNum === 1}
+									Identidad
+								{:else if stepNum === 2}
+									Contacto
+								{:else}
+									Horarios
+								{/if}
 							</span>
+						</div>
+						{#if idx < TOTAL_STEPS - 1}
+							<div class="h-0.5 flex-1 bg-border -mt-4 transition-colors {currentStep > stepNum ? 'bg-primary' : ''}"></div>
 						{/if}
 					</div>
-					<div
-						class="h-1.5 w-full rounded-full {item.step <= currentStep
-							? 'bg-primary'
-							: 'bg-muted'}"
-					></div>
-				</button>
-			{/each}
+				{/each}
+			</div>
 		</div>
 
 		<!-- Tarjeta del Wizard -->
@@ -205,33 +205,17 @@
 			</CardHeader>
 
 			<CardContent class="p-6 pt-2 sm:p-8 sm:pt-4">
-				{#if stepError || form?.error}
+				{#if stepError || $message || (actionForm && typeof actionForm === 'object' && 'error' in actionForm ? (actionForm as any).error : null)}
 					<div class="mb-6 rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3.5 text-sm text-destructive">
-						{stepError ?? form?.error}
+						{stepError ?? $message ?? (actionForm && typeof actionForm === 'object' && 'error' in actionForm ? (actionForm as any).error : null)}
 					</div>
 				{/if}
 
 				<form
 					method="POST"
-					use:enhance={({ cancel }) => {
-						const validationErr = validateWeeklySchedule(weeklySchedule);
-						if (validationErr) {
-							stepError = validationErr;
-							cancel();
-							return;
-						}
-						loading = true;
-						return async ({ update }) => {
-							await update();
-							loading = false;
-						};
-					}}
+					use:enhance
 					class="space-y-6"
 				>
-					<!-- Inputs ocultos para que todos los pasos viajen en el submit final -->
-					<input type="hidden" name="name" value={name} />
-					<input type="hidden" name="description" value={description} />
-					<input type="hidden" name="whatsapp" value={whatsapp} />
 					<input type="hidden" name="openingHours" value={serializedOpeningHours} />
 
 					{#if currentStep === 1}
@@ -240,112 +224,93 @@
 								<Label for="step-name">Nombre del negocio o sucursal</Label>
 								<Input
 									id="step-name"
+									name="name"
 									type="text"
 									placeholder="Ej. Atelier Dulce — Sucursal Centro"
-									bind:value={name}
+									bind:value={$form.name}
 									class="h-10"
 									autofocus
 								/>
+								{#if $errors.name}
+									<p class="text-xs text-destructive">{$errors.name}</p>
+								{/if}
 							</div>
 
 							<div class="space-y-2.5">
-								<Label for="step-description">Descripción</Label>
-								<textarea
-									id="step-description"
-									rows={4}
-									placeholder="Ej. Pastelería artesanal especializada en tortas de eventos, mesas dulces y laminados."
-									bind:value={description}
-									class="flex w-full rounded-md border border-input bg-transparent px-3 py-2.5 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-								></textarea>
+								<Label for="step-desc">Descripción o especialidad (opcional)</Label>
+								<Input
+									id="step-desc"
+									name="description"
+									type="text"
+									placeholder="Ej. Tartas de autor, pastelería fina y catering para eventos"
+									bind:value={$form.description}
+									class="h-10"
+								/>
 							</div>
 						</div>
 					{:else if currentStep === 2}
 						<div class="space-y-5">
 							<div class="space-y-2.5">
-								<Label for="step-whatsapp">Número de WhatsApp</Label>
+								<Label for="step-wa">Número de WhatsApp (con código de país)</Label>
 								<Input
-									id="step-whatsapp"
+									id="step-wa"
+									name="whatsapp"
 									type="tel"
-									placeholder="Ej. +54 9 11 2345-6789"
-									bind:value={whatsapp}
+									placeholder="+54 9 11 1234-5678"
+									bind:value={$form.whatsapp}
 									class="h-10"
 									autofocus
 								/>
 								<p class="text-xs text-muted-foreground">
-									Incluye el código de país y área para identificar fácilmente la sucursal.
+									Se utilizará para vincular el bot de respuestas automáticas y mensajes a clientes.
 								</p>
-							</div>
-
-							<div class="rounded-xl border border-border bg-muted/20 p-4 text-xs text-muted-foreground">
-								<strong class="font-semibold text-foreground">Negocio:</strong> {name}
-								<p class="mt-1">{description}</p>
 							</div>
 						</div>
 					{:else}
-						<div class="space-y-4">
-							<!-- Configurador por día y por bloques -->
-							<div class="divide-y divide-border rounded-xl border border-border bg-background">
-								{#each weeklySchedule as dayItem, dayIdx (dayItem.day)}
-									<div class="flex flex-col gap-3 p-4 sm:flex-row sm:items-start sm:justify-between">
-										<!-- Día + Switch Abierto/Cerrado -->
-										<div class="flex items-center justify-between gap-3 sm:w-44 sm:justify-start sm:pt-1.5">
-											<button
-												type="button"
-												role="switch"
-												aria-label="Alternar atención el día {dayItem.label}"
-												aria-checked={dayItem.enabled}
-												onclick={() => toggleDay(dayIdx)}
-												class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors {dayItem.enabled
-													? 'bg-primary'
-													: 'bg-muted-foreground/30'}"
-											>
-												<span
-													class="inline-block size-3.5 transform rounded-full bg-background transition-transform {dayItem.enabled
-														? 'translate-x-4'
-														: 'translate-x-1'}"
-												></span>
-											</button>
-											<span class="text-sm font-medium {dayItem.enabled ? 'text-foreground' : 'text-muted-foreground'}">
-												{dayItem.label}
-											</span>
-											{#if !dayItem.enabled}
-												<Badge variant="outline" class="ml-auto text-[11px] text-muted-foreground sm:hidden">
-													Cerrado
-												</Badge>
-											{/if}
+						<div class="space-y-5">
+							<div class="divide-y divide-border rounded-xl border border-border bg-card">
+								{#each weeklySchedule as dayItem, dayIdx}
+									<div class="flex flex-col gap-3 p-3.5 transition-colors sm:flex-row sm:items-center sm:justify-between {dayItem.enabled ? 'bg-background/50' : 'opacity-60'}">
+										<div class="flex items-center gap-3">
+											<input
+												type="checkbox"
+												checked={dayItem.enabled}
+												onchange={() => toggleDay(dayIdx)}
+												class="size-4 rounded border-input text-secondary focus:ring-secondary cursor-pointer"
+												id="chk-day-{dayIdx}"
+											/>
+											<Label for="chk-day-{dayIdx}" class="text-sm font-semibold cursor-pointer w-24">
+												{DAY_LABELS[dayIdx]}
+											</Label>
 										</div>
 
-										<!-- Bloques horarios del día -->
 										{#if dayItem.enabled}
-											<div class="flex flex-1 flex-col gap-2.5">
-												{#each dayItem.blocks as block, blockIdx (blockIdx)}
+											<div class="flex flex-1 flex-col gap-2 sm:items-end">
+												{#each dayItem.blocks as block, blockIdx}
 													<div class="flex flex-wrap items-center gap-2">
-														<input
+														<Input
 															type="time"
-															aria-label="{dayItem.label} bloque {blockIdx + 1} apertura"
 															bind:value={block.open}
-															class="flex h-9 rounded-md border border-input bg-background px-3 py-1 font-mono text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+															class="h-8 w-28 text-xs font-mono"
 														/>
 														<span class="text-xs text-muted-foreground">a</span>
-														<input
+														<Input
 															type="time"
-															aria-label="{dayItem.label} bloque {blockIdx + 1} cierre"
 															bind:value={block.close}
-															class="flex h-9 rounded-md border border-input bg-background px-3 py-1 font-mono text-xs shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+															class="h-8 w-28 text-xs font-mono"
 														/>
 
-														<Button
-															type="button"
-															variant="ghost"
-															size="icon"
-															class="size-8 text-muted-foreground hover:text-destructive"
-															title={dayItem.blocks.length > 1
-																? 'Eliminar este bloque horario'
-																: 'Marcar día como cerrado'}
-															onclick={() => removeBlock(dayIdx, blockIdx)}
-														>
-															<Trash2 class="size-3.5" />
-														</Button>
+														{#if dayItem.blocks.length > 1}
+															<Button
+																type="button"
+																variant="ghost"
+																size="icon"
+																class="size-8 text-muted-foreground hover:text-destructive"
+																onclick={() => removeBlock(dayIdx, blockIdx)}
+															>
+																<Trash2 class="size-3.5" />
+															</Button>
+														{/if}
 
 														{#if blockIdx === dayItem.blocks.length - 1}
 															<Button
@@ -385,10 +350,10 @@
 							<div class="space-y-1.5 rounded-xl border border-border bg-muted/20 p-4 text-xs">
 								<p class="font-semibold text-foreground">Resumen del negocio a crear:</p>
 								<p class="text-muted-foreground">
-									<strong class="text-foreground">Nombre:</strong> {name}
+									<strong class="text-foreground">Nombre:</strong> {$form.name}
 								</p>
 								<p class="text-muted-foreground">
-									<strong class="text-foreground">WhatsApp:</strong> {whatsapp}
+									<strong class="text-foreground">WhatsApp:</strong> {$form.whatsapp || 'No especificado'}
 								</p>
 								<p class="text-muted-foreground">
 									<strong class="text-foreground">Horarios:</strong> {schedulePreview}
@@ -414,9 +379,9 @@
 								<ArrowRight class="size-4" />
 							</Button>
 						{:else}
-							<Button type="submit" disabled={loading}>
+							<Button type="submit" disabled={$delayed}>
 								<Check class="size-4" />
-								<span>{loading ? 'Guardando negocio...' : 'Finalizar y abrir el sistema'}</span>
+								<span>{$delayed ? 'Guardando negocio...' : 'Finalizar y abrir el sistema'}</span>
 							</Button>
 						{/if}
 					</div>

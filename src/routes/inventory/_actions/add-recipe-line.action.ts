@@ -1,33 +1,40 @@
 import { fail, redirect, type RequestEvent } from '@sveltejs/kit';
+import { superValidate } from 'sveltekit-superforms';
+import { zod4 } from 'sveltekit-superforms/adapters';
 import { getServices } from '#lib/server/container';
-import type { UnitOfMeasure } from '#lib/features/items/domain/item.entity';
 import { resolveBusinessOrRedirect } from '#lib/server/business-resolver';
+import { addRecipeLineSchema } from '$lib/schemas/recipe-line.schema';
 
 export async function addRecipeLineAction({ request, locals, url }: RequestEvent) {
 	if (!locals.user) throw redirect(302, '/login');
-	const formData = await request.formData();
+
+	const form = await superValidate(request, zod4(addRecipeLineSchema));
+	if (!form.valid) {
+		return fail(400, { form });
+	}
+
 	const businessIdParam =
-		String(formData.get('businessId') ?? '') || url.searchParams.get('business');
+		form.data.businessId || url.searchParams.get('business');
 	const { activeBusiness } = await resolveBusinessOrRedirect(locals.user.id, businessIdParam);
 
 	const { recipeService } = getServices();
-	const parentItemId = String(formData.get('parentItemId') ?? '');
-	const componentItemId = String(formData.get('componentItemId') ?? '');
-	const quantity = Number(formData.get('quantity') ?? 0);
-	const unit = String(formData.get('unit') ?? 'g') as UnitOfMeasure;
-	const notes = String(formData.get('notes') ?? '').trim() || null;
 
 	try {
 		await recipeService.addLine(activeBusiness.id, {
-			parentItemId,
-			componentItemId,
-			quantity,
-			unit,
-			notes
+			parentItemId: form.data.parentItemId,
+			componentItemId: form.data.componentItemId,
+			quantity: form.data.quantity,
+			unit: form.data.unit,
+			notes: form.data.notes?.trim() || null
 		});
-		return { success: true, message: 'Ingrediente agregado a la receta correctamente.' };
+		return {
+			form,
+			success: true,
+			message: 'Ingrediente agregado a la receta correctamente.'
+		};
 	} catch (e) {
 		return fail(400, {
+			form,
 			error: e instanceof Error ? e.message : 'Error al agregar línea a la receta.'
 		});
 	}

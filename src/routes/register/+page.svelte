@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { superForm } from 'sveltekit-superforms';
 	import type { PageProps } from './$types';
 	import { Button } from '#lib/components/ui/button';
 	import { Input } from '#lib/components/ui/input';
@@ -14,8 +14,10 @@
 	import ScanFace from '@lucide/svelte/icons/scan-face';
 	import UserPlus from '@lucide/svelte/icons/user-plus';
 
-	let { form }: PageProps = $props();
-	let loading = $state(false);
+	let { data, form: actionForm }: PageProps = $props();
+
+	// svelte-ignore state_referenced_locally
+	const { form, errors, enhance, delayed, message } = superForm(data.form);
 </script>
 
 <svelte:head>
@@ -46,21 +48,15 @@
 			</CardHeader>
 
 			<CardContent class="p-6 pt-2 sm:p-8 sm:pt-4">
-				{#if form?.error}
+				{#if $message || (actionForm && typeof actionForm === 'object' && 'error' in actionForm ? (actionForm as any).error : null)}
 					<div class="mb-6 rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3.5 text-sm text-destructive">
-						{form.error}
+						{$message || (actionForm && typeof actionForm === 'object' && 'error' in actionForm ? (actionForm as any).error : null)}
 					</div>
 				{/if}
 
 				<form
 					method="POST"
-					use:enhance={() => {
-						loading = true;
-						return async ({ update }) => {
-							await update();
-							loading = false;
-						};
-					}}
+					use:enhance
 					class="space-y-5"
 				>
 					<div class="space-y-2.5">
@@ -70,11 +66,14 @@
 							name="name"
 							type="text"
 							placeholder="Ej. Ana Pastelería"
-							value={form?.name ?? ''}
+							bind:value={$form.name}
 							class="h-10"
 							autocomplete="name"
 							required
 						/>
+						{#if $errors.name}
+							<p class="text-xs text-destructive">{$errors.name}</p>
+						{/if}
 					</div>
 
 					<div class="space-y-2.5">
@@ -84,25 +83,31 @@
 							name="email"
 							type="email"
 							placeholder="pasteleria@ejemplo.com"
-							value={form?.email ?? ''}
+							bind:value={$form.email}
 							class="h-10"
 							autocomplete="email"
 							required
 						/>
+						{#if $errors.email}
+							<p class="text-xs text-destructive">{$errors.email}</p>
+						{/if}
 					</div>
 
 					<div class="space-y-2.5">
-						<Label for="password">Contraseña (mínimo 8 caracteres)</Label>
+						<Label for="password">Contraseña</Label>
 						<Input
 							id="password"
 							name="password"
 							type="password"
-							placeholder="••••••••"
-							minlength={8}
+							placeholder="Mínimo 8 caracteres"
+							bind:value={$form.password}
 							class="h-10"
 							autocomplete="new-password"
 							required
 						/>
+						{#if $errors.password}
+							<p class="text-xs text-destructive">{$errors.password}</p>
+						{/if}
 					</div>
 
 					<div class="space-y-2.5">
@@ -111,29 +116,38 @@
 							id="confirmPassword"
 							name="confirmPassword"
 							type="password"
-							placeholder="••••••••"
-							minlength={8}
+							placeholder="Repite la contraseña"
+							bind:value={$form.confirmPassword}
 							class="h-10"
 							autocomplete="new-password"
 							required
 						/>
+						{#if $errors.confirmPassword}
+							<p class="text-xs text-destructive">{$errors.confirmPassword}</p>
+						{/if}
 					</div>
 
-					<div class="pt-1">
-						<Button type="submit" class="h-10 w-full" disabled={loading}>
-							<UserPlus class="size-4" />
-							<span>{loading ? 'Registrando...' : 'Crear Cuenta'}</span>
-						</Button>
-					</div>
+					<Button
+						type="submit"
+						class="w-full h-10 gap-2 font-semibold"
+						disabled={$delayed}
+					>
+						<UserPlus class="size-4" />
+						<span>{$delayed ? 'Creando cuenta...' : 'Crear Cuenta y Continuar'}</span>
+					</Button>
 				</form>
-
-				<div class="mt-6 border-t border-border pt-6 text-center text-sm text-muted-foreground">
-					¿Ya tienes una cuenta?
-					<a href="/login" class="ml-1 font-medium text-primary hover:underline">
-						Iniciar sesión
-					</a>
-				</div>
 			</CardContent>
 		</Card>
+
+		<!-- Pie -->
+		<p class="text-center text-sm text-muted-foreground">
+			¿Ya tienes una cuenta registrada?
+			<a
+				href="/login"
+				class="font-semibold text-foreground underline-offset-4 hover:underline"
+			>
+				Iniciar sesión
+			</a>
+		</p>
 	</div>
 </div>

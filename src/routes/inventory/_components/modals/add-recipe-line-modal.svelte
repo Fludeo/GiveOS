@@ -1,5 +1,7 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { superForm } from 'sveltekit-superforms';
+	import type { SuperValidated, Infer } from 'sveltekit-superforms';
+	import type { AddRecipeLineSchema } from '$lib/schemas/recipe-line.schema';
 	import {
 		areUnitsCompatible,
 		ITEM_TYPE_LABELS,
@@ -14,22 +16,38 @@
 	import X from '@lucide/svelte/icons/x';
 	import Plus from '@lucide/svelte/icons/plus';
 	import CirclePile from '@lucide/svelte/icons/circle-pile';
+	import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
 
 	interface Props {
 		open: boolean;
+		formData: SuperValidated<Infer<AddRecipeLineSchema>>;
 		parentItem: Item | null;
 		businessId: string;
 		availableComponents: Item[];
 		onClose: () => void;
 	}
 
-	let { open = $bindable(), parentItem, businessId, availableComponents, onClose }: Props = $props();
+	let {
+		open = $bindable(),
+		formData,
+		parentItem,
+		businessId,
+		availableComponents,
+		onClose
+	}: Props = $props();
 
-	let selectedComponentId = $state('');
-	let selectedRecipeUnit = $state<UnitOfMeasure>('g');
+	// svelte-ignore state_referenced_locally
+	const { form, errors, enhance, delayed, message, reset } = superForm(formData, {
+		resetForm: true,
+		onResult: ({ result }) => {
+			if (result.type === 'success') {
+				handleClose();
+			}
+		}
+	});
 
 	const selectedComponent = $derived(
-		availableComponents.find((i) => i.id === selectedComponentId) ?? null
+		availableComponents.find((i) => i.id === $form.componentItemId) ?? null
 	);
 
 	const compatibleUnits = $derived<UnitOfMeasure[]>(
@@ -39,22 +57,27 @@
 	);
 
 	$effect(() => {
-		if (open && availableComponents.length > 0) {
-			if (!selectedComponentId || !availableComponents.some((c) => c.id === selectedComponentId)) {
-				selectedComponentId = availableComponents[0].id;
-				selectedRecipeUnit = availableComponents[0].baseUnit;
+		if (open && parentItem) {
+			$form.businessId = businessId;
+			$form.parentItemId = parentItem.id;
+			if (availableComponents.length > 0) {
+				if (!$form.componentItemId || !availableComponents.some((c) => c.id === $form.componentItemId)) {
+					$form.componentItemId = availableComponents[0].id;
+					$form.unit = availableComponents[0].baseUnit;
+				}
 			}
 		}
 	});
 
 	$effect(() => {
-		if (selectedComponent && !areUnitsCompatible(selectedRecipeUnit, selectedComponent.baseUnit)) {
-			selectedRecipeUnit = selectedComponent.baseUnit;
+		if (selectedComponent && !areUnitsCompatible($form.unit as UnitOfMeasure, selectedComponent.baseUnit)) {
+			$form.unit = selectedComponent.baseUnit;
 		}
 	});
 
 	function handleClose() {
 		open = false;
+		reset();
 		onClose();
 	}
 </script>
@@ -97,25 +120,25 @@
 			<form
 				method="POST"
 				action="?/addRecipeLine"
-				use:enhance={() => {
-					return async ({ result, update }) => {
-						await update();
-						if (result.type === 'success') {
-							handleClose();
-						}
-					};
-				}}
+				use:enhance
 			>
-				<div class="space-y-4 p-5">
-					<input type="hidden" name="businessId" value={businessId} />
-					<input type="hidden" name="parentItemId" value={parentItem.id} />
+				<input type="hidden" name="businessId" bind:value={$form.businessId} />
+				<input type="hidden" name="parentItemId" bind:value={$form.parentItemId} />
 
+				{#if $message}
+					<div class="m-5 mb-0 flex items-center gap-3 rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-destructive">
+						<AlertTriangle class="size-4 shrink-0" />
+						<p class="text-xs font-semibold">{$message}</p>
+					</div>
+				{/if}
+
+				<div class="space-y-4 p-5">
 					<div class="space-y-1.5">
 						<Label for="recipe-componentItemId">Ingrediente</Label>
 						<select
 							id="recipe-componentItemId"
 							name="componentItemId"
-							bind:value={selectedComponentId}
+							bind:value={$form.componentItemId}
 							class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs"
 							required
 						>
@@ -125,6 +148,9 @@
 								</option>
 							{/each}
 						</select>
+						{#if $errors.componentItemId}
+							<p class="text-xs text-destructive">{$errors.componentItemId}</p>
+						{/if}
 					</div>
 
 					<div class="grid grid-cols-2 gap-3">
@@ -135,12 +161,16 @@
 								name="quantity"
 								type="number"
 								step="any"
-								min="0.001"
+								min="0.0001"
+								bind:value={$form.quantity}
 								class="h-10 font-mono"
 								placeholder="Ej. 250"
 								required
 								autofocus
 							/>
+							{#if $errors.quantity}
+								<p class="text-xs text-destructive">{$errors.quantity}</p>
+							{/if}
 						</div>
 
 						<div class="space-y-1.5">
@@ -148,13 +178,16 @@
 							<select
 								id="recipe-unit"
 								name="unit"
-								bind:value={selectedRecipeUnit}
+								bind:value={$form.unit}
 								class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs"
 							>
 								{#each compatibleUnits as u}
 									<option value={u}>{u === 'unit' ? 'un' : u}</option>
 								{/each}
 							</select>
+							{#if $errors.unit}
+								<p class="text-xs text-destructive">{$errors.unit}</p>
+							{/if}
 						</div>
 					</div>
 
@@ -163,9 +196,13 @@
 						<Input
 							id="recipe-notes"
 							name="notes"
+							bind:value={$form.notes}
 							class="h-9 text-xs"
 							placeholder="Ej. Relleno, cobertura"
 						/>
+						{#if $errors.notes}
+							<p class="text-xs text-destructive">{$errors.notes}</p>
+						{/if}
 					</div>
 				</div>
 
@@ -173,7 +210,7 @@
 					<Button type="button" variant="outline" onclick={handleClose}>
 						Cancelar
 					</Button>
-					<Button type="submit">
+					<Button type="submit" disabled={$delayed} class="gap-1.5">
 						<Plus class="size-4" />
 						<span>Añadir a Receta</span>
 					</Button>

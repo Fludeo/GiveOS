@@ -1,5 +1,8 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { enhance as nativeEnhance } from '$app/forms';
+	import { superForm } from 'sveltekit-superforms';
+	import type { SuperValidated, Infer } from 'sveltekit-superforms';
+	import type { AddStockBatchSchema } from '$lib/schemas/stock-batch.schema';
 	import type { Item, ItemStockBatch } from '#lib/features/items/domain/item.entity';
 	import {
 		getDirectUnitCost,
@@ -30,6 +33,7 @@
 
 	interface Props {
 		open: boolean;
+		formData: SuperValidated<Infer<AddStockBatchSchema>>;
 		item: Item | null;
 		businessId: string;
 		allItems?: Item[];
@@ -55,6 +59,7 @@
 
 	let {
 		open = $bindable(),
+		formData,
 		item,
 		businessId,
 		allItems = [],
@@ -73,6 +78,15 @@
 	let isSubmittingStock = $state(false);
 	let batchToDelete = $state<ItemStockBatch | null>(null);
 	let isDeletingBatch = $state(false);
+
+	// svelte-ignore state_referenced_locally
+	const { form, errors, enhance, submitting, reset } = superForm(formData, {
+		onResult({ result }) {
+			if (result.type === 'success') {
+				handleClose();
+			}
+		}
+	});
 
 	// Líneas directas de receta si es elaboración
 	const recipeNodes = $derived(item?.type === 'prepared' ? (recipeSummary?.nodes ?? []) : []);
@@ -459,16 +473,7 @@
 					method="POST"
 					action="?/addStockBatch"
 					class="space-y-4"
-					use:enhance={() => {
-						isSubmittingStock = true;
-						return async ({ result, update }) => {
-							await update();
-							isSubmittingStock = false;
-							if (result.type === 'success') {
-								handleClose();
-							}
-						};
-					}}
+					use:enhance
 				>
 					<input type="hidden" name="businessId" value={businessId} />
 					<input type="hidden" name="id" value={item.id} />
@@ -981,14 +986,14 @@
 					type="button"
 					variant="outline"
 					onclick={handleClose}
-					disabled={isSubmittingStock}
+					disabled={$submitting || isSubmittingStock}
 				>
 					Cancelar
 				</Button>
 				<Button
 					type="submit"
 					form="add-stock-form"
-					disabled={isSubmittingStock ||
+					disabled={$submitting || isSubmittingStock ||
 						!stockIntakeQty ||
 						Number(stockIntakeQty) <= 0 ||
 						(item.type === 'raw_material' &&
@@ -1093,7 +1098,7 @@
 					<form
 						method="POST"
 						action="?/deleteStockBatch"
-						use:enhance={() => {
+						use:nativeEnhance={() => {
 							isDeletingBatch = true;
 							return async ({ update }) => {
 								await update();

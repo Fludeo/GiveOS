@@ -1,10 +1,11 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { superForm } from 'sveltekit-superforms';
+	import type { SuperValidated, Infer } from 'sveltekit-superforms';
+	import type { UpdateItemSchema } from '$lib/schemas/item.schema';
 	import {
 		UNITS_OF_MEASURE,
 		UNIT_LABELS,
-		type Item,
-		type UnitOfMeasure
+		type Item
 	} from '#lib/features/items/domain/item.entity';
 	import ItemTypeBadge from '#lib/features/items/ui/item-type-badge.svelte';
 	import { Button } from '#lib/components/ui/button';
@@ -17,25 +18,40 @@
 
 	interface Props {
 		open: boolean;
+		formData: SuperValidated<Infer<UpdateItemSchema>>;
 		item: Item | null;
 		businessId: string;
 		onClose: () => void;
 		onRequestDelete: (item: Item) => void;
 	}
 
-	let { open = $bindable(), item, businessId, onClose, onRequestDelete }: Props = $props();
+	let { open = $bindable(), formData, item, businessId, onClose, onRequestDelete }: Props = $props();
 
-	let adjustItemName = $state('');
-	let adjustItemBaseUnit = $state<UnitOfMeasure>('g');
-	let adjustItemMinStock = $state<number>(0);
-	let isSubmittingAdjust = $state(false);
+	// svelte-ignore state_referenced_locally
+	const { form, errors, enhance, submitting, reset } = superForm(formData, {
+		onResult({ result }) {
+			if (result.type === 'success') {
+				handleClose();
+			}
+		}
+	});
 
 	$effect(() => {
 		if (open && item) {
-			adjustItemName = item.name;
-			adjustItemBaseUnit = item.baseUnit;
-			adjustItemMinStock = item.minStock;
-			isSubmittingAdjust = false;
+			reset();
+			$form.id = item.id;
+			$form.businessId = businessId;
+			$form.name = item.name;
+			$form.type = item.type;
+			$form.baseUnit = item.baseUnit;
+			$form.referenceCost = item.referenceCost;
+			$form.purchaseQuantity = item.purchaseQuantity;
+			$form.yieldQuantity = item.yieldQuantity;
+			$form.minStock = item.minStock;
+			$form.prepTimeMinutes = item.prepTimeMinutes ?? 0;
+			$form.passiveTimeMinutes = item.passiveTimeMinutes ?? 0;
+			$form.isPrepTimeScalable = item.isPrepTimeScalable ?? false;
+			$form.notes = item.notes;
 		}
 	});
 
@@ -85,24 +101,15 @@
 				method="POST"
 				action="?/updateItem"
 				class="flex-1 space-y-4 overflow-y-auto p-6"
-				use:enhance={() => {
-					isSubmittingAdjust = true;
-					return async ({ result, update }) => {
-						await update();
-						isSubmittingAdjust = false;
-						if (result.type === 'success') {
-							handleClose();
-						}
-					};
-				}}
+				use:enhance
 			>
-				<input type="hidden" name="businessId" value={businessId} />
-				<input type="hidden" name="id" value={item.id} />
-				<input type="hidden" name="type" value={item.type} />
-				<input type="hidden" name="referenceCost" value={item.referenceCost} />
-				<input type="hidden" name="purchaseQuantity" value={item.purchaseQuantity} />
-				<input type="hidden" name="yieldQuantity" value={item.yieldQuantity} />
-				<input type="hidden" name="prepTimeMinutes" value={item.prepTimeMinutes} />
+				<input type="hidden" name="businessId" value={$form.businessId} />
+				<input type="hidden" name="id" value={$form.id} />
+				<input type="hidden" name="type" value={$form.type} />
+				<input type="hidden" name="referenceCost" value={$form.referenceCost} />
+				<input type="hidden" name="purchaseQuantity" value={$form.purchaseQuantity} />
+				<input type="hidden" name="yieldQuantity" value={$form.yieldQuantity} />
+				<input type="hidden" name="prepTimeMinutes" value={$form.prepTimeMinutes} />
 
 				<!-- Nombre -->
 				<div class="space-y-1.5">
@@ -110,11 +117,14 @@
 					<Input
 						id="adjust-item-name"
 						name="name"
-						bind:value={adjustItemName}
+						bind:value={$form.name}
 						placeholder="Nombre del ítem"
 						class="h-10 text-sm font-medium"
 						required
 					/>
+					{#if $errors.name}
+						<p class="text-xs text-destructive">{$errors.name}</p>
+					{/if}
 				</div>
 
 				<!-- Unidad de Medida -->
@@ -123,16 +133,19 @@
 					<select
 						id="adjust-item-unit"
 						name="baseUnit"
-						bind:value={adjustItemBaseUnit}
+						bind:value={$form.baseUnit}
 						class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs"
 					>
 						{#each UNITS_OF_MEASURE as u}
 							<option value={u}>{UNIT_LABELS[u]}</option>
 						{/each}
 					</select>
+					{#if $errors.baseUnit}
+						<p class="text-xs text-destructive">{$errors.baseUnit}</p>
+					{/if}
 
 					<!-- Alerta de cambio de unidad solicitada por el usuario -->
-					{#if adjustItemBaseUnit !== item.baseUnit}
+					{#if item && $form.baseUnit !== item.baseUnit}
 						<div class="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3.5 text-xs text-amber-950 dark:text-amber-200 space-y-1.5 mt-2">
 							<div class="flex items-center gap-1.5 font-bold text-amber-800 dark:text-amber-300">
 								<AlertTriangle class="size-4 shrink-0 text-amber-600 dark:text-amber-400" />
@@ -149,7 +162,7 @@
 				<div class="space-y-1.5">
 					<Label for="adjust-item-min-stock" class="flex items-center gap-1.5 font-semibold text-foreground">
 						<AlertTriangle class="size-3.5 text-destructive" />
-						<span>Alerta de Stock Mínimo ({adjustItemBaseUnit})</span>
+						<span>Alerta de Stock Mínimo ({$form.baseUnit ?? item.baseUnit})</span>
 					</Label>
 					<Input
 						id="adjust-item-min-stock"
@@ -157,10 +170,13 @@
 						type="number"
 						step="any"
 						min="0"
-						bind:value={adjustItemMinStock}
+						bind:value={$form.minStock}
 						placeholder="0 (alerta al bajar de este valor)"
 						class="h-10 font-mono text-sm"
 					/>
+					{#if $errors.minStock}
+						<p class="text-xs text-destructive">{$errors.minStock}</p>
+					{/if}
 					<p class="text-[11px] text-muted-foreground">
 						El ítem se marcará con alerta visual cuando las existencias desciendan a este número o menos.
 					</p>
@@ -190,7 +206,7 @@
 						variant="outline"
 						size="sm"
 						onclick={handleClose}
-						disabled={isSubmittingAdjust}
+						disabled={$submitting}
 					>
 						Cancelar
 					</Button>
@@ -198,10 +214,10 @@
 						type="submit"
 						form="adjust-item-form"
 						size="sm"
-						disabled={isSubmittingAdjust || !adjustItemName.trim()}
+						disabled={$submitting || !$form.name.trim()}
 					>
 						<Check class="size-3.5 mr-1" />
-						<span>{isSubmittingAdjust ? 'Guardando...' : 'Guardar Ajustes'}</span>
+						<span>{$submitting ? 'Guardando...' : 'Guardar Ajustes'}</span>
 					</Button>
 				</div>
 			</div>

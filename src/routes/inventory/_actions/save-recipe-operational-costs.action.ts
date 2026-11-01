@@ -1,38 +1,35 @@
 import { fail, redirect, type RequestEvent } from '@sveltejs/kit';
+import { superValidate } from 'sveltekit-superforms';
+import { zod4 } from 'sveltekit-superforms/adapters';
 import { getServices } from '#lib/server/container';
 import { resolveBusinessOrRedirect } from '#lib/server/business-resolver';
 import type { RecipeOperationalCost } from '#lib/features/items/domain/item.entity';
+import { saveRecipeOperationalCostsSchema } from '$lib/schemas/recipe-operational-costs.schema';
 
 export async function saveRecipeOperationalCostsAction({ request, locals, url }: RequestEvent) {
 	if (!locals.user) throw redirect(302, '/login');
-	const formData = await request.formData();
+
+	const form = await superValidate(request, zod4(saveRecipeOperationalCostsSchema));
+	if (!form.valid) {
+		return fail(400, { form });
+	}
+
 	const businessIdParam =
-		String(formData.get('businessId') ?? '') || url.searchParams.get('business');
+		form.data.businessId || url.searchParams.get('business');
 	const { activeBusiness } = await resolveBusinessOrRedirect(locals.user.id, businessIdParam);
 
 	const { itemService } = getServices();
-	const itemId = String(formData.get('itemId') ?? '');
-	const costsJson = String(formData.get('costs') ?? '[]');
+	const itemId = form.data.itemId;
 
 	const item = await itemService.getItemById(itemId, activeBusiness.id);
 	if (!item) {
-		return fail(404, { error: 'Elaboración no encontrada.' });
-	}
-
-	let parsedCosts: RecipeOperationalCost[] = [];
-	try {
-		parsedCosts = JSON.parse(costsJson);
-		if (!Array.isArray(parsedCosts)) {
-			parsedCosts = [];
-		}
-	} catch {
-		return fail(400, { error: 'Formato de costos operativos inválido.' });
+		return fail(404, { form, error: 'Elaboración no encontrada.' });
 	}
 
 	const companyResources = activeBusiness.settings?.operationalCosts ?? [];
 
-	// Normalizar costos asegurando que el nombre, tipo y tarifa por hora provengan estrictamente de la empresa
-	const normalizedCosts: RecipeOperationalCost[] = parsedCosts.map((c) => {
+	// Normalizar costos asegurando que el nombre, tipo y tarifa por hora provengan de la configuración si hay coincidencia
+	const normalizedCosts: RecipeOperationalCost[] = form.data.costs.map((c) => {
 		const matched = companyResources.find(
 			(r) => (c.resourceId && r.id === c.resourceId) || r.name.toLowerCase() === (c.name || '').toLowerCase()
 		);
@@ -76,11 +73,13 @@ export async function saveRecipeOperationalCostsAction({ request, locals, url }:
 		});
 
 		return {
+			form,
 			success: true,
 			message: 'Costos operativos y tiempos de la receta actualizados exitosamente.'
 		};
 	} catch (e) {
 		return fail(400, {
+			form,
 			error: e instanceof Error ? e.message : 'Error al guardar los costos operativos.'
 		});
 	}

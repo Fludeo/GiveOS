@@ -1,5 +1,8 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { superForm } from 'sveltekit-superforms';
+	import type { SuperValidated, Infer } from 'sveltekit-superforms';
+	import type { CreateOrderSchema } from '$lib/schemas/order.schema';
+	import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
 	import {
 		calculateEffectiveUnitPrice,
 		getProductAvailableStock,
@@ -39,12 +42,40 @@
 
 	interface Props {
 		open: boolean;
+		formData: SuperValidated<Infer<CreateOrderSchema>>;
 		salesProducts: SalesProductWithItems[];
 		businessId: string;
 		onClose: () => void;
 	}
 
-	let { open = $bindable(false), salesProducts, businessId, onClose }: Props = $props();
+	let { open = $bindable(false), formData, salesProducts, businessId, onClose }: Props = $props();
+
+	// svelte-ignore state_referenced_locally
+	const { form, errors, enhance, delayed, message, reset } = superForm(formData, {
+		dataType: 'json',
+		resetForm: true,
+		onSubmit: () => {
+			$form.businessId = businessId;
+			$form.customerName = draftCustomerName;
+			$form.paymentStatus = draftPaymentStatus;
+			$form.paidAmount = draftPaidAmount;
+			$form.deliveryDate = draftDeliveryDate || null;
+			$form.notes = draftNotes || null;
+			$form.lines = draftLines.map((l) => ({
+				salesProductId: l.salesProductId,
+				quantity: l.quantity,
+				unitPrice: l.unitPrice,
+				notes: l.notes || null,
+				fulfillmentType: l.fulfillmentType,
+				deliveryDate: l.deliveryDate || null
+			}));
+		},
+		onResult: ({ result }) => {
+			if (result.type === 'success') {
+				onClose();
+			}
+		}
+	});
 
 	type OrderModalView = 'catalog' | 'item_config' | 'checkout';
 	type ItemWizardStep = 'quantity' | 'type' | 'preorder_details';
@@ -1173,22 +1204,14 @@
 						method="POST"
 						action="?/createOrder"
 						class="flex flex-1 flex-col overflow-hidden"
-						use:enhance={() => {
-							return async ({ result, update }) => {
-								await update();
-								if (result.type === 'success') {
-									onClose();
-								}
-							};
-						}}
+						use:enhance
 					>
-						<input type="hidden" name="businessId" value={businessId} />
-						<input type="hidden" name="customerName" value={draftCustomerName} />
-						<input type="hidden" name="deliveryDate" value={draftDeliveryDate} />
-						<input type="hidden" name="paymentStatus" value={draftPaymentStatus} />
-						<input type="hidden" name="paidAmount" value={draftPaidAmount} />
-						<input type="hidden" name="notes" value={draftNotes} />
-						<input type="hidden" name="linesJson" value={serializedDraftLines} />
+						{#if $message}
+							<div class="m-6 mb-0 flex items-center gap-3 rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-destructive">
+								<AlertTriangle class="size-4 shrink-0" />
+								<p class="text-xs font-semibold">{$message}</p>
+							</div>
+						{/if}
 
 						<div class="flex-1 overflow-y-auto p-6 space-y-6">
 							<!-- Resumen de Ítems en Checkout -->
@@ -1434,7 +1457,7 @@
 								<span>Volver a Productos</span>
 							</Button>
 
-							<Button type="submit" class="gap-1.5 font-bold">
+							<Button type="submit" disabled={$delayed} class="gap-1.5 font-bold">
 								<Check class="size-4" />
 								<span>Confirmar Orden ({formatCurrency(draftTotalAmount)})</span>
 							</Button>

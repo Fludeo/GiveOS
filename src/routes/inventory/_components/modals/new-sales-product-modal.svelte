@@ -1,5 +1,7 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { superForm } from 'sveltekit-superforms';
+	import type { SuperValidated, Infer } from 'sveltekit-superforms';
+	import type { CreateSalesProductSchema } from '$lib/schemas/sales-product.schema';
 	import { ITEM_TYPE_LABELS, type Item } from '#lib/features/items/domain/item.entity';
 	import { Button } from '#lib/components/ui/button';
 	import { Input } from '#lib/components/ui/input';
@@ -14,6 +16,7 @@
 
 	interface Props {
 		open: boolean;
+		formData: SuperValidated<Infer<CreateSalesProductSchema>>;
 		businessId: string;
 		linkableItems: Item[];
 		recipeSummaries: Record<string, { estimatedUnitCost: number }>;
@@ -24,6 +27,7 @@
 
 	let {
 		open = $bindable(),
+		formData,
 		businessId,
 		linkableItems,
 		recipeSummaries,
@@ -33,28 +37,37 @@
 	}: Props = $props();
 
 	let newSalesStep = $state<1 | 2>(1);
-	let newSalesName = $state('');
-	let newSalesPrice = $state(0);
-	let newSalesDescription = $state('');
 	let newSalesIsCombo = $state(false);
-	let newSalesIsShortcut = $state(false);
-	let newSalesComponents = $state<{ itemId: string; quantity: number }[]>([]);
+
+	// svelte-ignore state_referenced_locally
+	const { form, errors, enhance, submitting, reset } = superForm(formData, {
+		dataType: 'json',
+		onResult({ result }) {
+			if (result.type === 'success') {
+				handleClose();
+			}
+		}
+	});
 
 	$effect(() => {
 		if (open) {
 			newSalesStep = 1;
-			newSalesPrice = 0;
-			newSalesDescription = '';
-			newSalesIsShortcut = false;
 			newSalesIsCombo = false;
+			reset();
+			$form.businessId = businessId;
+			$form.code = nextCode;
 			if (linkableItems.length > 0) {
 				const first = linkableItems[0];
-				newSalesComponents = [{ itemId: first.id, quantity: 1 }];
-				newSalesName = first.name;
+				$form.components = [{ itemId: first.id, quantity: 1 }];
+				$form.name = first.name;
 			} else {
-				newSalesComponents = [];
-				newSalesName = '';
+				$form.components = [];
+				$form.name = '';
 			}
+			$form.salePrice = 0;
+			$form.description = '';
+			$form.isShortcut = false;
+			$form.pricingTiers = [];
 		}
 	});
 
@@ -66,18 +79,18 @@
 	function addNewSalesComponentLine() {
 		if (linkableItems.length === 0) return;
 		const unused =
-			linkableItems.find((cand) => !newSalesComponents.some((c) => c.itemId === cand.id)) ??
+			linkableItems.find((cand) => !$form.components.some((c) => c.itemId === cand.id)) ??
 			linkableItems[0];
-		newSalesComponents = [...newSalesComponents, { itemId: unused.id, quantity: 1 }];
+		$form.components = [...$form.components, { itemId: unused.id, quantity: 1 }];
 	}
 
 	function removeNewSalesComponentLine(index: number) {
-		if (newSalesComponents.length <= 1) return;
-		newSalesComponents = newSalesComponents.filter((_, i) => i !== index);
+		if ($form.components.length <= 1) return;
+		$form.components = $form.components.filter((_, i) => i !== index);
 	}
 
 	const estimatedCost = $derived(
-		calculateComponentsRecipeCost(newSalesComponents, linkableItems, recipeSummaries)
+		calculateComponentsRecipeCost($form.components, linkableItems, recipeSummaries)
 	);
 </script>
 
@@ -153,28 +166,8 @@
 				<form
 					method="POST"
 					action="?/createSalesProduct"
-					use:enhance={() => {
-						return async ({ result, update }) => {
-							await update();
-							if (result.type === 'success') {
-								handleClose();
-							}
-						};
-					}}
+					use:enhance
 				>
-					<input type="hidden" name="businessId" value={businessId} />
-					<input
-						type="hidden"
-						name="componentsJson"
-						value={JSON.stringify(newSalesComponents)}
-					/>
-					<input type="hidden" name="name" value={newSalesName} />
-					<input type="hidden" name="salePrice" value={newSalesPrice} />
-					<input type="hidden" name="description" value={newSalesDescription} />
-					{#if newSalesIsShortcut}
-						<input type="hidden" name="isShortcut" value="true" />
-					{/if}
-
 					<div class="p-6">
 						{#if newSalesStep === 1}
 							<!-- PASO 1: Nombre y Componentes -->
@@ -183,12 +176,16 @@
 									<Label for="sp-step-name">Nombre Comercial</Label>
 									<Input
 										id="sp-step-name"
-										bind:value={newSalesName}
+										name="name"
+										bind:value={$form.name}
 										placeholder="Ej. Torta Selva Negra o Combo Cumpleaños"
 										class="h-11 text-base font-medium"
 										required
 										autofocus
 									/>
+									{#if $errors.name}
+										<p class="text-xs text-destructive">{$errors.name}</p>
+									{/if}
 								</div>
 
 								<div class="space-y-2.5 rounded-xl border border-border bg-muted/20 p-3.5">
@@ -208,7 +205,7 @@
 									</div>
 
 									<div class="space-y-2">
-										{#each newSalesComponents as comp, idx (idx)}
+										{#each $form.components as comp, idx (idx)}
 											{@const selectedItem = linkableItems.find((i) => i.id === comp.itemId)}
 											<div class="flex items-center gap-2 rounded-lg border border-border bg-background p-2">
 												<div class="min-w-0 flex-1">
@@ -216,9 +213,9 @@
 														aria-label="Ítem {idx + 1}"
 														bind:value={comp.itemId}
 														onchange={() => {
-															if (newSalesComponents.length === 1 && !newSalesName) {
+															if ($form.components.length === 1 && !$form.name) {
 																const found = linkableItems.find((i) => i.id === comp.itemId);
-																if (found) newSalesName = found.name;
+																if (found) $form.name = found.name;
 															}
 														}}
 														class="flex h-9 w-full rounded-md border border-input bg-background px-2.5 py-1 text-xs shadow-2xs"
@@ -246,7 +243,7 @@
 													</span>
 												</div>
 
-												{#if newSalesComponents.length > 1}
+												{#if $form.components.length > 1}
 													<Button
 														type="button"
 														size="icon"
@@ -259,6 +256,10 @@
 												{/if}
 											</div>
 										{/each}
+
+										{#if $errors.components}
+											<p class="text-xs text-destructive">{$errors.components}</p>
+										{/if}
 
 										{#if newSalesIsCombo}
 											<Button
@@ -282,15 +283,19 @@
 									<Label for="sp-step-price">Precio de Venta ($)</Label>
 									<Input
 										id="sp-step-price"
+										name="salePrice"
 										type="number"
 										step="any"
 										min="0"
-										bind:value={newSalesPrice}
+										bind:value={$form.salePrice}
 										class="h-11 font-mono text-xl font-bold"
 										placeholder="0.00"
 										required
 										autofocus
 									/>
+									{#if $errors.salePrice}
+										<p class="text-xs text-destructive">{$errors.salePrice}</p>
+									{/if}
 								</div>
 
 								<!-- Resumen de Costo y Margen -->
@@ -304,13 +309,13 @@
 									<div class="flex items-center justify-between">
 										<span class="text-muted-foreground">Margen proyectado:</span>
 										<span
-											class="font-mono font-semibold {newSalesPrice - estimatedCost >= 0
+											class="font-mono font-semibold {$form.salePrice - estimatedCost >= 0
 												? 'text-emerald-600'
 												: 'text-destructive'}"
 										>
-											{formatCurrency(newSalesPrice - estimatedCost)}
-											{#if newSalesPrice > 0}
-												({Math.round(((newSalesPrice - estimatedCost) / newSalesPrice) * 100)}%)
+											{formatCurrency($form.salePrice - estimatedCost)}
+											{#if $form.salePrice > 0}
+												({Math.round((($form.salePrice - estimatedCost) / $form.salePrice) * 100)}%)
 											{/if}
 										</span>
 									</div>
@@ -319,11 +324,11 @@
 								<label class="flex items-center gap-2.5 rounded-xl border border-border bg-muted/20 p-3 cursor-pointer">
 									<input
 										type="checkbox"
-										bind:checked={newSalesIsShortcut}
+										bind:checked={$form.isShortcut}
 										class="size-4 rounded border-input text-amber-500 focus:ring-amber-500"
 									/>
 									<span class="flex items-center gap-1.5 text-xs font-semibold text-foreground">
-										<Star class="size-3.5 {newSalesIsShortcut ? 'fill-amber-500 text-amber-500' : 'text-muted-foreground'}" />
+										<Star class="size-3.5 {$form.isShortcut ? 'fill-amber-500 text-amber-500' : 'text-muted-foreground'}" />
 										Fijar como atajo rápido en la pantalla de ventas
 									</span>
 								</label>
@@ -332,10 +337,14 @@
 									<Label for="sp-step-desc">Descripción (opcional)</Label>
 									<Input
 										id="sp-step-desc"
-										bind:value={newSalesDescription}
+										name="description"
+										bind:value={$form.description}
 										placeholder="Ej. Incluye vela y cartel"
 										class="h-9 text-xs"
 									/>
+									{#if $errors.description}
+										<p class="text-xs text-destructive">{$errors.description}</p>
+									{/if}
 								</div>
 							</div>
 						{/if}
@@ -353,7 +362,7 @@
 							</Button>
 							<Button
 								type="button"
-								disabled={!newSalesName.trim()}
+								disabled={!$form.name.trim()}
 								onclick={() => (newSalesStep = 2)}
 							>
 								Siguiente →
@@ -366,9 +375,9 @@
 							>
 								← Atrás
 							</Button>
-							<Button type="submit">
+							<Button type="submit" disabled={$submitting}>
 								<Check class="size-4" />
-								<span>Guardar Producto</span>
+								<span>{$submitting ? 'Guardando...' : 'Guardar Producto'}</span>
 							</Button>
 						{/if}
 					</div>

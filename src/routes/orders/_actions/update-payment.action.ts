@@ -1,41 +1,38 @@
 import { fail, redirect, type RequestEvent } from '@sveltejs/kit';
+import { superValidate, message } from 'sveltekit-superforms';
+import { zod4 } from 'sveltekit-superforms/adapters';
 import { getServices } from '#lib/server/container';
-import {
-	PAYMENT_STATUSES,
-	type PaymentStatus
-} from '#lib/features/orders/domain/order.entity';
+import type { PaymentStatus } from '#lib/features/orders/domain/order.entity';
 import { resolveBusinessOrRedirect } from '#lib/server/business-resolver';
+import { updatePaymentSchema } from '$lib/schemas/order.schema';
 
 export async function updatePaymentAction({ request, locals, url }: RequestEvent) {
 	if (!locals.user) throw redirect(302, '/login');
-	const formData = await request.formData();
+
+	const form = await superValidate(request, zod4(updatePaymentSchema));
+	if (!form.valid) {
+		return fail(400, { form });
+	}
+
 	const businessIdParam =
-		String(formData.get('businessId') ?? '') || url.searchParams.get('business');
+		form.data.businessId || url.searchParams.get('business');
 	const { activeBusiness } = await resolveBusinessOrRedirect(locals.user.id, businessIdParam);
 
 	const { orderService } = getServices();
-	const orderId = String(formData.get('orderId') ?? '');
-	const paidAmount = Number(formData.get('paidAmount') ?? 0);
-	const paymentStatusRaw = String(formData.get('paymentStatus') ?? '') as PaymentStatus;
-	const paymentStatus = PAYMENT_STATUSES.includes(paymentStatusRaw)
-		? paymentStatusRaw
-		: undefined;
-	const transactionId = String(formData.get('transactionId') ?? '').trim() || null;
+	const { orderId, paidAmount, paymentStatus, transactionId } = form.data;
 
 	try {
 		const updated = await orderService.updateOrderPayment(
 			activeBusiness.id,
 			orderId,
-			Number.isFinite(paidAmount) && paidAmount >= 0 ? paidAmount : 0,
-			paymentStatus,
-			transactionId
+			paidAmount,
+			paymentStatus as PaymentStatus | undefined,
+			transactionId?.trim() || null
 		);
-		return {
-			success: true,
-			message: `Pago de la orden ${updated.orderNumber} actualizado.`
-		};
+		return message(form, `Pago de la orden ${updated.orderNumber} actualizado.`);
 	} catch (e) {
 		return fail(400, {
+			form,
 			error: e instanceof Error ? e.message : 'Error al actualizar el pago.'
 		});
 	}
