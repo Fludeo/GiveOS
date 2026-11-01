@@ -41,6 +41,13 @@ export const UNIT_LABELS: Record<UnitOfMeasure, string> = {
 	unit: 'Unidad (un)'
 };
 
+export interface ProductionLedgerEntry {
+	itemId: string;
+	consumedFromStockQty: number;
+	surplusAddedQty: number;
+	surplusBatchId?: string;
+}
+
 export interface ItemStockBatch {
 	id: string;
 	createdAt: string; // ISO 8601 string
@@ -50,6 +57,8 @@ export interface ItemStockBatch {
 	unitCost: number;
 	supplier?: string | null;
 	notes?: string | null;
+	/** Registro del impacto multinivel de esta tanda producida para reversión exacta */
+	productionLedger?: ProductionLedgerEntry[];
 }
 
 /** Línea de costo operativo asignado a una receta */
@@ -482,4 +491,21 @@ export function calculateRecipeOperationalSummary(
 		operationalUnitCost: Math.round((operationalTotalCost / yieldQty) * 100) / 100,
 		costs
 	};
+}
+
+/**
+ * Determina si una elaboración permite producirse de forma divisible/proporcional (ej. 1 unidad suelta de un lote de 9)
+ * o si debe fabricarse obligatoriamente en múltiplos enteros de su rendimiento `yieldQuantity` (Tanda Fija de horno/batidora).
+ */
+export function isRecipeDivisible(
+	item: Pick<Item, 'isPrepTimeScalable' | 'recipeConfig'>
+): boolean {
+	if (Boolean(item.recipeConfig?.isScalable) || Boolean(item.isPrepTimeScalable)) {
+		return true;
+	}
+	const costs = item.recipeConfig?.operationalCosts;
+	if (costs && costs.length > 0 && costs.every((c) => Boolean(c.isScalable))) {
+		return true;
+	}
+	return false;
 }

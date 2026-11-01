@@ -56,9 +56,10 @@ export async function addStockBatchAction({ request, locals, url }: RequestEvent
 			);
 		}
 	} catch (e) {
-		return fail(400, {
+		return message(
 			form,
-			error: e instanceof Error ? e.message : 'Error al registrar la carga de stock.'
-		});
+			e instanceof Error ? e.message : 'Error al registrar la carga de stock.',
+			{ status: 400 }
+		);
 	}
 }

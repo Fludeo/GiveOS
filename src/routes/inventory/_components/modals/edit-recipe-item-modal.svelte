@@ -109,6 +109,7 @@
 				<input type="hidden" name="minStock" value={$form.minStock} />
 				<input type="hidden" name="prepTimeMinutes" value={$form.prepTimeMinutes} />
 				<input type="hidden" name="passiveTimeMinutes" value={$form.passiveTimeMinutes} />
+				<input type="hidden" name="isPrepTimeScalable" value={$form.isPrepTimeScalable ? 'true' : ''} />
 
 				<!-- Nombre -->
 				<div class="space-y-1.5">
@@ -126,7 +127,7 @@
 					{/if}
 				</div>
 
-				<!-- Parámetros de Receta: Rendimiento y Modalidad Make-to-Order -->
+				<!-- Parámetros de Receta: Rendimiento y Modalidad -->
 				<div class="space-y-1.5">
 					<Label for="edit-yieldQuantity" class="flex items-center gap-1.5 font-semibold text-foreground">
 						<CirclePile class="size-3.5 text-secondary" />
@@ -146,8 +147,46 @@
 						<p class="text-xs text-destructive">{$errors.yieldQuantity}</p>
 					{/if}
 					<p class="text-[11px] text-muted-foreground">
-						Cantidad producida por cada tanda completa.
+						Cantidad producida por cada tanda completa de la fórmula.
 					</p>
+				</div>
+
+				<!-- Modalidad de Lote: Tanda Fija vs Divisible por Unidad -->
+				<div class="space-y-1.5">
+					<Label class="font-semibold text-foreground text-xs">
+						Modalidad de Producción del Lote
+					</Label>
+					<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+						<button
+							type="button"
+							onclick={() => ($form.isPrepTimeScalable = false)}
+							class="rounded-xl border p-3 text-left transition-all cursor-pointer {!$form.isPrepTimeScalable
+								? 'border-secondary bg-secondary/10 ring-1 ring-secondary/30'
+								: 'border-border bg-card hover:bg-muted/40'}"
+						>
+							<div class="text-xs font-bold text-foreground">
+								Por Tanda Fija ({$form.yieldQuantity || 1} {item.baseUnit === 'unit' ? 'un' : item.baseUnit})
+							</div>
+							<p class="mt-0.5 text-[11px] text-muted-foreground leading-snug">
+								Siempre llena el horno/batidora con el lote entero. Si otra receta pide menos, fabrica la tanda completa y guarda el sobrante en stock.
+							</p>
+						</button>
+
+						<button
+							type="button"
+							onclick={() => ($form.isPrepTimeScalable = true)}
+							class="rounded-xl border p-3 text-left transition-all cursor-pointer {$form.isPrepTimeScalable
+								? 'border-secondary bg-secondary/10 ring-1 ring-secondary/30'
+								: 'border-border bg-card hover:bg-muted/40'}"
+						>
+							<div class="text-xs font-bold text-foreground">
+								Divisible por Unidad (1 a 1)
+							</div>
+							<p class="mt-0.5 text-[11px] text-muted-foreground leading-snug">
+								Aunque la fórmula rinda {$form.yieldQuantity || 1}, permite fabricar de a 1 unidad suelta descontando la fracción proporcional.
+							</p>
+						</button>
+					</div>
 				</div>
 
 				<!-- Elaboración a Demanda (Make-to-Order / JIT) -->

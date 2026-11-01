@@ -3,13 +3,16 @@
 	import { superForm } from 'sveltekit-superforms';
 	import type { SuperValidated, Infer } from 'sveltekit-superforms';
 	import type { AddStockBatchSchema } from '#lib/schemas/stock-batch.schema';
-	import type { Item, ItemStockBatch } from '#lib/features/items/domain/item.entity';
+	import type { Item, ItemStockBatch, UnitOfMeasure } from '#lib/features/items/domain/item.entity';
 	import {
 		getDirectUnitCost,
-		convertQuantity,
-		ITEM_TYPE_CONFIG
+		isRecipeDivisible
 	} from '#lib/features/items/domain/item.entity';
-	import type { RecipeTreeNode } from '#lib/features/recipes/domain/recipe.entity';
+	import {
+		calculateMaxProducibleQuantity,
+		simulateMultiLevelProduction,
+		type RecipeTreeNode
+	} from '#lib/features/recipes/domain/recipe.entity';
 	import { Button } from '#lib/components/ui/button';
 	import { Input } from '#lib/components/ui/input';
 	import { Label } from '#lib/components/ui/label';
@@ -20,8 +23,6 @@
 	import History from '@lucide/svelte/icons/history';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
-	import CircleCheck from '@lucide/svelte/icons/circle-check';
-	import ArrowRight from '@lucide/svelte/icons/arrow-right';
 	import Sparkles from '@lucide/svelte/icons/sparkles';
 	import Info from '@lucide/svelte/icons/info';
 	import Layers from '@lucide/svelte/icons/layers';
@@ -80,7 +81,7 @@
 	let isDeletingBatch = $state(false);
 
 	// svelte-ignore state_referenced_locally
-	const { form, errors, enhance, submitting, reset } = superForm(formData, {
+	const { form, errors, message, enhance, submitting, reset } = superForm(formData, {
 		onResult({ result }) {
 			if (result.type === 'success') {
 				handleClose();
@@ -94,19 +95,23 @@
 	const yieldQuantity = $derived(
 		item?.yieldQuantity && item.yieldQuantity > 0 ? item.yieldQuantity : 1
 	);
+	const isDivisible = $derived(item ? isRecipeDivisible(item) : false);
 
 	$effect(() => {
 		if (open) {
 			if (initialQty !== '' && Number(initialQty) > 0) {
 				if (item?.type === 'prepared') {
 					const y = item.yieldQuantity && item.yieldQuantity > 0 ? item.yieldQuantity : 1;
-					stockIntakeQty = Number((Math.max(y, Math.ceil(Number(initialQty) / y) * y)).toFixed(2));
+					const div = isRecipeDivisible(item);
+					stockIntakeQty = div
+						? Number(Number(initialQty).toFixed(2))
+						: Number((Math.max(y, Math.ceil(Number(initialQty) / y) * y)).toFixed(2));
 				} else {
 					stockIntakeQty = Number(Number(initialQty).toFixed(2));
 				}
 			} else if (item?.type === 'prepared') {
 				const y = item.yieldQuantity && item.yieldQuantity > 0 ? item.yieldQuantity : 1;
-				stockIntakeQty = y;
+				stockIntakeQty = isRecipeDivisible(item) ? 1 : y;
 			} else {
 				stockIntakeQty = '';
 			}
@@ -121,6 +126,7 @@
 
 	function handleClose() {
 		open = false;
+		reset();
 		onClose();
 	}
 
@@ -133,181 +139,115 @@
 		return 0;
 	});
 
-	// Paso inteligente: para elaborados usa múltiplos del rendimiento de la receta (yieldQuantity)
+	// Paso inteligente: si la receta es divisible permite avanzar de a 1; si es Tanda Fija avanza de a yieldQuantity
 	const stepperStep = $derived.by(() => {
 		if (!item) return 1;
 		if (item.type === 'prepared') {
-			return yieldQuantity;
+			return isDivisible ? 1 : yieldQuantity;
 		}
 		if (item.baseUnit === 'g' || item.baseUnit === 'ml') return 50;
 		if (item.baseUnit === 'kg' || item.baseUnit === 'l') return 1;
 		return 1;
 	});
 
-	interface SubRecipeImpact {
-		node: RecipeTreeNode;
-		component: Item;
-		requiredPerParentUnit: number;
-		consumedForInput: number;
-		currentStock: number;
-		remainingStock: number;
-		isDeficit: boolean;
-		deficitQty: number;
-		isLowStock: boolean;
-	}
+	const itemsMap = $derived.by(() => {
+		const map = new Map<string, Item>();
+		for (const i of allItems) {
+			map.set(i.id, i);
+		}
+		if (item && !map.has(item.id)) {
+			map.set(item.id, item);
+		}
+		return map;
+	});
 
-	interface ComponentImpact {
-		node: RecipeTreeNode;
-		component: Item;
-		requiredPerParentUnit: number;
-		consumedForInput: number;
-		currentStock: number;
-		remainingStock: number;
-		isDeficit: boolean;
-		deficitQty: number;
-		isLowStock: boolean;
-		isMakeToOrder: boolean;
-		maxProducibleUnits: number;
-		subIngredients?: SubRecipeImpact[];
-	}
-
-	// Cálculo reactivo del consumo en tiempo real y capacidad por cada componente (con desglose de Make-To-Order)
-	const impacts = $derived.by<ComponentImpact[]>(() => {
-		if (!item || item.type !== 'prepared' || recipeNodes.length === 0) return [];
-		const inputQty =
-			typeof stockIntakeQty === 'number' && !isNaN(stockIntakeQty)
-				? Math.max(0, stockIntakeQty)
-				: 0;
-		const batchFactor = inputQty / yieldQuantity;
-
-		return recipeNodes.map((node) => {
-			const comp = allItems.find((i) => i.id === node.component.id) ?? node.component;
-			const isMakeToOrder = comp.type === 'prepared' && Boolean(comp.recipeConfig?.isMakeToOrder);
-			// Cantidad necesaria en la unidad base del componente para 1 tanda de rendimiento
-			const requiredInCompBaseForBatch = convertQuantity(node.quantity, node.unit, comp.baseUnit);
-			const requiredPerParentUnit = requiredInCompBaseForBatch / yieldQuantity;
-
-			// Cantidad consumida para la cantidad actualmente ingresada
-			const consumedForInput = convertQuantity(
-				node.quantity * batchFactor,
-				node.unit,
-				comp.baseUnit
+	const linesByParentMap = $derived.by(() => {
+		const map = new Map<
+			string,
+			Array<{ componentItemId: string; quantity: number; unit: UnitOfMeasure }>
+		>();
+		for (const [parentId, summary] of Object.entries(recipeSummaries ?? {})) {
+			map.set(
+				parentId,
+				(summary?.nodes ?? []).map((n) => ({
+					componentItemId: n.component.id,
+					quantity: n.quantity,
+					unit: n.unit
+				}))
 			);
-			const currentStock = comp.currentStock;
-			const remainingStock = currentStock - consumedForInput;
+		}
+		if (item && recipeSummary && !map.has(item.id)) {
+			map.set(
+				item.id,
+				(recipeSummary.nodes ?? []).map((n) => ({
+					componentItemId: n.component.id,
+					quantity: n.quantity,
+					unit: n.unit
+				}))
+			);
+		}
+		return map;
+	});
 
-			// Si es make-to-order (a demanda), no se considera déficit de stock físico directo del elaborado
-			let isDeficit = !isMakeToOrder && inputQty > 0 && remainingStock < -0.0001;
-			let deficitQty = isDeficit ? Math.abs(remainingStock) : 0;
-			let isLowStock = !isMakeToOrder && inputQty > 0 && !isDeficit && remainingStock <= comp.minStock;
+	const inputQtyNum = $derived(
+		typeof stockIntakeQty === 'number' && !isNaN(stockIntakeQty) && stockIntakeQty > 0
+			? stockIntakeQty
+			: 0
+	);
 
-			let maxProducibleUnits = Infinity;
-			let subIngredients: SubRecipeImpact[] | undefined;
-
-			if (isMakeToOrder) {
-				// Explotar sub-receta del elaborado a demanda
-				const subSummary = recipeSummaries[comp.id] ?? (comp.id === node.component.id && node.children.length > 0 ? { nodes: node.children } : undefined);
-				const subNodes = subSummary?.nodes ?? [];
-				const subYield = comp.yieldQuantity > 0 ? comp.yieldQuantity : 1;
-
-				if (subNodes.length > 0) {
-					subIngredients = subNodes.map((subNode) => {
-						const subComp = allItems.find((i) => i.id === subNode.component.id) ?? subNode.component;
-						// Cantidad de sub-ingrediente necesaria por cada unidad del componente intermedio
-						const subReqPerIntermediate = convertQuantity(subNode.quantity, subNode.unit, subComp.baseUnit) / subYield;
-						// Cantidad de sub-ingrediente necesaria por cada unidad del producto padre principal
-						const subReqPerParentUnit = subReqPerIntermediate * requiredPerParentUnit;
-						const subConsumedForInput = subReqPerParentUnit * inputQty;
-						const subRemStock = subComp.currentStock - subConsumedForInput;
-						const subDeficit = inputQty > 0 && subRemStock < -0.0001;
-						const subDefQty = subDeficit ? Math.abs(subRemStock) : 0;
-						const subLow = inputQty > 0 && !subDeficit && subRemStock <= subComp.minStock;
-
-						return {
-							node: subNode,
-							component: subComp,
-							requiredPerParentUnit: subReqPerParentUnit,
-							consumedForInput: subConsumedForInput,
-							currentStock: subComp.currentStock,
-							remainingStock: subRemStock,
-							isDeficit: subDeficit,
-							deficitQty: subDefQty,
-							isLowStock: subLow
-						};
-					});
-
-					// Si algún sub-ingrediente tiene déficit, el elaborado a demanda se marca con déficit de materia prima
-					if (subIngredients.some((s) => s.isDeficit)) {
-						isDeficit = true;
-					}
-
-					// El límite de unidades del padre que se pueden hacer viene limitado por el cuello de botella de sus sub-ingredientes
-					const subLimits = subIngredients.map((s) =>
-						s.requiredPerParentUnit > 0 ? Math.max(0, s.currentStock / s.requiredPerParentUnit) : Infinity
-					);
-					maxProducibleUnits = subLimits.length > 0 ? Math.min(...subLimits) : Infinity;
-				}
-			} else {
-				maxProducibleUnits = requiredPerParentUnit > 0
-					? Math.max(0, comp.currentStock / requiredPerParentUnit)
-					: Infinity;
-			}
-
-			return {
-				node,
-				component: comp,
-				requiredPerParentUnit,
-				consumedForInput,
-				currentStock,
-				remainingStock,
-				isDeficit,
-				deficitQty,
-				isLowStock,
-				isMakeToOrder,
-				maxProducibleUnits,
-				subIngredients
-			};
+	// Simulación multinivel exacta (idéntica al backend)
+	const simulation = $derived.by(() => {
+		if (!item || item.type !== 'prepared') return null;
+		const previewQty = inputQtyNum > 0 ? inputQtyNum : isDivisible ? 1 : yieldQuantity;
+		return simulateMultiLevelProduction({
+			rootItemId: item.id,
+			producedQty: previewQty,
+			itemsById: itemsMap,
+			linesByParent: linesByParentMap
 		});
 	});
 
-	// Stock máximo potencial que se podría elaborar con todas las existencias actuales
-	const maxProducible = $derived.by(() => {
-		if (impacts.length === 0) return null;
-		const minVal = Math.min(...impacts.map((i) => i.maxProducibleUnits));
-		if (!Number.isFinite(minVal) || minVal < 0) return 0;
-		return Math.round(minVal * 100) / 100;
+	const maxCapacityInfo = $derived.by(() => {
+		if (!item || item.type !== 'prepared' || !hasRecipe) return null;
+		return calculateMaxProducibleQuantity({
+			rootItemId: item.id,
+			itemsById: itemsMap,
+			linesByParent: linesByParentMap
+		});
 	});
 
-	// Insumo o elaborado limitante (cuello de botella)
-	const bottleneckComponents = $derived.by(() => {
-		if (maxProducible === null || impacts.length === 0) return [];
-		return impacts.filter((i) => Math.abs(i.maxProducibleUnits - maxProducible) < 0.01);
-	});
+	const maxProducible = $derived(maxCapacityInfo ? maxCapacityInfo.maxQuantity : null);
+	const bottleneckNames = $derived(maxCapacityInfo ? maxCapacityInfo.bottleneckNames : []);
 
-	const hasAnyDeficit = $derived(impacts.some((i) => i.isDeficit));
-	const deficitCount = $derived(impacts.filter((i) => i.isDeficit).length);
+	const hasAnyDeficit = $derived(
+		Boolean(
+			item?.type === 'prepared' &&
+				hasRecipe &&
+				inputQtyNum > 0 &&
+				simulation &&
+				!simulation.canProduce
+		)
+	);
+	const deficitCount = $derived(
+		simulation
+			? simulation.rawMaterials.filter((r) => r.isShortage).length +
+					simulation.subAssemblies.filter((s) => s.missingRecipeError).length
+			: 0
+	);
 
-		// Cálculo del tiempo estimado de preparación/horneado
-	// Si isPrepTimeScalable es true, escala proporcionalmente por unidad producida.
-	// Si es false, se calcula por tandas completas (tiempo fijo de horneado/lote).
+	// Cálculo del tiempo estimado de preparación/horneado
 	const estimatedTimeMinutes = $derived.by(() => {
 		if (!item || item.type !== 'prepared' || !item.prepTimeMinutes || item.prepTimeMinutes <= 0) {
 			return 0;
 		}
-		const inputQty =
-			typeof stockIntakeQty === 'number' && !isNaN(stockIntakeQty) && stockIntakeQty > 0
-				? stockIntakeQty
-				: 0;
-
-		if (item.isPrepTimeScalable) {
-			if (inputQty <= 0) return 0;
-			return Math.round(item.prepTimeMinutes * inputQty);
+		if (isDivisible) {
+			if (inputQtyNum <= 0) return 0;
+			return Math.round((item.prepTimeMinutes / yieldQuantity) * inputQtyNum);
 		}
-
-		if (inputQty <= 0) {
+		if (inputQtyNum <= 0) {
 			return item.prepTimeMinutes;
 		}
-		const tandas = Math.ceil(inputQty / yieldQuantity);
+		const tandas = Math.ceil(inputQtyNum / yieldQuantity);
 		return tandas * item.prepTimeMinutes;
 	});
 
@@ -334,7 +274,7 @@
 			<!-- Encabezado del Modal -->
 			<div class="flex items-start justify-between gap-4 border-b border-border p-6 pb-4">
 				<div class="space-y-1">
-					<div class="flex items-center gap-2">
+					<div class="flex flex-wrap items-center gap-2">
 						<span
 							class="rounded px-1.5 py-0.5 font-mono text-[10px] font-semibold tracking-tight bg-muted text-muted-foreground"
 						>
@@ -343,6 +283,13 @@
 						<span class="rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold text-muted-foreground">
 							{item.type === 'raw_material' ? 'Insumo' : 'Elaboración'}
 						</span>
+						{#if item.type === 'prepared'}
+							<span class="rounded-full border border-secondary/30 bg-secondary/10 px-2.5 py-0.5 font-mono text-[11px] font-bold text-secondary">
+								{isDivisible
+									? `Divisible (1 a 1 · Receta base: ${yieldQuantity} ${item.baseUnit === 'unit' ? 'un' : item.baseUnit})`
+									: `Tanda Fija (${yieldQuantity} ${item.baseUnit === 'unit' ? 'un' : item.baseUnit}/lote)`}
+							</span>
+						{/if}
 					</div>
 					<h2 class="text-xl font-bold text-foreground">
 						Cargar Stock: {item.name}
@@ -351,7 +298,7 @@
 						{#if item.type === 'raw_material'}
 							Ingresa la cantidad comprada y el costo total abonado. El sistema actualizará el stock y calculará el costo unitario ponderado.
 						{:else}
-							Ingresa la cantidad producida. Se actualizará el stock de esta elaboración y se descontarán los ingredientes de la receta según el stock disponible.
+							Ingresa la cantidad producida. Si faltan sub-elaborados intermedios, el sistema producirá sus tandas automáticamente (dejando sobrantes en stock) y descontará los insumos base.
 						{/if}
 					</p>
 				</div>
@@ -368,6 +315,13 @@
 
 			<!-- Contenido con scroll -->
 			<div class="flex-1 space-y-5 overflow-y-auto p-6">
+				{#if $message}
+					<div class="flex items-start gap-2.5 rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive">
+						<TriangleAlert class="size-4 shrink-0 mt-0.5" />
+						<span class="font-medium leading-relaxed">{$message}</span>
+					</div>
+				{/if}
+
 				<!-- Métricas Rápidas del Ítem -->
 				<div
 					class="grid grid-cols-2 gap-3 rounded-xl border border-border bg-muted/20 p-3.5 sm:grid-cols-4"
@@ -433,7 +387,7 @@
 									<p class="font-mono text-base font-bold {maxProducible > 0 ? 'text-primary' : 'text-destructive'}">
 										{formatQuantity(maxProducible)} <span class="text-xs font-normal text-muted-foreground">{item.baseUnit}</span>
 									</p>
-									<p class="text-[10px] text-muted-foreground">según receta</p>
+									<p class="text-[10px] text-muted-foreground">según BOM multinivel</p>
 								{:else}
 									<p class="text-xs text-muted-foreground">Sin receta</p>
 									<p class="text-[10px] text-transparent select-none">&nbsp;</p>
@@ -445,15 +399,15 @@
 
 				<!-- Aviso sólo si la elaboración no tiene receta -->
 				{#if item.type === 'prepared' && !hasRecipe}
-					<div class="flex items-center justify-between rounded-xl border border-dashed border-border bg-muted/20 px-3.5 py-2.5 text-xs text-muted-foreground">
+					<div class="flex items-center justify-between rounded-xl border border-destructive/30 bg-destructive/10 px-3.5 py-2.5 text-xs text-destructive">
 						<div class="flex items-center gap-2">
-							<Info class="size-4 text-muted-foreground" />
-							<span>Esta elaboración aún no tiene ingredientes en su receta.</span>
+							<Info class="size-4 shrink-0" />
+							<span>Esta elaboración aún no tiene ingredientes en su receta. Configúrala para poder registrar producción.</span>
 						</div>
 						{#if onOpenRecipeStructure}
 							<button
 								type="button"
-								class="inline-flex items-center gap-1 font-semibold text-primary hover:underline cursor-pointer"
+								class="inline-flex items-center gap-1 font-bold text-destructive hover:underline cursor-pointer shrink-0"
 								onclick={() => {
 									const targetId = item.id;
 									handleClose();
@@ -479,7 +433,7 @@
 					<input type="hidden" name="id" value={item.id} />
 
 					<div class="grid grid-cols-1 gap-4 {item.type === 'raw_material' ? 'sm:grid-cols-2' : ''}">
-						<!-- Cantidad Comprada / Producida con NumberStepper al estilo /ui-design -->
+						<!-- Cantidad Comprada / Producida con NumberStepper -->
 						<div class="space-y-1.5">
 							<div class="flex items-center gap-2">
 								<Label for="stock-intake-qty" class="text-xs font-semibold text-foreground">
@@ -503,8 +457,20 @@
 								/>
 
 								{#if item.type === 'prepared'}
-									<!-- Botones rápidos de múltiplos de receta (1x, 2x, 3x, 4x) -->
+									<!-- Botones rápidos de unidad (si es divisible) y múltiplos de receta (1x, 2x, 3x, 4x) -->
 									<div class="inline-flex items-center gap-1 rounded-lg border border-border bg-muted/30 p-0.5">
+										{#if isDivisible && yieldQuantity > 1}
+											<button
+												type="button"
+												onclick={() => (stockIntakeQty = 1)}
+												class="rounded-md px-2 py-1 font-mono text-[11px] font-bold transition-colors cursor-pointer {Number(stockIntakeQty) === 1
+													? 'bg-secondary text-secondary-foreground shadow-2xs'
+													: 'text-muted-foreground hover:text-foreground hover:bg-background'}"
+												title="Producir 1 unidad suelta"
+											>
+												1 {item.baseUnit === 'unit' ? 'un' : item.baseUnit}
+											</button>
+										{/if}
 										{#each [1, 2, 3, 4] as mult (mult)}
 											{@const multQty = Number((yieldQuantity * mult).toFixed(2))}
 											{@const isSelected = Number(stockIntakeQty) === multQty}
@@ -522,7 +488,7 @@
 									</div>
 								{/if}
 
-								<!-- A la derecha del input la info de máximo disponible con símbolo de caja (Package) -->
+								<!-- Info de máximo disponible según BOM multinivel -->
 								{#if item.type === 'prepared' && maxProducible !== null}
 									{#if maxProducible > 0}
 										<button
@@ -531,7 +497,7 @@
 												stockIntakeQty = maxProducible;
 											}}
 											class="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 font-mono text-xs font-bold text-foreground shadow-2xs hover:border-primary hover:bg-primary/5 hover:text-primary active:scale-95 transition-all cursor-pointer"
-											title={bottleneckComponents.length > 0 ? `Limitado por: ${bottleneckComponents.map(b => `${b.component.name} (${formatQuantity(b.currentStock)} ${b.component.baseUnit})`).join(', ')}` : 'Cargar capacidad máxima'}
+											title={bottleneckNames.length > 0 ? `Limitado por: ${bottleneckNames.join(', ')}` : 'Cargar capacidad máxima'}
 										>
 											<Package class="size-3.5 text-primary" />
 											<span>Máx: {formatQuantity(maxProducible)} {item.baseUnit}</span>
@@ -539,7 +505,7 @@
 									{:else}
 										<div
 											class="inline-flex h-9 items-center gap-1.5 rounded-lg border border-destructive/30 bg-destructive/10 px-2.5 font-mono text-xs font-bold text-destructive"
-											title={bottleneckComponents.length > 0 ? `Sin stock en: ${bottleneckComponents.map(b => b.component.name).join(', ')}` : 'Sin stock disponible'}
+											title={bottleneckNames.length > 0 ? `Falta stock en: ${bottleneckNames.join(', ')}` : 'Sin stock disponible de insumos'}
 										>
 											<Package class="size-3.5 text-destructive" />
 											<span>Máx: 0 {item.baseUnit}</span>
@@ -551,9 +517,9 @@
 								{#if item.type === 'prepared' && estimatedTimeMinutes > 0}
 									<div
 										class="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-muted/30 px-2.5 font-mono text-xs font-semibold text-foreground/90 select-none"
-										title={item.isPrepTimeScalable ? `Tiempo estimado: ${item.prepTimeMinutes} min/un × ${stockIntakeQty || 0} ${item.baseUnit === 'unit' ? 'un' : item.baseUnit}` : "Tiempo estimado por tanda completa (/ lote)"}
+										title={isDivisible ? 'Tiempo estimado proporcional por unidad' : 'Tiempo estimado por tanda completa (/ lote)'}
 									>
-										{#if item.isPrepTimeScalable}
+										{#if isDivisible}
 											<ClockFading class="size-3.5 text-secondary shrink-0" />
 										{:else}
 											<Clock class="size-3.5 text-secondary shrink-0" />
@@ -625,198 +591,190 @@
 						</div>
 					{/if}
 
-					<!-- Panel en Vivo: Consumo de Receta y Stock Resultante para Elaborados -->
-					{#if item.type === 'prepared' && hasRecipe}
-						{@const inputQty = typeof stockIntakeQty === 'number' && stockIntakeQty > 0 ? stockIntakeQty : 0}
-						<div class="space-y-2.5 rounded-xl border border-border bg-card p-3.5 shadow-2xs">
+					<!-- Panel en Vivo: Explosión BOM Multinivel (Sub-elaborados + Materias Primas) -->
+					{#if item.type === 'prepared' && hasRecipe && simulation}
+						<div class="space-y-3 rounded-xl border border-border bg-card p-3.5 shadow-2xs">
 							<div class="flex h-7 items-center justify-between gap-2 border-b border-border/60 pb-2">
 								<div class="flex items-center gap-2">
 									<Layers class="size-4 text-secondary" />
 									<h3 class="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-										Consumo de Receta
+										Explosión BOM y Consumo de Insumos
 									</h3>
 								</div>
 								<div class="flex h-5 items-center">
-									{#if inputQty > 0 && hasAnyDeficit}
-										<span
-											class="inline-flex items-center gap-1 font-mono text-xs font-bold text-destructive"
-										>
+									{#if inputQtyNum > 0 && hasAnyDeficit}
+										<span class="inline-flex items-center gap-1 font-mono text-xs font-bold text-destructive">
 											<TriangleAlert class="size-3.5" />
-											<span>{deficitCount} {deficitCount === 1 ? 'insuficiente' : 'insuficientes'}</span>
+											<span>{deficitCount} {deficitCount === 1 ? 'faltante bloqueante' : 'faltantes bloqueantes'}</span>
 										</span>
 									{/if}
 								</div>
 							</div>
 
-							<!-- Lista de ingredientes / elaborados componentes -->
-							<div class="space-y-1.5 max-h-56 overflow-y-auto pr-1">
-								{#each impacts as imp (imp.node.lineId)}
-									{@const isPrepared = imp.component.type === 'prepared'}
-									{@const remainingPct = imp.currentStock > 0
-										? Math.max(0, Math.min(100, Math.round((imp.remainingStock / imp.currentStock) * 100)))
-										: 0}
-									<div
-										class="rounded-lg border px-3 py-2 transition-colors {imp.isDeficit
-											? 'border-destructive/40 bg-destructive/5'
-											: imp.isLowStock
-												? 'border-amber-500/30 bg-amber-500/5'
-												: 'border-border/50 bg-muted/10'}"
-									>
-										<div class="flex flex-wrap items-center justify-between gap-2 text-xs">
-											<!-- Nombre, Código y Badge de Tipo -->
-											<div class="flex items-center gap-2 min-w-0">
-												<span
-													class="size-2 shrink-0 rounded-full {imp.isDeficit
-														? 'bg-destructive animate-pulse'
-														: imp.isLowStock
-															? 'bg-amber-500'
-															: 'bg-emerald-500'}"
-													title={imp.isDeficit
-														? 'Stock insuficiente'
-														: imp.isLowStock
-															? 'Quedará en stock bajo'
-															: 'Stock suficiente'}
-												></span>
-												<span class="font-mono text-[10px] font-bold text-muted-foreground">
-													{imp.component.code}
-												</span>
-												<span class="font-semibold text-foreground truncate max-w-[140px] sm:max-w-[200px]" title={imp.component.name}>
-													{imp.component.name}
-												</span>
-												<span
-													class="rounded px-1.5 py-0.2 font-mono text-[9px] font-semibold {isPrepared
-														? 'border border-secondary/30 bg-secondary/15 text-secondary'
-														: 'border border-tertiary/40 bg-tertiary/20 text-yellow-900 dark:text-yellow-300'}"
-												>
-													{isPrepared ? 'ELB' : 'INS'}
-												</span>
-											</div>
-
-											<!-- Consumo y Stock Resultante con símbolo de caja (Package) -->
-											<div class="flex items-center gap-3 font-mono text-xs shrink-0">
-												<!-- Consumo -->
-												<span
-													class="font-bold {inputQty > 0
-														? 'text-destructive dark:text-red-400'
-														: 'text-muted-foreground'}"
-												>
-													{inputQty > 0
-														? `-${formatQuantity(imp.consumedForInput)}`
-														: `${formatQuantity(imp.requiredPerParentUnit)}/u`} {imp.component.baseUnit}
-												</span>
-
-												<span class="text-muted-foreground/30">|</span>
-
-												<!-- Stock con símbolo de caja 📦 -->
-												<div class="flex items-center gap-1.5">
-													{#if imp.isMakeToOrder}
-														<span class="inline-flex items-center gap-1 rounded bg-secondary/15 px-1.5 py-0.2 font-mono text-[10px] font-bold text-secondary">
-															<Sparkles class="size-3" />
-															A Demanda (Preparar {formatQuantity(imp.consumedForInput > 0 ? imp.consumedForInput : imp.requiredPerParentUnit)} {imp.component.baseUnit})
+							<div class="space-y-3 max-h-64 overflow-y-auto pr-1">
+								<!-- 1. Sub-elaborados intermedios -->
+								{#if simulation.subAssemblies.length > 0}
+									<div class="space-y-1.5">
+										<span class="text-[10px] font-bold uppercase tracking-wider text-secondary block">
+											Sub-elaborados intermedios ({simulation.subAssemblies.length})
+										</span>
+										{#each simulation.subAssemblies as sub (sub.item.id)}
+											<div
+												class="rounded-lg border px-3 py-2 transition-colors {sub.missingRecipeError
+													? 'border-destructive/40 bg-destructive/5'
+													: sub.autoProducedQty > 0
+														? 'border-secondary/30 bg-secondary/5'
+														: 'border-border/50 bg-muted/10'}"
+											>
+												<div class="flex flex-wrap items-center justify-between gap-2 text-xs">
+													<div class="flex items-center gap-2 min-w-0">
+														<span
+															class="size-2 shrink-0 rounded-full {sub.missingRecipeError
+																? 'bg-destructive animate-pulse'
+																: sub.autoProducedQty > 0
+																	? 'bg-secondary'
+																	: 'bg-emerald-500'}"
+														></span>
+														<span class="font-mono text-[10px] font-bold text-muted-foreground">
+															{sub.item.code}
 														</span>
-													{:else}
-														<Package class="size-3.5 text-muted-foreground shrink-0" />
-														{#if inputQty > 0}
-															{#if imp.isDeficit}
+														<span class="font-semibold text-foreground truncate max-w-[140px] sm:max-w-[200px]" title={sub.item.name}>
+															{sub.item.name}
+														</span>
+														<span class="rounded border border-secondary/30 bg-secondary/15 px-1.5 py-0.2 font-mono text-[9px] font-semibold text-secondary">
+															{sub.isDivisible ? 'ELB · Divisible' : `ELB · Tanda ${sub.item.yieldQuantity} ${sub.item.baseUnit === 'unit' ? 'un' : sub.item.baseUnit}`}
+														</span>
+													</div>
+
+													<div class="flex flex-wrap items-center gap-2 font-mono text-xs shrink-0">
+														<span class="text-muted-foreground">
+															Req: <strong class="text-foreground">{formatQuantity(sub.requiredQty)} {sub.item.baseUnit}</strong>
+														</span>
+
+														{#if sub.usedFromStockQty > 0}
+															<span class="rounded bg-muted px-1.5 py-0.5 text-[10px] text-foreground">
+																Usa stock: -{formatQuantity(sub.usedFromStockQty)}
+															</span>
+														{/if}
+
+														{#if sub.autoProducedQty > 0}
+															<span class="inline-flex items-center gap-1 rounded bg-secondary/15 px-1.5 py-0.5 text-[10px] font-bold text-secondary">
+																<Sparkles class="size-3" />
+																Auto-fabrica +{formatQuantity(sub.autoProducedQty)} {sub.item.baseUnit}
+																{#if !sub.isDivisible && sub.item.yieldQuantity > 1}
+																	({sub.batchesAutoProduced}x)
+																{/if}
+															</span>
+														{/if}
+
+														{#if sub.surplusToStockQty > 0}
+															<span class="rounded bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-400">
+																+{formatQuantity(sub.surplusToStockQty)} {sub.item.baseUnit} sobrante a stock
+															</span>
+														{/if}
+
+														{#if !sub.isMakeToOrder}
+															<span class="text-muted-foreground">
+																| Stock: {formatQuantity(sub.item.currentStock)} → <strong class="text-foreground">{formatQuantity(sub.projectedFinalStock)}</strong> {sub.item.baseUnit}
+															</span>
+														{/if}
+													</div>
+												</div>
+											</div>
+										{/each}
+									</div>
+								{/if}
+
+								<!-- 2. Materias Primas / Insumos Base consolidados -->
+								{#if simulation.rawMaterials.length > 0}
+									<div class="space-y-1.5">
+										<span class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+											Insumos / Materias Primas a descontar ({simulation.rawMaterials.length})
+										</span>
+										{#each simulation.rawMaterials as raw (raw.item.id)}
+											{@const remainingPct = raw.availableStock > 0
+												? Math.max(0, Math.min(100, Math.round((raw.projectedFinalStock / raw.availableStock) * 100)))
+												: 0}
+											<div
+												class="rounded-lg border px-3 py-2 transition-colors {raw.isShortage
+													? 'border-destructive/40 bg-destructive/5'
+													: raw.isLowStock
+														? 'border-amber-500/30 bg-amber-500/5'
+														: 'border-border/50 bg-muted/10'}"
+											>
+												<div class="flex flex-wrap items-center justify-between gap-2 text-xs">
+													<div class="flex items-center gap-2 min-w-0">
+														<span
+															class="size-2 shrink-0 rounded-full {raw.isShortage
+																? 'bg-destructive animate-pulse'
+																: raw.isLowStock
+																	? 'bg-amber-500'
+																	: 'bg-emerald-500'}"
+														></span>
+														<span class="font-mono text-[10px] font-bold text-muted-foreground">
+															{raw.item.code}
+														</span>
+														<span class="font-semibold text-foreground truncate max-w-[140px] sm:max-w-[200px]" title={raw.item.name}>
+															{raw.item.name}
+														</span>
+														<span class="rounded border border-tertiary/40 bg-tertiary/20 px-1.5 py-0.2 font-mono text-[9px] font-semibold text-yellow-900 dark:text-yellow-300">
+															INS
+														</span>
+													</div>
+
+													<div class="flex items-center gap-3 font-mono text-xs shrink-0">
+														<span class="font-bold text-destructive dark:text-red-400">
+															-{formatQuantity(raw.requiredQty)} {raw.item.baseUnit}
+														</span>
+														<span class="text-muted-foreground/30">|</span>
+														<div class="flex items-center gap-1.5">
+															<Package class="size-3.5 text-muted-foreground shrink-0" />
+															{#if raw.isShortage}
 																<span class="font-bold text-destructive">
-																	Faltan {formatQuantity(imp.deficitQty)} {imp.component.baseUnit}
+																	Disp: {formatQuantity(raw.availableStock)} · Faltan {formatQuantity(raw.shortageQty)} {raw.item.baseUnit}
 																</span>
 															{:else}
 																<span class="text-foreground">
-																	{formatQuantity(imp.currentStock)} → <strong class="font-bold">{formatQuantity(imp.remainingStock)}</strong> {imp.component.baseUnit}
+																	{formatQuantity(raw.availableStock)} → <strong class="font-bold">{formatQuantity(raw.projectedFinalStock)}</strong> {raw.item.baseUnit}
 																</span>
 															{/if}
-														{:else}
-															<span class="text-muted-foreground">
-																{formatQuantity(imp.currentStock)} {imp.component.baseUnit}
-															</span>
-														{/if}
-													{/if}
-												</div>
-											</div>
-										</div>
-
-										<!-- Barra visual de stock remanente: comienza en 100% y desciende al descontar -->
-										{#if !imp.isMakeToOrder}
-											<div class="mt-1.5 flex items-center gap-2">
-												<div class="h-1.5 w-full overflow-hidden rounded-full bg-muted/50">
-													<div
-														class="h-full rounded-full transition-all duration-300 {imp.isDeficit
-															? 'bg-destructive'
-															: imp.isLowStock
-																? 'bg-amber-500'
-																: 'bg-emerald-500'}"
-														style="width: {inputQty > 0 ? remainingPct : 100}%"
-													></div>
-												</div>
-												<span class="w-7 text-right font-mono text-[9px] text-muted-foreground shrink-0">
-													{inputQty > 0 ? `${remainingPct}%` : '100%'}
-												</span>
-											</div>
-										{/if}
-
-										<!-- Desglose anidado de insumos requeridos si es fabricación a demanda (Make-To-Order) -->
-										{#if imp.isMakeToOrder && imp.subIngredients && imp.subIngredients.length > 0}
-											<div class="mt-2.5 rounded-md border border-secondary/20 bg-secondary/5 p-2 space-y-1.5">
-												<div class="flex items-center justify-between text-[10px] font-bold text-secondary uppercase tracking-wider">
-													<span class="flex items-center gap-1">
-														<Layers class="size-3" />
-														Materias primas a consumir para preparar el elaborado:
-													</span>
-													<span>Stock & Consumo</span>
-												</div>
-												<div class="space-y-1">
-													{#each imp.subIngredients as sub (sub.node.lineId)}
-														{@const subRemPct = sub.currentStock > 0
-															? Math.max(0, Math.min(100, Math.round((sub.remainingStock / sub.currentStock) * 100)))
-															: 0}
-														<div class="flex flex-wrap items-center justify-between gap-1 text-[11px] font-mono py-0.5 border-b border-border/30 last:border-none">
-															<div class="flex items-center gap-1.5 text-foreground">
-																<span
-																	class="size-1.5 rounded-full {sub.isDeficit
-																		? 'bg-destructive animate-pulse'
-																		: sub.isLowStock
-																			? 'bg-amber-500'
-																			: 'bg-emerald-500'}"
-																></span>
-																<span class="text-muted-foreground font-semibold">{sub.component.code}</span>
-																<span class="truncate max-w-[130px] sm:max-w-[180px]">{sub.component.name}</span>
-															</div>
-															<div class="flex items-center gap-2">
-																<span class="{inputQty > 0 ? 'text-destructive font-bold' : 'text-muted-foreground'}">
-																	{inputQty > 0 ? `-${formatQuantity(sub.consumedForInput)}` : `${formatQuantity(sub.requiredPerParentUnit)}/u`} {sub.component.baseUnit}
-																</span>
-																<span class="text-muted-foreground/40">|</span>
-																{#if inputQty > 0 && sub.isDeficit}
-																	<span class="font-bold text-destructive">
-																		Faltan {formatQuantity(sub.deficitQty)} {sub.component.baseUnit}
-																	</span>
-																{:else if inputQty > 0}
-																	<span class="text-muted-foreground">
-																		{formatQuantity(sub.currentStock)} → <strong class="text-foreground font-bold">{formatQuantity(sub.remainingStock)}</strong> {sub.component.baseUnit}
-																	</span>
-																{:else}
-																	<span class="text-muted-foreground">
-																		Stock: {formatQuantity(sub.currentStock)} {sub.component.baseUnit}
-																	</span>
-																{/if}
-															</div>
 														</div>
-													{/each}
+													</div>
+												</div>
+
+												<div class="mt-1.5 flex items-center gap-2">
+													<div class="h-1.5 w-full overflow-hidden rounded-full bg-muted/50">
+														<div
+															class="h-full rounded-full transition-all duration-300 {raw.isShortage
+																? 'bg-destructive'
+																: raw.isLowStock
+																	? 'bg-amber-500'
+																	: 'bg-emerald-500'}"
+															style="width: {inputQtyNum > 0 ? remainingPct : 100}%"
+														></div>
+													</div>
+													<span class="w-7 text-right font-mono text-[9px] text-muted-foreground shrink-0">
+														{inputQtyNum > 0 ? `${remainingPct}%` : '100%'}
+													</span>
 												</div>
 											</div>
-										{/if}
+										{/each}
 									</div>
-								{/each}
+								{/if}
 							</div>
 
-							<!-- Advertencia si la cantidad supera el stock existente -->
-							{#if hasAnyDeficit}
-								<div class="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-2.5 text-xs text-destructive">
+							<!-- Bloqueo si faltan insumos o sub-recetas -->
+							{#if hasAnyDeficit && simulation.blockingErrors.length > 0}
+								<div class="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive">
 									<TriangleAlert class="size-4 shrink-0 mt-0.5" />
-									<span>
-										<strong>Stock insuficiente:</strong> La cantidad a elaborar excede los ingredientes disponibles en {deficitCount} componente{deficitCount === 1 ? '' : 's'}. Si continúas, esos componentes se consumirán hasta agotarse a 0.
-									</span>
+									<div class="space-y-1">
+										<p class="font-bold">Producción bloqueada por falta de stock de insumos:</p>
+										<ul class="list-disc pl-4 space-y-0.5">
+											{#each simulation.blockingErrors as err}
+												<li>{err}</li>
+											{/each}
+										</ul>
+									</div>
 								</div>
 							{/if}
 						</div>
@@ -927,9 +885,8 @@
 														Total: {formatCurrency(totalCostVal)} · <span class="text-muted-foreground/80">{formatCurrency(batch.unitCost)}/{item.baseUnit}</span>
 													</p>
 												{:else}
-													<!-- Para elaboraciones: mostramos cuánto se cargó / restante -->
 													<p class="font-mono text-xs font-bold text-foreground">
-														+{formatQuantity(batch.initialQuantity)} {item.baseUnit} <span class="text-[11px] font-normal text-muted-foreground">cargados</span>
+														+{formatQuantity(batch.initialQuantity)} {item.baseUnit} <span class="text-[11px] font-normal text-muted-foreground">producidos</span>
 													</p>
 													<p class="font-mono text-[11px] text-muted-foreground">
 														{formatQuantity(batch.remainingQuantity)} {item.baseUnit} disponible{batch.remainingQuantity === 1 ? '' : 's'}
@@ -937,7 +894,6 @@
 												{/if}
 											</div>
 
-											<!-- Botón para disparar modal de confirmación -->
 											<Button
 												type="button"
 												size="icon"
@@ -993,9 +949,11 @@
 				<Button
 					type="submit"
 					form="add-stock-form"
-					disabled={$submitting || isSubmittingStock ||
+					disabled={$submitting ||
+						isSubmittingStock ||
 						!stockIntakeQty ||
 						Number(stockIntakeQty) <= 0 ||
+						(item.type === 'prepared' && (!hasRecipe || hasAnyDeficit)) ||
 						(item.type === 'raw_material' &&
 							(!stockIntakeTotalCost || Number(stockIntakeTotalCost) < 0))}
 				>
@@ -1065,7 +1023,7 @@
 							<div class="space-y-1">
 								<p class="font-bold">Se devolverán los insumos consumidos</p>
 								<p class="leading-relaxed">
-									Se descontarán los <strong class="font-mono">{formatQuantity(batchToDelete.remainingQuantity)} {item.baseUnit}</strong> del stock de esta elaboración y se <strong>restaurarán automáticamente todos los insumos e ingredientes</strong> consumidos en esta tanda a sus inventarios correspondientes.
+									Se descontarán los <strong class="font-mono">{formatQuantity(batchToDelete.remainingQuantity)} {item.baseUnit}</strong> del stock de esta elaboración, se retirarán los sobrantes de tanda generados y se <strong>restaurarán automáticamente todos los insumos e ingredientes</strong> consumidos a sus inventarios correspondientes.
 								</p>
 							</div>
 						</div>

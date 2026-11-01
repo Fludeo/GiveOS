@@ -64,6 +64,10 @@ export async function saveRecipeOperationalCostsAction({ request, locals, url }:
 		...currentRecipeConfig,
 		activeTimeMinutes: activeMinutes,
 		passiveTimeMinutes: passiveMinutes,
+		isScalable:
+			normalizedCosts.length > 0
+				? normalizedCosts.every((c) => Boolean(c.isScalable))
+				: Boolean(currentRecipeConfig.isScalable),
 		operationalCosts: normalizedCosts
 	};
 

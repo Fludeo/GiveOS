@@ -34,14 +34,23 @@ export async function updateItemAction({ request, locals, url }: RequestEvent) {
 	const notes = form.data.notes?.trim() || null;
 
 	let recipeConfig = existing.recipeConfig;
-	if (form.data.isMakeToOrder !== undefined || form.data.yieldQuantity !== undefined) {
+	if (
+		type === 'prepared' ||
+		form.data.isMakeToOrder !== undefined ||
+		form.data.yieldQuantity !== undefined ||
+		form.data.isPrepTimeScalable !== undefined
+	) {
 		const isMakeToOrder = form.data.isMakeToOrder ?? Boolean(existing.recipeConfig?.isMakeToOrder);
+		const isScalable =
+			form.data.isPrepTimeScalable !== undefined
+				? Boolean(form.data.isPrepTimeScalable)
+				: Boolean(existing.recipeConfig?.isScalable ?? existing.isPrepTimeScalable);
 
 		recipeConfig = {
 			yieldQuantity: Number.isFinite(yieldQuantity) && yieldQuantity > 0 ? yieldQuantity : 1,
 			activeTimeMinutes: existing.recipeConfig?.activeTimeMinutes ?? 0,
 			passiveTimeMinutes: existing.recipeConfig?.passiveTimeMinutes ?? 0,
-			isScalable: existing.recipeConfig?.isScalable ?? false,
+			isScalable,
 			isMakeToOrder,
 			operationalCosts: existing.recipeConfig?.operationalCosts ?? [],
 			notes

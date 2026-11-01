@@ -320,7 +320,7 @@
 								</div>
 							</div>
 							<p class="text-[11px] sm:text-xs text-muted-foreground truncate">
-								Lote por tanda
+								{selectedRoot.isPrepTimeScalable ? 'Divisible (se puede armar de a 1)' : 'Tanda fija (lote indivisible)'}
 							</p>
 						</div>
 
