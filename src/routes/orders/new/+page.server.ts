@@ -30,7 +30,8 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			paidAmount: 0,
 			lines: []
 		},
-		zod4(createOrderSchema)
+		zod4(createOrderSchema),
+		{ errors: false }
 	);
 
 	return {

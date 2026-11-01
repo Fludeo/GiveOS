@@ -109,6 +109,9 @@
 			fulfillmentType: l.fulfillmentType,
 			deliveryDate: l.deliveryDate || null
 		}));
+		if (draftLines.length > 0 && $errors.lines) {
+			$errors.lines = undefined;
+		}
 	});
 
 	const draftTotalAmount = $derived(
@@ -260,7 +263,7 @@
 					</div>
 				{/if}
 
-				{#if $errors.lines?._errors}
+				{#if $errors.lines?._errors && draftLines.length === 0}
 					<div class="mb-4 flex items-center gap-3 rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-destructive">
 						<AlertTriangle class="size-4 shrink-0" />
 						<p class="text-xs font-semibold">{$errors.lines._errors[0]}</p>
