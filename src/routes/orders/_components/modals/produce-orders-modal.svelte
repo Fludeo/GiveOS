@@ -7,8 +7,6 @@
 	import { Button } from '#lib/components/ui/button';
 	import { Badge } from '#lib/components/ui/badge';
 	import ChefHat from '@lucide/svelte/icons/chef-hat';
-	import Check from '@lucide/svelte/icons/check';
-	import Sparkles from '@lucide/svelte/icons/sparkles';
 	import Store from '@lucide/svelte/icons/store';
 	import X from '@lucide/svelte/icons/x';
 	import PackageCheck from '@lucide/svelte/icons/package-check';
@@ -101,7 +99,10 @@
 						);
 						if (compItem.type === 'prepared') {
 							itemId = compItem.id;
-							const rawYield = compItem.yieldQuantity && compItem.yieldQuantity > 0 ? compItem.yieldQuantity : 1;
+							const rawYield =
+								compItem.yieldQuantity && compItem.yieldQuantity > 0
+									? compItem.yieldQuantity
+									: 1;
 							recipeStep = Math.max(1, Number((rawYield / componentMultiplier).toFixed(2)));
 						}
 					}
@@ -122,15 +123,27 @@
 		return Array.from(map.values());
 	});
 
-	function getDefaultMultipliedQty(minQty: number, step: number): number {
-		if (step <= 1) return minQty;
+	function getTakenFromDisplay(prod: (typeof consolidatedProducts)[number]): number {
+		if (!useDisplayStock || !prod.availableDisplayStock || prod.availableDisplayStock <= 0) {
+			return 0;
+		}
+		return Math.min(prod.totalQty, prod.availableDisplayStock);
+	}
+
+	function getMinKitchenQty(prod: (typeof consolidatedProducts)[number]): number {
+		return Math.max(0, prod.totalQty - getTakenFromDisplay(prod));
+	}
+
+	function getSuggestedBatchQty(minQty: number, step: number): number {
+		if (minQty <= 0 || step <= 1) return minQty;
 		return Math.max(step, Math.ceil(minQty / step) * step);
 	}
 
-	function getProducedQty(salesProductId: string, minQty: number, step: number = 1): number {
-		const custom = customProducedByProduct[salesProductId];
+	function getProducedQty(prod: (typeof consolidatedProducts)[number]): number {
+		const minQty = getMinKitchenQty(prod);
+		const custom = customProducedByProduct[prod.salesProductId];
 		if (custom === undefined || Number.isNaN(custom) || custom < minQty) {
-			return getDefaultMultipliedQty(minQty, step);
+			return minQty;
 		}
 		return custom;
 	}
@@ -143,12 +156,17 @@
 		};
 	}
 
+	const hasAnyDisplayStock = $derived(
+		consolidatedProducts.some((p) => (p.availableDisplayStock ?? 0) > 0)
+	);
+
 	const extraStockMap = $derived.by(() => {
 		const extra: Record<string, number> = {};
 		for (const prod of consolidatedProducts) {
 			if (!prod.itemId) continue;
-			const actual = getProducedQty(prod.salesProductId, prod.totalQty, prod.recipeStep);
-			const diff = actual - prod.totalQty;
+			const minQty = getMinKitchenQty(prod);
+			const actual = getProducedQty(prod);
+			const diff = actual - minQty;
 			if (diff > 0) {
 				extra[prod.itemId] = (extra[prod.itemId] ?? 0) + diff * prod.componentMultiplier;
 			}
@@ -177,14 +195,14 @@
 					<div class="space-y-1">
 						<div class="flex items-center gap-2">
 							<h2 class="text-base sm:text-lg font-bold text-foreground">
-								Hoja de Producción en 1 Clic
+								Producir y Marcar como Listo
 							</h2>
 							<Badge variant="outline" class="text-[10px] border-primary/30 bg-primary/10 text-primary">
 								{periodLabel}
 							</Badge>
 						</div>
 						<p class="text-xs text-muted-foreground">
-							Descuenta los insumos y sub-ensambles ahora y marca los pedidos como <strong>Listos para entregar</strong>.
+							Descuenta los insumos de la receta y deja el pedido <strong>Listo para entregar</strong>.
 						</p>
 					</div>
 				</div>
@@ -200,14 +218,30 @@
 			</div>
 
 			<!-- Body -->
-			<div class="flex-1 space-y-5 overflow-y-auto p-5 sm:p-6">
-				<!-- 1. Selección de Pedidos a Producir -->
-				<div class="space-y-2.5">
-					<div class="flex items-center justify-between">
-						<span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-							1. Pedidos a Marcar como Listos ({selectedOrders.length} de {orders.length})
+			<div class="flex-1 space-y-4 overflow-y-auto p-5 sm:p-6">
+				<!-- Selección de Pedidos (solo muestra checkboxes si son varios pedidos) -->
+				{#if orders.length === 1}
+					{@const singleOrder = orders[0]}
+					{@const pendingItems = singleOrder.items.filter((i) => i.status === 'pending_delivery')}
+					<div class="flex items-center justify-between gap-3 rounded-xl border border-border bg-muted/20 px-4 py-3 text-xs">
+						<div class="flex items-center gap-2.5 min-w-0">
+							<span class="rounded bg-primary/10 px-2 py-0.5 font-mono font-bold text-primary shrink-0">
+								{singleOrder.orderNumber}
+							</span>
+							<span class="font-semibold text-foreground truncate">
+								{singleOrder.customerName}
+							</span>
+						</div>
+						<span class="font-mono text-xs font-medium text-muted-foreground shrink-0">
+							{pendingItems.reduce((acc, i) => acc + i.quantity, 0)} u. en total
 						</span>
-						{#if orders.length > 1}
+					</div>
+				{:else}
+					<div class="space-y-2">
+						<div class="flex items-center justify-between">
+							<span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+								Pedidos incluidos ({selectedOrders.length} de {orders.length})
+							</span>
 							<button
 								type="button"
 								onclick={toggleAll}
@@ -215,47 +249,76 @@
 							>
 								{selectedIds.length === orders.length ? 'Desmarcar todos' : 'Seleccionar todos'}
 							</button>
-						{/if}
-					</div>
+						</div>
 
-					<div class="max-h-44 space-y-1.5 overflow-y-auto rounded-xl border border-border bg-muted/15 p-2.5">
-						{#each orders as order (order.id)}
-							{@const isChecked = selectedIds.includes(order.id)}
-							{@const pendingItems = order.items.filter((i) => i.status === 'pending_delivery')}
-							<label
-								class="flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-xs transition-colors cursor-pointer {isChecked
-									? 'border-primary/40 bg-card shadow-2xs'
-									: 'border-transparent bg-transparent opacity-60 hover:bg-card/50'}"
-							>
-								<div class="flex items-center gap-2.5 min-w-0">
-									<input
-										type="checkbox"
-										checked={isChecked}
-										onchange={() => toggleOrder(order.id)}
-										class="size-4 rounded border-border text-primary focus:ring-primary cursor-pointer"
-									/>
-									<span class="font-mono font-bold text-foreground shrink-0">
-										{order.orderNumber}
+						<div class="max-h-40 space-y-1.5 overflow-y-auto rounded-xl border border-border bg-muted/15 p-2.5">
+							{#each orders as order (order.id)}
+								{@const isChecked = selectedIds.includes(order.id)}
+								{@const pendingItems = order.items.filter((i) => i.status === 'pending_delivery')}
+								<label
+									class="flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-xs transition-colors cursor-pointer {isChecked
+										? 'border-primary/40 bg-card shadow-2xs'
+										: 'border-transparent bg-transparent opacity-60 hover:bg-card/50'}"
+								>
+									<div class="flex items-center gap-2.5 min-w-0">
+										<input
+											type="checkbox"
+											checked={isChecked}
+											onchange={() => toggleOrder(order.id)}
+											class="size-4 rounded border-border text-primary focus:ring-primary cursor-pointer"
+										/>
+										<span class="font-mono font-bold text-foreground shrink-0">
+											{order.orderNumber}
+										</span>
+										<span class="font-semibold text-foreground truncate">
+											{order.customerName}
+										</span>
+									</div>
+									<span class="font-mono text-[11px] text-muted-foreground shrink-0">
+										{pendingItems.reduce((acc, i) => acc + i.quantity, 0)} u.
 									</span>
-									<span class="font-semibold text-foreground truncate">
-										{order.customerName}
-									</span>
-								</div>
-								<span class="font-mono text-[11px] text-muted-foreground shrink-0">
-									{pendingItems.reduce((acc, i) => acc + i.quantity, 0)} un.
-								</span>
-							</label>
-						{/each}
+								</label>
+							{/each}
+						</div>
 					</div>
-				</div>
+				{/if}
 
-				<!-- 2. Consolidado de Productos a Terminar -->
-				<div class="space-y-2.5">
-					<div class="flex items-center justify-between gap-2">
-						<span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
-							2. Cantidad a Producir (Base = Pedidos, Excedente → Stock)
-						</span>
-					</div>
+				<!-- Opción de usar Stock de Vidriera (si hay unidades exhibidas) -->
+				{#if hasAnyDisplayStock}
+					<label
+						class="flex items-start gap-3 rounded-xl border p-3.5 text-xs cursor-pointer transition-colors {useDisplayStock
+							? 'border-primary/40 bg-primary/5'
+							: 'border-border bg-muted/15 hover:bg-muted/25'}"
+					>
+						<input
+							type="checkbox"
+							bind:checked={useDisplayStock}
+							onchange={() => {
+								customProducedByProduct = {};
+							}}
+							class="mt-0.5 size-4 rounded border-border text-primary focus:ring-primary cursor-pointer"
+						/>
+						<div class="space-y-0.5">
+							<div class="flex items-center gap-1.5 font-semibold text-foreground">
+								<Store class="size-3.5 text-primary" />
+								<span>Usar unidades ya listas en Vidriera / Stock disponible</span>
+							</div>
+							<p class="text-[11px] text-muted-foreground leading-relaxed">
+								{#if useDisplayStock}
+									Se descontarán primero las unidades que ya tienes en stock y solo se producirá en cocina lo que falte.
+								{:else}
+									Desactivado: no toca el stock de tu vidriera y descuenta los ingredientes de cocina para producir el pedido desde cero.
+								{/if}
+							</p>
+						</div>
+					</label>
+				{/if}
+
+				<!-- Detalle de productos a preparar -->
+				<div class="space-y-2">
+					<span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
+						Detalle de Producción
+					</span>
 
 					{#if consolidatedProducts.length === 0}
 						<div class="rounded-xl border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
@@ -264,70 +327,118 @@
 					{:else}
 						<div class="divide-y divide-border/60 rounded-xl border border-border bg-card">
 							{#each consolidatedProducts as prod (prod.salesProductId)}
-								{@const actualQty = getProducedQty(prod.salesProductId, prod.totalQty, prod.recipeStep)}
-								{@const extraQty = Number((actualQty - prod.totalQty).toFixed(2))}
-								<div class="flex flex-wrap items-center justify-between gap-3 px-3.5 py-2.5 text-xs">
-									<div class="flex items-center gap-2 min-w-0">
-										<span class="rounded bg-primary/10 px-2 py-0.5 font-mono font-bold text-primary shrink-0" title="Cantidad requerida por los pedidos seleccionados">
-											Pedidos: {prod.totalQty}
-										</span>
-										<span class="font-semibold text-foreground truncate">
-											{prod.productName}
-										</span>
-										{#if prod.recipeStep > 1}
-											<span class="rounded bg-secondary/10 px-1.5 py-0.5 font-mono text-[10px] text-secondary shrink-0" title="Rendimiento por tanda de receta">
-												1x = {prod.recipeStep}
-											</span>
-										{/if}
-										{#if prod.availableDisplayStock !== null && prod.availableDisplayStock > 0}
-											<span class="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground shrink-0">
-												Vidriera: {prod.availableDisplayStock}
-											</span>
-										{/if}
-									</div>
+								{@const takenFromDisplay = getTakenFromDisplay(prod)}
+								{@const minKitchenQty = getMinKitchenQty(prod)}
+								{@const actualQty = getProducedQty(prod)}
+								{@const extraQty = Number((actualQty - minKitchenQty).toFixed(2))}
+								{@const suggestedBatchQty = getSuggestedBatchQty(minKitchenQty, prod.recipeStep)}
+								{@const batchesCount = prod.recipeStep > 1 ? Math.round((suggestedBatchQty / prod.recipeStep) * 10) / 10 : 1}
 
-									<div class="flex items-center gap-2 shrink-0">
-										{#if extraQty > 0}
-											<span class="rounded-md bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 font-mono text-[10px] font-bold text-emerald-700 dark:text-success/90">
-												+{extraQty} a stock
-											</span>
-										{/if}
+								<div class="p-3.5 space-y-3 text-xs">
+									<div class="flex items-start justify-between gap-3">
+										<div class="space-y-1 min-w-0">
+											<p class="font-bold text-sm text-foreground truncate">
+												{prod.productName}
+											</p>
+											<div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+												<span>
+													Pedido: <strong class="font-mono text-foreground">{prod.totalQty} u.</strong>
+												</span>
+												{#if prod.availableDisplayStock !== null && prod.availableDisplayStock > 0}
+													<span>
+														En vidriera: <strong class="font-mono text-foreground">{prod.availableDisplayStock} u.</strong>
+													</span>
+												{/if}
+												{#if prod.recipeStep > 1}
+													<span>
+														1 tanda de receta = <strong class="font-mono text-foreground">{prod.recipeStep} u.</strong>
+													</span>
+												{/if}
+											</div>
+										</div>
 
+										<!-- Control de cantidad a elaborar en cocina -->
 										{#if prod.itemId}
-											<div class="inline-flex items-center rounded-lg border border-border bg-background">
-												<button
-													type="button"
-													onclick={() => setProducedQty(prod.salesProductId, prod.totalQty, actualQty - prod.recipeStep)}
-													disabled={actualQty <= prod.totalQty}
-													class="px-2 py-1 text-xs font-bold text-muted-foreground hover:text-foreground disabled:opacity-40 cursor-pointer"
-													title="Restar 1 tanda ({prod.recipeStep})"
-												>
-													-
-												</button>
-												<input
-													type="number"
-													min={prod.totalQty}
-													step={prod.recipeStep}
-													value={actualQty}
-													oninput={(e) =>
-														setProducedQty(
-															prod.salesProductId,
-															prod.totalQty,
-															Number((e.currentTarget as HTMLInputElement).value)
-														)}
-													class="w-12 border-x border-border bg-transparent py-1 text-center font-mono text-xs font-bold text-foreground focus:outline-none"
-												/>
-												<button
-													type="button"
-													onclick={() => setProducedQty(prod.salesProductId, prod.totalQty, actualQty + prod.recipeStep)}
-													class="px-2 py-1 text-xs font-bold text-muted-foreground hover:text-foreground cursor-pointer"
-													title="Sumar 1 tanda (+{prod.recipeStep})"
-												>
-													+
-												</button>
+											<div class="flex flex-col items-end gap-1 shrink-0">
+												<span class="text-[10px] font-medium text-muted-foreground">
+													Elaborar en cocina:
+												</span>
+												<div class="inline-flex items-center rounded-lg border border-border bg-background">
+													<button
+														type="button"
+														onclick={() => setProducedQty(prod.salesProductId, minKitchenQty, actualQty - 1)}
+														disabled={actualQty <= minKitchenQty}
+														class="px-2.5 py-1 text-xs font-bold text-muted-foreground hover:text-foreground disabled:opacity-40 cursor-pointer"
+														title="Restar 1 unidad"
+													>
+														-
+													</button>
+													<input
+														type="number"
+														min={minKitchenQty}
+														step="1"
+														value={actualQty}
+														oninput={(e) =>
+															setProducedQty(
+																prod.salesProductId,
+																minKitchenQty,
+																Number((e.currentTarget as HTMLInputElement).value)
+															)}
+														class="w-12 border-x border-border bg-transparent py-1 text-center font-mono text-xs font-bold text-foreground focus:outline-none"
+													/>
+													<button
+														type="button"
+														onclick={() => setProducedQty(prod.salesProductId, minKitchenQty, actualQty + 1)}
+														class="px-2.5 py-1 text-xs font-bold text-muted-foreground hover:text-foreground cursor-pointer"
+														title="Sumar 1 unidad (el excedente va a stock)"
+													>
+														+
+													</button>
+												</div>
 											</div>
 										{:else}
 											<span class="font-mono font-bold text-foreground">{prod.totalQty} u.</span>
+										{/if}
+									</div>
+
+									<!-- Resumen claro de qué ocurre con este producto -->
+									<div class="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-muted/25 px-3 py-2 text-[11px]">
+										<div class="space-y-0.5">
+											{#if takenFromDisplay > 0}
+												<p class="text-foreground">
+													• Se separan <strong class="font-mono">{takenFromDisplay} u.</strong> de tu vidriera (quedarán <strong class="font-mono">{(prod.availableDisplayStock ?? 0) - takenFromDisplay} u.</strong> disponibles).
+												</p>
+											{/if}
+											{#if actualQty > 0}
+												<p class="text-foreground">
+													• Se elaboran <strong class="font-mono">{actualQty} u.</strong> en cocina ({minKitchenQty} u. para el pedido{#if extraQty > 0} + <strong class="font-mono text-emerald-600 dark:text-emerald-400">{extraQty} u. sobrantes que se guardan en stock</strong>{/if}).
+												</p>
+											{:else if takenFromDisplay >= prod.totalQty}
+												<p class="text-emerald-700 dark:text-emerald-400 font-medium">
+													✓ Pedido cubierto 100% con el stock de vidriera (no requiere producir en cocina).
+												</p>
+											{/if}
+										</div>
+
+										<!-- Botón opcional para redondear a tandas completas de receta -->
+										{#if prod.itemId && prod.recipeStep > 1 && suggestedBatchQty > minKitchenQty}
+											{#if actualQty !== suggestedBatchQty}
+												<button
+													type="button"
+													onclick={() => setProducedQty(prod.salesProductId, minKitchenQty, suggestedBatchQty)}
+													class="rounded-md border border-primary/30 bg-primary/10 px-2 py-1 font-medium text-[11px] text-primary hover:bg-primary/15 transition-colors cursor-pointer shrink-0"
+												>
+													Redondear a {batchesCount} {batchesCount === 1 ? 'tanda' : 'tandas'} ({suggestedBatchQty} u.)
+												</button>
+											{:else}
+												<button
+													type="button"
+													onclick={() => setProducedQty(prod.salesProductId, minKitchenQty, minKitchenQty)}
+													class="rounded-md border border-border bg-background px-2 py-1 font-medium text-[11px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer shrink-0"
+												>
+													Producir solo lo justo ({minKitchenQty} u.)
+												</button>
+											{/if}
 										{/if}
 									</div>
 								</div>
@@ -335,26 +446,6 @@
 						</div>
 					{/if}
 				</div>
-
-				<!-- 3. Modo de Descuento de Stock -->
-				<label
-					class="flex items-start gap-3 rounded-xl border border-border bg-muted/20 p-3.5 text-xs cursor-pointer hover:bg-muted/30 transition-colors"
-				>
-					<input
-						type="checkbox"
-						bind:checked={useDisplayStock}
-						class="mt-0.5 size-4 rounded border-border text-primary focus:ring-primary cursor-pointer"
-					/>
-					<div class="space-y-0.5">
-						<div class="flex items-center gap-1.5 font-semibold text-foreground">
-							<Store class="size-3.5 text-secondary" />
-							<span>Tomar primero del stock disponible en Estantería / Vidriera</span>
-						</div>
-						<p class="text-[11px] text-muted-foreground leading-relaxed">
-							Por defecto está desactivado para <strong>proteger tu vidriera</strong> y descontar los sub-ensambles e insumos de taller/cocina. Actívalo solo si vas a separar unidades que ya tenías exhibidas.
-						</p>
-					</div>
-				</label>
 			</div>
 
 			<!-- Footer -->
@@ -411,7 +502,9 @@
 						<span>
 							{isSubmitting
 								? 'Procesando...'
-								: `Confirmar Producción (${selectedIds.length} ${selectedIds.length === 1 ? 'pedido' : 'pedidos'})`}
+								: orders.length === 1
+									? 'Confirmar y Marcar Listo'
+									: `Confirmar (${selectedIds.length} ${selectedIds.length === 1 ? 'pedido' : 'pedidos'})`}
 						</span>
 					</Button>
 				</form>
