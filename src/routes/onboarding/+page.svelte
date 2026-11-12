@@ -94,11 +94,19 @@
 				stepError = 'Por favor ingresa un nombre para el negocio.';
 				return;
 			}
+			if (!$form.description?.trim()) {
+				stepError = 'Por favor ingresa una descripción para el negocio.';
+				return;
+			}
 			currentStep = 2;
 			return;
 		}
 
 		if (currentStep === 2) {
+			if (!$form.whatsapp?.trim()) {
+				stepError = 'Por favor ingresa un número de WhatsApp.';
+				return;
+			}
 			currentStep = 3;
 			return;
 		}
@@ -218,7 +226,7 @@
 				>
 					<input type="hidden" name="openingHours" value={serializedOpeningHours} />
 
-					{#if currentStep === 1}
+					<div class="space-y-5" class:hidden={currentStep !== 1}>
 						<div class="space-y-5">
 							<div class="space-y-2.5">
 								<Label for="step-name">Nombre del negocio o sucursal</Label>
@@ -237,7 +245,7 @@
 							</div>
 
 							<div class="space-y-2.5">
-								<Label for="step-desc">Descripción o especialidad (opcional)</Label>
+								<Label for="step-desc">Descripción o especialidad</Label>
 								<Input
 									id="step-desc"
 									name="description"
@@ -248,7 +256,9 @@
 								/>
 							</div>
 						</div>
-					{:else if currentStep === 2}
+					</div>
+
+					<div class="space-y-5" class:hidden={currentStep !== 2}>
 						<div class="space-y-5">
 							<div class="space-y-2.5">
 								<Label for="step-wa">Número de WhatsApp (con código de país)</Label>
@@ -266,7 +276,9 @@
 								</p>
 							</div>
 						</div>
-					{:else}
+					</div>
+
+					<div class="space-y-5" class:hidden={currentStep !== 3}>
 						<div class="space-y-5">
 							<div class="divide-y divide-border rounded-xl border border-border bg-card">
 								{#each weeklySchedule as dayItem, dayIdx}
@@ -360,7 +372,7 @@
 								</p>
 							</div>
 						</div>
-					{/if}
+					</div>
 
 					<!-- Botones de navegación del Wizard -->
 					<div class="flex items-center justify-between border-t border-border pt-6">
