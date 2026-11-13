@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { superForm } from 'sveltekit-superforms';
 	import type { PageProps } from './$types';
 	import {
 		generateNextSalesProductCode,
@@ -23,47 +23,53 @@
 	import AlertTriangle from '@lucide/svelte/icons/alert-triangle';
 	import { formatQuantity } from '../../_components/utils';
 
-	let { data, form }: PageProps = $props();
+	let { data, form: actionForm }: PageProps = $props();
 
 	// Permitir vincular cualquier ítem del inventario (materia prima, sub-ensamble o producto final)
 	const linkableItems = $derived(data.items);
 
 	// svelte-ignore state_referenced_locally
-	let code = $state(generateNextSalesProductCode(data.existingCodes));
-	let name = $state('');
-	let description = $state('');
-	let salePrice = $state(0);
-	let isShortcut = $state(false);
-	let isSubmitting = $state(false);
+	const initialCode = generateNextSalesProductCode(data.existingCodes);
 
-	// Componentes asociados
-	let components = $state<SalesProductComponentInput[]>([]);
-
-	$effect(() => {
-		if (components.length === 0 && linkableItems.length > 0) {
-			components = [{ itemId: linkableItems[0].id, quantity: 1 }];
-		}
+	// svelte-ignore state_referenced_locally
+	const { form, errors, enhance, delayed, message } = superForm(data.form, {
+		dataType: 'json',
+		taintedMessage: null
 	});
 
-	// Escalas de Descuento por Cantidad predefinidas para este producto
-	let pricingTiers = $state<PriceTier[]>([]);
+	// Inicializar valores por defecto si no vienen fijados
+	if (!$form.code) {
+		$form.code = initialCode;
+	}
+	// svelte-ignore state_referenced_locally
+	if (!$form.components || $form.components.length === 0) {
+		if (data.items.length > 0) {
+			$form.components = [{ itemId: data.items[0].id, quantity: 1 }];
+		} else {
+			$form.components = [];
+		}
+	}
+	if (!$form.pricingTiers) {
+		$form.pricingTiers = [];
+	}
+
 
 	function addComponentLine() {
 		const nextCandidate =
-			linkableItems.find((cand) => !components.some((c) => c.itemId === cand.id)) ??
+			linkableItems.find((cand) => !$form.components.some((c) => c.itemId === cand.id)) ??
 			linkableItems[0];
 		if (!nextCandidate) return;
-		components = [...components, { itemId: nextCandidate.id, quantity: 1 }];
+		$form.components = [...$form.components, { itemId: nextCandidate.id, quantity: 1 }];
 	}
 
 	function removeComponentLine(index: number) {
-		if (components.length <= 1) return;
-		components = components.filter((_, idx) => idx !== index);
+		if ($form.components.length <= 1) return;
+		$form.components = $form.components.filter((_, idx) => idx !== index);
 	}
 
 	function addTier(minQty = 6, type: 'percentage' | 'fixed_price' = 'percentage', val = 10) {
-		pricingTiers = [
-			...pricingTiers,
+		$form.pricingTiers = [
+			...$form.pricingTiers,
 			{
 				minQuantity: minQty,
 				type,
@@ -73,13 +79,13 @@
 	}
 
 	function removeTier(index: number) {
-		pricingTiers = pricingTiers.filter((_, idx) => idx !== index);
+		$form.pricingTiers = $form.pricingTiers.filter((_, idx) => idx !== index);
 	}
 
 	// Costo estimado total de las recetas de los componentes
 	const estimatedRecipeCost = $derived.by(() => {
 		let sum = 0;
-		for (const comp of components) {
+		for (const comp of $form.components) {
 			const item = data.items.find((i) => i.id === comp.itemId);
 			if (!item) continue;
 			const unitCost =
@@ -89,9 +95,9 @@
 		return sum;
 	});
 
-	const marginAmount = $derived(salePrice - estimatedRecipeCost);
+	const marginAmount = $derived(($form.salePrice || 0) - estimatedRecipeCost);
 	const marginPercentage = $derived(
-		salePrice > 0 ? Math.round((marginAmount / salePrice) * 100) : 0
+		($form.salePrice || 0) > 0 ? Math.round((marginAmount / $form.salePrice) * 100) : 0
 	);
 
 	function formatCurrency(val: number): string {
@@ -136,26 +142,15 @@
 		</div>
 	{:else}
 		<form
-			method="POST"
 			action="?/createSalesProduct"
-			use:enhance={() => {
-				isSubmitting = true;
-				return async ({ update }) => {
-					await update();
-					isSubmitting = false;
-				};
-			}}
+			method="POST"
+			use:enhance
 			class="mx-auto max-w-4xl space-y-8 pb-12"
 		>
-			<input type="hidden" name="businessId" value={data.activeBusiness.id} />
-			<input type="hidden" name="componentsJson" value={JSON.stringify(components)} />
-			<input type="hidden" name="pricingTiersJson" value={JSON.stringify(pricingTiers)} />
-			<input type="hidden" name="isShortcut" value={isShortcut ? 'true' : 'false'} />
-
-			{#if form?.error}
+			{#if $message || (actionForm && typeof actionForm === 'object' && 'error' in actionForm ? (actionForm as any).error : null)}
 				<div class="flex items-center gap-3 rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-destructive">
 					<AlertTriangle class="size-5 shrink-0" />
-					<p class="text-sm font-semibold">{form.error}</p>
+					<p class="text-sm font-semibold">{$message || (actionForm && typeof actionForm === 'object' && 'error' in actionForm ? (actionForm as any).error : null)}</p>
 				</div>
 			{/if}
 
@@ -169,7 +164,7 @@
 						</p>
 					</div>
 					<Badge variant="secondary" class="font-mono text-xs">
-						Código: {code}
+						Código: {$form.code}
 					</Badge>
 				</div>
 
@@ -179,10 +174,11 @@
 						<Input
 							id="f-code"
 							name="code"
-							bind:value={code}
+							bind:value={$form.code}
 							class="font-mono uppercase font-semibold"
 							required
 						/>
+						{#if $errors.code}<p class="text-xs text-destructive">{$errors.code}</p>{/if}
 					</div>
 
 					<div class="space-y-2 sm:col-span-9">
@@ -190,11 +186,12 @@
 						<Input
 							id="f-name"
 							name="name"
-							bind:value={name}
+							bind:value={$form.name}
 							placeholder="Ej. Torta Selva Negra o Combo Cumpleaños"
 							class="font-medium"
 							required
 						/>
+						{#if $errors.name}<p class="text-xs text-destructive">{$errors.name}</p>{/if}
 					</div>
 
 					<div class="space-y-2 sm:col-span-12">
@@ -202,9 +199,10 @@
 						<Input
 							id="f-desc"
 							name="description"
-							bind:value={description}
+							bind:value={$form.description}
 							placeholder="Ej. Incluye packaging especial y vela"
 						/>
+						{#if $errors.description}<p class="text-xs text-destructive">{$errors.description}</p>{/if}
 					</div>
 
 					<!-- Atajo Rápido -->
@@ -212,12 +210,13 @@
 						<label class="flex items-center gap-3 rounded-xl border border-border bg-muted/20 p-3 cursor-pointer hover:bg-muted/30 transition-colors">
 							<input
 								type="checkbox"
-								bind:checked={isShortcut}
+								name="isShortcut"
+								bind:checked={$form.isShortcut}
 								class="size-4.5 rounded border-input text-amber-500 focus:ring-amber-500"
 							/>
 							<div>
 								<span class="flex items-center gap-1.5 text-xs font-bold text-foreground">
-									<Star class="size-3.5 {isShortcut ? 'fill-amber-500 text-amber-500' : 'text-muted-foreground'}" />
+									<Star class="size-3.5 {$form.isShortcut ? 'fill-amber-500 text-amber-500' : 'text-muted-foreground'}" />
 									Fijar como atajo rápido en la pantalla de ventas
 								</span>
 							</div>
@@ -231,7 +230,7 @@
 				<div class="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
 					<div>
 						<h3 class="text-base font-bold text-foreground">
-							2. Componentes que Descuenta ({components.length})
+							2. Componentes que Descuenta ({$form.components.length})
 						</h3>
 					</div>
 					<Button
@@ -246,8 +245,12 @@
 					</Button>
 				</div>
 
+				{#if $errors.components?._errors}
+					<p class="text-xs text-destructive font-medium">{$errors.components._errors[0]}</p>
+				{/if}
+
 				<div class="space-y-3">
-					{#each components as comp, idx (idx)}
+					{#each $form.components as comp, idx (idx)}
 						{@const selectedItem = data.items.find((i) => i.id === comp.itemId)}
 						{@const itemRecipeCost = selectedItem ? (data.recipeSummaries[selectedItem.id]?.estimatedUnitCost ?? getDirectUnitCost(selectedItem)) : 0}
 						<div class="flex flex-col gap-3 rounded-xl border border-border bg-muted/15 p-3.5 sm:flex-row sm:items-center">
@@ -256,8 +259,8 @@
 								<select
 									bind:value={comp.itemId}
 									onchange={() => {
-										if (components.length === 1 && !name && selectedItem) {
-											name = selectedItem.name;
+										if ($form.components.length === 1 && !$form.name && selectedItem) {
+											$form.name = selectedItem.name;
 										}
 									}}
 									class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm shadow-xs"
@@ -295,7 +298,7 @@
 								</span>
 							</div>
 
-							{#if components.length > 1}
+							{#if $form.components.length > 1}
 								<div class="pt-2 sm:pt-4">
 									<Button
 										type="button"
@@ -331,11 +334,12 @@
 							type="number"
 							step="any"
 							min="0"
-							bind:value={salePrice}
+							bind:value={$form.salePrice}
 							class="h-12 font-mono text-lg font-bold"
 							placeholder="0.00"
 							required
 						/>
+						{#if $errors.salePrice}<p class="text-xs text-destructive">{$errors.salePrice}</p>{/if}
 					</div>
 
 					<div class="rounded-xl border border-border bg-muted/20 p-4 sm:col-span-7 space-y-2">
@@ -355,22 +359,24 @@
 				</div>
 			</div>
 
-			<!-- BLOQUE 4: ESCALAS PREDEFINIDAS DE DESCUENTO POR CANTIDAD (LA CLAVE) -->
+			<!-- BLOQUE 4: ESCALAS PREDEFINIDAS DE DESCUENTO POR CANTIDAD -->
 			<div class="rounded-2xl border border-primary/30 bg-card p-6 shadow-xs space-y-5">
 				<div class="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
-					<div class="space-y-0.5">
+					<div>
 						<div class="flex items-center gap-2">
 							<Percent class="size-4 text-primary" />
 							<h3 class="text-base font-bold text-foreground">
-								4. Descuentos por Cantidad Predefinidos
+								4. Escalas de Descuento por Volumen ({$form.pricingTiers.length})
 							</h3>
 						</div>
 						<p class="text-xs text-muted-foreground">
-							Al tomar la orden, si el cliente lleva esta cantidad, el sistema le asignará este precio o porcentaje automáticamente.
+							Precios mayoristas automáticos que se aplicarán en el punto de venta
 						</p>
 					</div>
 
-					<div class="flex items-center gap-2">
+					<!-- Atajos Rápidos -->
+					<div class="flex flex-wrap items-center gap-1.5">
+						<span class="text-xs font-semibold text-muted-foreground mr-1">Atajos:</span>
 						<Button
 							type="button"
 							variant="outline"
@@ -378,6 +384,7 @@
 							onclick={() => addTier(6, 'percentage', 10)}
 							class="h-8 gap-1 text-xs"
 						>
+							<Sparkles class="size-3 text-amber-500" />
 							<span>+ Media Docena (6u -10%)</span>
 						</Button>
 						<Button
@@ -387,6 +394,7 @@
 							onclick={() => addTier(12, 'percentage', 15)}
 							class="h-8 gap-1 text-xs"
 						>
+							<Sparkles class="size-3 text-amber-500" />
 							<span>+ Docena (12u -15%)</span>
 						</Button>
 						<Button
@@ -402,7 +410,7 @@
 					</div>
 				</div>
 
-				{#if pricingTiers.length === 0}
+				{#if $form.pricingTiers.length === 0}
 					<div class="rounded-xl border border-dashed border-border/80 bg-muted/10 p-6 text-center space-y-2">
 						<Percent class="mx-auto size-7 text-muted-foreground/50" />
 						<p class="text-xs font-medium text-foreground">
@@ -414,18 +422,18 @@
 					</div>
 				{:else}
 					<div class="space-y-3">
-						{#each pricingTiers as tier, idx (idx)}
+						{#each $form.pricingTiers as tier, idx (idx)}
 							{@const tierUnitPrice =
 								tier.type === 'percentage'
-									? salePrice * (1 - (tier.value || 0) / 100)
+									? ($form.salePrice || 0) * (1 - (tier.value || 0) / 100)
 									: tier.value || 0}
-							{@const tierSavings = Math.max(0, salePrice - tierUnitPrice)}
+							{@const tierSavings = Math.max(0, ($form.salePrice || 0) - tierUnitPrice)}
 							<div class="flex flex-col gap-3 rounded-xl border border-border bg-muted/20 p-4 sm:flex-row sm:items-center">
 								<!-- Cantidad Mínima -->
 								<div class="w-full sm:w-44 space-y-1">
 									<Label class="text-xs text-muted-foreground">A partir de (unidades)</Label>
 									<div class="flex items-center gap-1.5">
-										<span class="text-xs font-bold text-muted-foreground">≥</span >
+										<span class="text-xs font-bold text-muted-foreground">≥</span>
 										<Input
 											type="number"
 											min="2"
@@ -504,7 +512,7 @@
 					Cancelar
 				</Button>
 
-				<Button type="submit" disabled={isSubmitting} class="gap-2 font-bold px-6 h-11">
+				<Button type="submit" disabled={$delayed} class="gap-2 font-bold px-6 h-11">
 					<Check class="size-4" />
 					<span>Guardar Producto para Venta</span>
 				</Button>

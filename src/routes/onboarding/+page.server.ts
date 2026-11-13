@@ -1,6 +1,9 @@
 import { redirect } from '@sveltejs/kit';
+import { superValidate } from 'sveltekit-superforms';
+import { zod4 } from 'sveltekit-superforms/adapters';
 import type { Actions, PageServerLoad } from './$types';
 import { getServices } from '#lib/server/container';
+import { createBusinessSchema } from '#lib/schemas/business.schema';
 import * as onboardingActions from './_actions';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -11,13 +14,15 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const { businessService } = getServices();
 	const memberships = await businessService.listUserBusinesses(locals.user.id);
 
-	// Si ya tiene negocio configurado, redirigir al panel principal
 	if (memberships.length > 0) {
 		throw redirect(302, '/');
 	}
 
+	const form = await superValidate(zod4(createBusinessSchema));
+
 	return {
-		user: locals.user
+		user: locals.user,
+		form
 	};
 };
 

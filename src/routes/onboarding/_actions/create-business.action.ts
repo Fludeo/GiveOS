@@ -1,34 +1,33 @@
 import { fail, redirect, type RequestEvent } from '@sveltejs/kit';
+import { superValidate } from 'sveltekit-superforms';
+import { zod4 } from 'sveltekit-superforms/adapters';
 import { getServices } from '#lib/server/container';
+import { createBusinessSchema } from '#lib/schemas/business.schema';
 
 export async function createBusinessAction({ request, locals }: RequestEvent) {
 	if (!locals.user) {
 		throw redirect(302, '/login');
 	}
 
-	const { businessService } = getServices();
-	const formData = await request.formData();
+	const form = await superValidate(request, zod4(createBusinessSchema));
+	if (!form.valid) {
+		return fail(400, { form });
+	}
 
-	const name = String(formData.get('name') ?? '').trim();
-	const description = String(formData.get('description') ?? '').trim();
-	const whatsapp = String(formData.get('whatsapp') ?? '').trim();
-	const openingHours = String(formData.get('openingHours') ?? '').trim();
+	const { businessService } = getServices();
 
 	let createdMembership;
 	try {
 		createdMembership = await businessService.createBusinessForUser({
 			userId: locals.user.id,
-			name,
-			description,
-			whatsapp,
-			openingHours
+			name: form.data.name.trim(),
+			description: form.data.description?.trim() ?? '',
+			whatsapp: form.data.whatsapp?.trim() ?? '',
+			openingHours: form.data.openingHours?.trim() ?? ''
 		});
 	} catch (e) {
 		return fail(400, {
-			name,
-			description,
-			whatsapp,
-			openingHours,
+			form,
 			error: e instanceof Error ? e.message : 'No se pudo registrar el negocio.'
 		});
 	}

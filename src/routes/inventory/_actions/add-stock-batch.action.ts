@@ -1,36 +1,44 @@
 import { fail, redirect, type RequestEvent } from '@sveltejs/kit';
+import { superValidate, message } from 'sveltekit-superforms';
+import { zod4 } from 'sveltekit-superforms/adapters';
 import { getServices } from '#lib/server/container';
 import { resolveBusinessOrRedirect } from '#lib/server/business-resolver';
+import { addStockBatchSchema } from '#lib/schemas/stock-batch.schema';
 
 export async function addStockBatchAction({ request, locals, url }: RequestEvent) {
 	if (!locals.user) throw redirect(302, '/login');
-	const formData = await request.formData();
+
+	const form = await superValidate(request, zod4(addStockBatchSchema));
+	if (!form.valid) {
+		return fail(400, { form });
+	}
+
 	const businessIdParam =
-		String(formData.get('businessId') ?? '') || url.searchParams.get('business');
+		form.data.businessId || url.searchParams.get('business');
 	const { activeBusiness } = await resolveBusinessOrRedirect(locals.user.id, businessIdParam);
 
 	const { itemService, recipeService } = getServices();
-	const id = String(formData.get('id') ?? '');
-	const quantity = Number(formData.get('quantity') ?? 0);
-	const totalCost = Number(formData.get('totalCost') ?? 0);
-	const supplier = String(formData.get('supplier') ?? '').trim() || null;
-	const notes = String(formData.get('notes') ?? '').trim() || null;
+	const id = form.data.id;
+	const quantity = form.data.quantity;
+	const totalCost = form.data.totalCost;
+	const supplier = form.data.supplier?.trim() || null;
+	const notes = form.data.notes?.trim() || null;
 
 	try {
 		const existing = await itemService.getItemById(id, activeBusiness.id);
 		if (!existing) {
-			return fail(404, { error: 'Ítem no encontrado.' });
+			return fail(404, { form, error: 'Ítem no encontrado.' });
 		}
 
 		if (existing.type === 'prepared') {
 			const prod = await recipeService.produceItemBatch(activeBusiness.id, id, quantity, notes);
 			const hasDeducted = prod.consumedComponents.length > 0;
-			return {
-				success: true,
-				message: hasDeducted
+			return message(
+				form,
+				hasDeducted
 					? `Producción registrada: +${quantity} ${prod.parent.baseUnit} de "${prod.parent.name}" e ingredientes de receta descontados.`
 					: `Stock de elaboración aumentado: +${quantity} ${prod.parent.baseUnit} de "${prod.parent.name}".`
-			};
+			);
 		} else {
 			const { item, addedBatch } = await itemService.addStockBatch(id, activeBusiness.id, {
 				quantity,
@@ -42,14 +50,16 @@ export async function addStockBatchAction({ request, locals, url }: RequestEvent
 				minimumFractionDigits: 2,
 				maximumFractionDigits: 2
 			}).format(addedBatch.unitCost);
-			return {
-				success: true,
-				message: `Carga exitosa: +${addedBatch.initialQuantity} ${item.baseUnit} de "${item.name}" ($ ${formattedUnitCost} / ${item.baseUnit}).`
-			};
+			return message(
+				form,
+				`Carga exitosa: +${addedBatch.initialQuantity} ${item.baseUnit} de "${item.name}" ($ ${formattedUnitCost} / ${item.baseUnit}).`
+			);
 		}
 	} catch (e) {
-		return fail(400, {
-			error: e instanceof Error ? e.message : 'Error al registrar la carga de stock.'
-		});
+		return message(
+			form,
+			e instanceof Error ? e.message : 'Error al registrar la carga de stock.',
+			{ status: 400 }
+		);
 	}
 }

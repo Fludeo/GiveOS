@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 	import type { Item } from '#lib/features/items/domain/item.entity';
 	import {
+		doesOrderMatchHorizon,
 		isOrderReadyToDeliver,
 		type ForecastHorizon,
 		type OrderWithItems,
@@ -102,22 +103,9 @@
 
 	function getOrdersCountForHorizon(hId: ForecastHorizon): number {
 		const now = new Date();
-		const endWindow = new Date(now);
-		if (hId === 'today' || hId === '1d') {
-			endWindow.setHours(23, 59, 59, 999);
-		} else if (typeof hId === 'string' && hId.endsWith('d')) {
-			const days = parseInt(hId, 10);
-			if (!Number.isNaN(days) && days > 0) {
-				endWindow.setDate(endWindow.getDate() + (days - 1));
-				endWindow.setHours(23, 59, 59, 999);
-			}
-		}
-
 		return orders.filter((o) => {
 			if (o.status === 'cancelled' || o.status === 'completed') return false;
-			if (hId === 'all') return true;
-			if (!o.deliveryDate) return true;
-			return new Date(o.deliveryDate).getTime() <= endWindow.getTime();
+			return doesOrderMatchHorizon(o.deliveryDate, hId, now);
 		}).length;
 	}
 
@@ -132,23 +120,11 @@
 	// Filtrar órdenes según el mismo horizonte seleccionado
 	const ordersInHorizon = $derived.by(() => {
 		const now = new Date();
-		const endWindow = new Date(now);
-		if (forecastHorizon === 'today' || forecastHorizon === '1d') {
-			endWindow.setHours(23, 59, 59, 999);
-		} else if (typeof forecastHorizon === 'string' && forecastHorizon.endsWith('d')) {
-			const days = parseInt(forecastHorizon, 10);
-			if (!Number.isNaN(days) && days > 0) {
-				endWindow.setDate(endWindow.getDate() + (days - 1));
-				endWindow.setHours(23, 59, 59, 999);
-			}
-		}
 
 		return orders
 			.filter((o) => {
 				if (o.status === 'cancelled' || o.status === 'completed') return false;
-				if (forecastHorizon === 'all') return true;
-				if (!o.deliveryDate) return true;
-				return new Date(o.deliveryDate).getTime() <= endWindow.getTime();
+				return doesOrderMatchHorizon(o.deliveryDate, forecastHorizon, now);
 			})
 			.sort((a, b) => {
 				const tA = a.deliveryDate ? new Date(a.deliveryDate).getTime() : Number.MAX_SAFE_INTEGER;
@@ -480,16 +456,16 @@
 		>
 			<div class="flex items-center justify-between gap-2 border-b border-border/60 pb-2.5">
 				<div class="flex items-center gap-2">
-					<span class="flex size-6 items-center justify-center rounded-lg bg-violet-500/15 font-mono text-xs font-bold text-violet-600 dark:text-violet-400">
+					<span class="flex size-6 items-center justify-center rounded-lg bg-secondary/15 font-mono text-xs font-bold text-secondary">
 						2
 					</span>
-					<ChefHat class="size-4 text-violet-600 dark:text-violet-400" />
+					<ChefHat class="size-4 text-secondary" />
 					<h3 class="text-sm font-bold text-foreground">Producción</h3>
 				</div>
 
 				{#if producibleOrders.length > 0 || fabricableItems.some((f) => f.deficitQty > 0)}
 					<span
-						class="inline-flex items-center gap-1 rounded-full bg-violet-500/15 px-2 py-0.5 font-mono text-xs font-bold text-violet-600 dark:text-violet-400"
+						class="inline-flex items-center gap-1 rounded-full bg-secondary/15 px-2 py-0.5 font-mono text-xs font-bold text-secondary"
 						title="Pedidos pendientes de producir"
 					>
 						<ChefHat class="size-3.5" />
@@ -509,8 +485,9 @@
 			{#if producibleOrders.length > 0}
 				<Button
 					type="button"
+					variant="secondary"
 					size="sm"
-					class="w-full h-9 justify-between px-3 font-semibold shadow-2xs cursor-pointer bg-violet-600 hover:bg-violet-700 text-white"
+					class="w-full h-9 justify-between px-3 font-semibold shadow-2xs cursor-pointer"
 					onclick={() => onProduceOrders(producibleOrders, activeHorizonLabel)}
 					title="Abrir Hoja de Producción para marcar pedidos como Listos"
 				>
@@ -518,7 +495,7 @@
 						<ChefHat class="size-4" />
 						<span>Hoja de Producción</span>
 					</span>
-					<span class="rounded-md bg-white/20 px-2 py-0.5 font-mono text-xs font-bold text-white">
+					<span class="rounded-md bg-secondary-foreground/20 px-2 py-0.5 font-mono text-xs font-bold text-secondary-foreground">
 						{producibleOrders.length} {producibleOrders.length === 1 ? 'pedido' : 'pedidos'}
 					</span>
 				</Button>
@@ -612,8 +589,9 @@
 
 									<Button
 										type="button"
+										variant="secondary"
 										size="sm"
-										class="h-7 px-2 sm:px-2.5 gap-1 text-xs font-semibold cursor-pointer shrink-0 bg-violet-600 hover:bg-violet-700 text-white shadow-2xs"
+										class="h-7 px-2 sm:px-2.5 gap-1 text-xs font-semibold cursor-pointer shrink-0 shadow-2xs"
 										title="Abrir modal de producción con {totalProduceQty} {formatUnit(item.baseUnit)} ({batches}x receta)"
 										onclick={() => handleOpenPreparedStockModal(item.id, totalProduceQty)}
 									>
@@ -745,7 +723,7 @@
 												type="button"
 												size="sm"
 												variant="outline"
-												class="h-7 px-2 text-xs border-violet-500/40 text-violet-600 dark:text-violet-400 hover:bg-violet-500/10 cursor-pointer"
+												class="h-7 px-2 text-xs border-secondary/40 text-secondary hover:bg-secondary/10 cursor-pointer"
 												onclick={() => onProduceOrders([order], order.orderNumber)}
 												title="Producir este pedido ahora"
 											>
@@ -798,14 +776,14 @@
 			onclick={() => (mobileStep = 2)}
 			class="relative inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold transition-all cursor-pointer {mobileStep ===
 			2
-				? 'bg-violet-600 text-white shadow-xs'
+				? 'bg-secondary text-secondary-foreground shadow-xs'
 				: 'text-muted-foreground hover:text-foreground'}"
 			title="2. Producción"
 		>
-			<ChefHat class="size-4 {mobileStep === 2 ? 'text-white' : 'text-violet-500'}" />
+			<ChefHat class="size-4 {mobileStep === 2 ? 'text-secondary-foreground' : 'text-secondary'}" />
 			<span>2</span>
 			{#if producibleOrders.length > 0}
-				<span class="size-2 rounded-full bg-violet-400"></span>
+				<span class="size-2 rounded-full bg-secondary"></span>
 			{/if}
 		</button>
 

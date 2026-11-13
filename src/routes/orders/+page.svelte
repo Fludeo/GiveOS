@@ -259,6 +259,7 @@
 	<!-- 3. Modales Modulares -->
 	<NewOrderModal
 		bind:open={showNewOrderModal}
+		formData={data.newOrderForm}
 		salesProducts={data.salesProducts}
 		businessId={data.activeBusiness.id}
 		onClose={() => (showNewOrderModal = false)}
@@ -267,6 +268,7 @@
 	<ViewOrderModal order={viewingOrder} onClose={() => (viewingOrderId = null)} />
 
 	<PayOrderModal
+		formData={data.updatePaymentForm}
 		order={payingOrder}
 		businessId={data.activeBusiness.id}
 		onClose={() => (payingOrderId = null)}
@@ -300,6 +302,7 @@
 
 	<AddStockModal
 		bind:open={showAddStockModal}
+		formData={data.addStockBatchForm}
 		item={selectedStockItem}
 		businessId={data.activeBusiness.id}
 		allItems={data.items ?? []}

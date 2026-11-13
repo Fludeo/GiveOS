@@ -3,6 +3,7 @@ import {
 	applyStockRestoration,
 	convertQuantity,
 	getDirectUnitCost,
+	isRecipeDivisible,
 	type Item
 } from '#lib/features/items/domain/item.entity';
 import type { IItemRepository } from '#lib/features/items/domain/item.repository';
@@ -11,6 +12,7 @@ import type { RecipeTreeNode } from '#lib/features/recipes/domain/recipe.entity'
 import {
 	computeOrderStatusFromItems,
 	computePaymentStatus,
+	doesOrderMatchHorizon,
 	generateNextOrderNumber,
 	generateNextSalesProductCode,
 	getProductAvailableStock,
@@ -332,6 +334,11 @@ export class OrderService {
 			input.paymentStatus
 		);
 
+		const effectiveDeliveryDate =
+			input.deliveryDate ??
+			input.lines.find((l) => l.deliveryDate)?.deliveryDate ??
+			null;
+
 		return this.orderRepo.createOrderWithItems(
 			{
 				businessId: input.businessId,
@@ -341,7 +348,7 @@ export class OrderService {
 				paymentStatus,
 				totalAmount: Number(totalAmount.toFixed(2)),
 				paidAmount: Number(normalizedPaidAmount.toFixed(2)),
-				deliveryDate: input.deliveryDate ?? null,
+				deliveryDate: effectiveDeliveryDate,
 				notes: input.notes?.trim() || null,
 				transactionId: input.transactionId?.trim() || null
 			},
@@ -404,21 +411,36 @@ export class OrderService {
 
 			if (toProduceQty > 0) {
 				if (targetItem.type === 'prepared') {
+					const divisible = isRecipeDivisible(targetItem);
+					const targetYield = targetItem.yieldQuantity > 0 ? targetItem.yieldQuantity : 1;
+					const batchQtyToProduce = divisible
+						? toProduceQty
+						: Number((Math.ceil((toProduceQty - 1e-9) / targetYield) * targetYield).toFixed(4));
+					const surplusQty = Number(Math.max(0, batchQtyToProduce - toProduceQty).toFixed(4));
+
 					const { parent: afterProduce } = await this.recipeService.produceItemBatch(
 						businessId,
 						comp.itemId,
-						toProduceQty,
+						batchQtyToProduce,
 						'Producción orden'
 					);
 					const finalStock = Math.max(
 						0,
 						Number((afterProduce.currentStock - toProduceQty).toFixed(4))
 					);
-					// Remover el lote transitorio recién generado para que no quede remanente fantasma en el elaborado
-					const cleanedBatches =
-						afterProduce.batches && afterProduce.batches.length > 0
-							? afterProduce.batches.slice(0, -1)
-							: [];
+
+					let cleanedBatches = afterProduce.batches ?? [];
+					if (cleanedBatches.length > 0) {
+						if (surplusQty > 1e-4) {
+							const lastIdx = cleanedBatches.length - 1;
+							cleanedBatches = cleanedBatches.map((b, idx) =>
+								idx === lastIdx ? { ...b, remainingQuantity: surplusQty } : b
+							);
+						} else {
+							cleanedBatches = cleanedBatches.slice(0, -1);
+						}
+					}
+
 					await this.itemRepo.update(comp.itemId, businessId, {
 						currentStock: finalStock,
 						batches: cleanedBatches
@@ -426,6 +448,11 @@ export class OrderService {
 				} else {
 					const currentRaw = await this.itemRepo.findById(comp.itemId, businessId);
 					if (currentRaw) {
+						if (currentRaw.currentStock + 1e-4 < toProduceQty) {
+							throw new Error(
+								`Stock insuficiente de "${currentRaw.name}": necesitas ${toProduceQty} ${currentRaw.baseUnit} y hay ${currentRaw.currentStock} ${currentRaw.baseUnit} disponibles.`
+							);
+						}
 						const nextStock = Math.max(
 							0,
 							Number((currentRaw.currentStock - toProduceQty).toFixed(4))
@@ -756,37 +783,11 @@ export class OrderService {
 		const salesProductsById = new Map(salesProducts.map((sp) => [sp.id, sp]));
 
 		const now = new Date();
-		const endOfToday = new Date(
-			now.getFullYear(),
-			now.getMonth(),
-			now.getDate(),
-			23,
-			59,
-			59,
-			999
-		);
-		let horizonLimitMs: number | null = null;
-		if (horizon === 'today' || horizon === '1d') {
-			horizonLimitMs = endOfToday.getTime();
-		} else if (horizon === 'all') {
-			horizonLimitMs = null;
-		} else if (typeof horizon === 'string' && horizon.endsWith('d')) {
-			const days = parseInt(horizon, 10);
-			if (!Number.isNaN(days) && days > 0) {
-				horizonLimitMs = endOfToday.getTime() + (days - 1) * 86400_000;
-			}
-		}
 
 		const pendingOrders = orders.filter((o) => {
 			if (o.status !== 'pending') return false;
 			if (!o.items.some((i) => i.status === 'pending_delivery')) return false;
-			if (horizonLimitMs !== null && o.deliveryDate) {
-				const deliveryMs = new Date(o.deliveryDate).getTime();
-				if (!Number.isNaN(deliveryMs) && deliveryMs > horizonLimitMs) {
-					return false;
-				}
-			}
-			return true;
+			return doesOrderMatchHorizon(o.deliveryDate, horizon, now);
 		});
 
 		const productDemandMap = new Map<string, number>();
@@ -947,7 +948,13 @@ export class OrderService {
 			// Si no está activado "Mantener Vidriera", las unidades cubiertas por el stock disponible
 			// ya están hechas en el mostrador, por lo que NO deben volver a descontar harina, huevos ni sub-ensambles.
 			const qtyToExplode = deficitQuantity;
-			const batchesNeeded = qtyToExplode > 0 ? qtyToExplode / yieldQty : 0;
+			const prodDivisible = isRecipeDivisible(productItem);
+			const batchesNeeded =
+				qtyToExplode > 0
+					? prodDivisible
+						? qtyToExplode / yieldQty
+						: Math.ceil((qtyToExplode - 1e-9) / yieldQty)
+					: 0;
 
 			if (batchesNeeded > 0) {
 				for (const node of nodes) {
@@ -1035,7 +1042,18 @@ export class OrderService {
 				const subSummary = recipeSummaries[itemId];
 				const subNodes = subSummary?.nodes ?? [];
 				const subYield = subItem.yieldQuantity > 0 ? subItem.yieldQuantity : 1;
-				const batchesForDeficit = deficitPortion / subYield;
+				const subDivisible = isRecipeDivisible(subItem);
+				const batchesForDeficit = subDivisible
+					? deficitPortion / subYield
+					: Math.ceil((deficitPortion - 1e-9) / subYield);
+				const autoProducedSub = batchesForDeficit * subYield;
+				const surplusSub = Math.max(0, autoProducedSub - deficitPortion);
+				if (!isEffectiveMTO && surplusSub > 0) {
+					subAssemblyRemainingStock.set(
+						itemId,
+						(subAssemblyRemainingStock.get(itemId) ?? 0) + surplusSub
+					);
+				}
 
 				for (const node of subNodes) {
 					const childComp = node.component;

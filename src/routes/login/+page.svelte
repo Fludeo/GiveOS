@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { superForm } from 'sveltekit-superforms';
 	import type { PageProps } from './$types';
 	import { Button } from '#lib/components/ui/button';
 	import { Input } from '#lib/components/ui/input';
@@ -14,8 +14,10 @@
 	import ScanFace from '@lucide/svelte/icons/scan-face';
 	import LogIn from '@lucide/svelte/icons/log-in';
 
-	let { form }: PageProps = $props();
-	let loading = $state(false);
+	let { data, form: actionForm }: PageProps = $props();
+
+	// svelte-ignore state_referenced_locally
+	const { form, errors, enhance, delayed, message } = superForm(data.form);
 </script>
 
 <svelte:head>
@@ -46,21 +48,15 @@
 			</CardHeader>
 
 			<CardContent class="p-6 pt-2 sm:p-8 sm:pt-4">
-				{#if form?.error}
+				{#if $message || (actionForm && typeof actionForm === 'object' && 'error' in actionForm ? (actionForm as any).error : null)}
 					<div class="mb-6 rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3.5 text-sm text-destructive">
-						{form.error}
+						{$message || (actionForm && typeof actionForm === 'object' && 'error' in actionForm ? (actionForm as any).error : null)}
 					</div>
 				{/if}
 
 				<form
 					method="POST"
-					use:enhance={() => {
-						loading = true;
-						return async ({ update }) => {
-							await update();
-							loading = false;
-						};
-					}}
+					use:enhance
 					class="space-y-6"
 				>
 					<div class="space-y-2.5">
@@ -70,39 +66,56 @@
 							name="email"
 							type="email"
 							placeholder="pasteleria@ejemplo.com"
-							value={form?.email ?? ''}
+							bind:value={$form.email}
 							class="h-10"
 							autocomplete="email"
 							required
 						/>
+						{#if $errors.email}
+							<p class="text-xs text-destructive">{$errors.email}</p>
+						{/if}
 					</div>
 
 					<div class="space-y-2.5">
-						<Label for="password">Contraseña</Label>
+						<div class="flex items-center justify-between">
+							<Label for="password">Contraseña</Label>
+						</div>
 						<Input
 							id="password"
 							name="password"
 							type="password"
 							placeholder="••••••••"
+							bind:value={$form.password}
 							class="h-10"
 							autocomplete="current-password"
 							required
 						/>
+						{#if $errors.password}
+							<p class="text-xs text-destructive">{$errors.password}</p>
+						{/if}
 					</div>
 
-					<Button type="submit" class="h-10 w-full" disabled={loading}>
+					<Button
+						type="submit"
+						class="w-full h-10 gap-2 font-semibold"
+						disabled={$delayed}
+					>
 						<LogIn class="size-4" />
-						<span>{loading ? 'Ingresando...' : 'Iniciar Sesión'}</span>
+						<span>{$delayed ? 'Iniciando sesión...' : 'Entrar al Obrador'}</span>
 					</Button>
 				</form>
-
-				<div class="mt-6 border-t border-border pt-6 text-center text-sm text-muted-foreground">
-					¿Todavía no tienes una cuenta?
-					<a href="/register" class="ml-1 font-medium text-primary hover:underline">
-						Crear una cuenta
-					</a>
-				</div>
 			</CardContent>
 		</Card>
+
+		<!-- Pie -->
+		<p class="text-center text-sm text-muted-foreground">
+			¿No tienes una cuenta aún?
+			<a
+				href="/register"
+				class="font-semibold text-foreground underline-offset-4 hover:underline"
+			>
+				Crear cuenta de negocio
+			</a>
+		</p>
 	</div>
 </div>

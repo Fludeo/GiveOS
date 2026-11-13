@@ -1,7 +1,10 @@
 import { error, redirect } from '@sveltejs/kit';
+import { superValidate } from 'sveltekit-superforms';
+import { zod4 } from 'sveltekit-superforms/adapters';
 import type { Actions, PageServerLoad } from './$types';
 import { getServices } from '#lib/server/container';
 import { resolveBusinessOrRedirect } from '#lib/server/business-resolver';
+import { updateSalesProductSchema } from '#lib/schemas/sales-product.schema';
 import * as editProductActions from './_actions';
 
 export const load: PageServerLoad = async ({ params, url, locals }) => {
@@ -26,13 +29,31 @@ export const load: PageServerLoad = async ({ params, url, locals }) => {
 		throw error(404, 'Producto para venta no encontrado');
 	}
 
+	const form = await superValidate(
+		{
+			businessId: activeBusiness.id,
+			name: product.name,
+			description: product.description,
+			salePrice: product.salePrice,
+			isActive: product.isActive,
+			isShortcut: product.isShortcut,
+			components: product.components.map((c) => ({
+				itemId: c.itemId,
+				quantity: c.quantity
+			})),
+			pricingTiers: product.pricingTiers ?? []
+		},
+		zod4(updateSalesProductSchema)
+	);
+
 	return {
 		user: locals.user,
 		activeBusiness,
 		businesses: memberships.map((m) => ({ ...m.business, role: m.role })),
 		items,
 		recipeSummaries,
-		product
+		product,
+		form
 	};
 };
 

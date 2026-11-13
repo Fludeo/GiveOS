@@ -1,8 +1,12 @@
 import { redirect } from '@sveltejs/kit';
+import { superValidate } from 'sveltekit-superforms';
+import { zod4 } from 'sveltekit-superforms/adapters';
 import type { Actions, PageServerLoad } from './$types';
 import type { ForecastHorizon } from '#lib/features/orders/domain/order.entity';
 import { getServices } from '#lib/server/container';
 import { resolveBusinessOrRedirect } from '#lib/server/business-resolver';
+import { createOrderSchema, updatePaymentSchema } from '#lib/schemas/order.schema';
+import { addStockBatchSchema } from '#lib/schemas/stock-batch.schema';
 import * as orderActions from './_actions';
 
 export const load: PageServerLoad = async ({ url, locals }) => {
@@ -49,6 +53,21 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 			? requestedTab
 			: 'orders';
 
+	const newOrderForm = await superValidate(
+		{
+			businessId: activeBusiness.id,
+			customerName: 'Cliente Mostrador',
+			paymentStatus: 'paid',
+			paidAmount: 0,
+			lines: []
+		},
+		zod4(createOrderSchema),
+		{ errors: false }
+	);
+
+	const updatePaymentForm = await superValidate(zod4(updatePaymentSchema));
+	const addStockBatchForm = await superValidate(zod4(addStockBatchSchema));
+
 	return {
 		user: locals.user,
 		activeBusiness,
@@ -63,7 +82,10 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		forecastHorizon,
 		initialTab,
 		openNewModalOnLoad: url.searchParams.get('new') === '1',
-		createdOrderNumber: url.searchParams.get('created')
+		createdOrderNumber: url.searchParams.get('created'),
+		newOrderForm,
+		updatePaymentForm,
+		addStockBatchForm
 	};
 };
 

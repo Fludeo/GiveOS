@@ -99,15 +99,18 @@ export async function runMigrations() {
 
 			console.log('[db:migrate] Connecting to Postgres for migrations...');
 			const migrationClient = postgres(dbUrl, { max: 1 });
-			await migrationClient`
-				ALTER TABLE IF EXISTS "chat_messages" ADD COLUMN IF NOT EXISTS "is_bot" boolean DEFAULT false NOT NULL;
-			`.catch(() => {});
-			const db = drizzlePostgres(migrationClient);
+			try {
+				await migrationClient`
+					ALTER TABLE IF EXISTS "chat_messages" ADD COLUMN IF NOT EXISTS "is_bot" boolean DEFAULT false NOT NULL;
+				`.catch(() => {});
+				const db = drizzlePostgres(migrationClient);
 
-			console.log('[db:migrate] Running Drizzle migrations...');
-			await migratePostgres(db, { migrationsFolder: './drizzle' });
-			console.log('[db:migrate] Migrations completed successfully.');
-			await migrationClient.end();
+				console.log('[db:migrate] Running Drizzle migrations...');
+				await migratePostgres(db, { migrationsFolder: './drizzle' });
+				console.log('[db:migrate] Migrations completed successfully.');
+			} finally {
+				await migrationClient.end().catch(() => {});
+			}
 		}
 	} catch (error) {
 		console.error('[db:migrate] Migration error:', error);

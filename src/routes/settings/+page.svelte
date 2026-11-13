@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { superForm } from 'sveltekit-superforms';
 	import type { PageProps } from './$types';
 	import {
 		createDefaultWeeklySchedule,
@@ -37,7 +37,24 @@
 	import Blocks from '@lucide/svelte/icons/blocks';
 	import WhatsAppSettingsPanel from '#lib/features/integrations/whatsapp/ui/whatsapp-settings-panel.svelte';
 
-	let { data }: PageProps = $props();
+	let { data, form: actionForm }: PageProps = $props();
+
+	// svelte-ignore state_referenced_locally
+	const { form, errors, enhance, delayed, message } = superForm(data.form, {
+		dataType: 'json',
+		onSubmit: () => {
+			$form.openingHours = serializedOpeningHours;
+			$form.settings = {
+				...data.activeBusiness.settings,
+				operationalCosts
+			};
+		},
+		onResult: ({ result }) => {
+			if (result.type === 'success') {
+				toast.success('Configuración guardada', 'Los datos del negocio se actualizaron correctamente.');
+			}
+		}
+	});
 
 	let currentTab = $state<'general' | 'costs' | 'schedule' | 'integrations'>('general');
 

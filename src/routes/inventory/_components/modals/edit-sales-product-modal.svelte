@@ -1,5 +1,7 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { superForm } from 'sveltekit-superforms';
+	import type { SuperValidated, Infer } from 'sveltekit-superforms';
+	import type { UpdateSalesProductSchema } from '#lib/schemas/sales-product.schema';
 	import { ITEM_TYPE_LABELS, type Item } from '#lib/features/items/domain/item.entity';
 	import type { SalesProductWithItems } from '#lib/features/orders/domain/order.entity';
 	import { Button } from '#lib/components/ui/button';
@@ -13,6 +15,7 @@
 
 	interface Props {
 		open: boolean;
+		formData: SuperValidated<Infer<UpdateSalesProductSchema>>;
 		product: SalesProductWithItems | null;
 		businessId: string;
 		linkableItems: Item[];
@@ -22,6 +25,7 @@
 
 	let {
 		open = $bindable(),
+		formData,
 		product,
 		businessId,
 		linkableItems,
@@ -29,22 +33,37 @@
 		onClose
 	}: Props = $props();
 
-	let editSalesComponents = $state<{ itemId: string; quantity: number }[]>([]);
-	let editSalesPrice = $state(0);
+	// svelte-ignore state_referenced_locally
+	const { form, errors, enhance, submitting, reset } = superForm(formData, {
+		dataType: 'json',
+		onResult({ result }) {
+			if (result.type === 'success') {
+				handleClose();
+			}
+		}
+	});
 
 	$effect(() => {
 		if (open && product) {
-			editSalesPrice = product.salePrice;
+			reset();
+			$form.id = product.id;
+			$form.businessId = businessId;
+			$form.name = product.name;
+			$form.salePrice = product.salePrice;
+			$form.description = product.description ?? '';
+			$form.isActive = product.isActive;
+			$form.isShortcut = product.isShortcut;
 			if (product.components.length > 0) {
-				editSalesComponents = product.components.map((c) => ({
+				$form.components = product.components.map((c) => ({
 					itemId: c.itemId,
 					quantity: c.quantity
 				}));
 			} else if (linkableItems.length > 0) {
-				editSalesComponents = [{ itemId: linkableItems[0].id, quantity: 1 }];
+				$form.components = [{ itemId: linkableItems[0].id, quantity: 1 }];
 			} else {
-				editSalesComponents = [];
+				$form.components = [];
 			}
+			$form.pricingTiers = product.pricingTiers ?? [];
 		}
 	});
 
@@ -56,18 +75,18 @@
 	function addEditSalesComponentLine() {
 		if (linkableItems.length === 0) return;
 		const unused =
-			linkableItems.find((cand) => !editSalesComponents.some((c) => c.itemId === cand.id)) ??
+			linkableItems.find((cand) => !$form.components.some((c) => c.itemId === cand.id)) ??
 			linkableItems[0];
-		editSalesComponents = [...editSalesComponents, { itemId: unused.id, quantity: 1 }];
+		$form.components = [...$form.components, { itemId: unused.id, quantity: 1 }];
 	}
 
 	function removeEditSalesComponentLine(index: number) {
-		if (editSalesComponents.length <= 1) return;
-		editSalesComponents = editSalesComponents.filter((_, i) => i !== index);
+		if ($form.components.length <= 1) return;
+		$form.components = $form.components.filter((_, i) => i !== index);
 	}
 
 	const estimatedCost = $derived(
-		calculateComponentsRecipeCost(editSalesComponents, linkableItems, recipeSummaries)
+		calculateComponentsRecipeCost($form.components, linkableItems, recipeSummaries)
 	);
 </script>
 
@@ -84,7 +103,7 @@
 						<Badge variant="secondary" class="font-mono text-xs">
 							{product.code}
 						</Badge>
-						{#if editSalesComponents.length > 1}
+						{#if $form.components.length > 1}
 							<Badge variant="outline" class="text-xs">Combo</Badge>
 						{/if}
 					</div>
@@ -106,40 +125,28 @@
 			<form
 				method="POST"
 				action="?/updateSalesProduct"
-				use:enhance={() => {
-					return async ({ result, update }) => {
-						await update();
-						if (result.type === 'success') {
-							handleClose();
-						}
-					};
-				}}
+				use:enhance
 			>
 				<div class="max-h-[70vh] space-y-4 overflow-y-auto p-6">
-					<input type="hidden" name="businessId" value={businessId} />
-					<input type="hidden" name="id" value={product.id} />
-					<input
-						type="hidden"
-						name="componentsJson"
-						value={JSON.stringify(editSalesComponents)}
-					/>
-
 					<div class="space-y-2">
 						<Label for="edit-sp-name">Nombre Comercial</Label>
 						<Input
 							id="edit-sp-name"
 							name="name"
-							value={product.name}
+							bind:value={$form.name}
 							class="h-10"
 							required
 						/>
+						{#if $errors.name}
+							<p class="text-xs text-destructive">{$errors.name}</p>
+						{/if}
 					</div>
 
 					<!-- Lista de Ítems asociados -->
 					<div class="space-y-2.5 rounded-xl border border-border bg-muted/20 p-3.5">
 						<div class="flex items-center justify-between gap-2">
 							<span class="text-xs font-semibold text-foreground">
-								Ítems que incluye ({editSalesComponents.length})
+								Ítems que incluye ({$form.components.length})
 							</span>
 							<Button
 								type="button"
@@ -154,7 +161,7 @@
 						</div>
 
 						<div class="space-y-2">
-							{#each editSalesComponents as comp, idx (idx)}
+							{#each $form.components as comp, idx (idx)}
 								{@const selectedItem = linkableItems.find((i) => i.id === comp.itemId)}
 								<div class="flex items-center gap-2 rounded-lg border border-border bg-background p-2">
 									<div class="min-w-0 flex-1">
@@ -186,7 +193,7 @@
 										</span>
 									</div>
 
-									{#if editSalesComponents.length > 1}
+									{#if $form.components.length > 1}
 										<Button
 											type="button"
 											size="icon"
@@ -201,6 +208,9 @@
 								</div>
 							{/each}
 						</div>
+						{#if $errors.components}
+							<p class="text-xs text-destructive">{$errors.components}</p>
+						{/if}
 					</div>
 
 					<div class="grid grid-cols-2 gap-4">
@@ -212,10 +222,13 @@
 								type="number"
 								step="any"
 								min="0"
-								bind:value={editSalesPrice}
+								bind:value={$form.salePrice}
 								class="h-10"
 								required
 							/>
+							{#if $errors.salePrice}
+								<p class="text-xs text-destructive">{$errors.salePrice}</p>
+							{/if}
 						</div>
 
 						<div class="space-y-2">
@@ -223,7 +236,10 @@
 							<select
 								id="edit-sp-active"
 								name="isActive"
-								value={product.isActive ? 'true' : 'false'}
+								value={$form.isActive ? 'true' : 'false'}
+								onchange={(e) => {
+									$form.isActive = e.currentTarget.value === 'true';
+								}}
 								class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm"
 							>
 								<option value="true">Activo para Órdenes</option>
@@ -237,9 +253,12 @@
 						<Input
 							id="edit-sp-desc"
 							name="description"
-							value={product.description ?? ''}
+							bind:value={$form.description}
 							class="h-10"
 						/>
+						{#if $errors.description}
+							<p class="text-xs text-destructive">{$errors.description}</p>
+						{/if}
 					</div>
 
 					<div class="flex items-center gap-2 pt-1">
@@ -247,8 +266,7 @@
 							id="edit-sp-shortcut"
 							name="isShortcut"
 							type="checkbox"
-							value="true"
-							checked={product.isShortcut}
+							bind:checked={$form.isShortcut}
 							class="size-4 rounded border-input text-primary focus:ring-primary"
 						/>
 						<Label for="edit-sp-shortcut" class="text-xs font-medium cursor-pointer">
@@ -266,21 +284,23 @@
 						<div class="mt-1 flex items-center justify-between">
 							<span class="text-muted-foreground">Margen bruto proyectado:</span>
 							<span
-								class="font-mono font-semibold {editSalesPrice - estimatedCost >= 0
+								class="font-mono font-semibold {$form.salePrice - estimatedCost >= 0
 									? 'text-emerald-600'
 									: 'text-destructive'}"
 							>
-								{formatCurrency(editSalesPrice - estimatedCost)}
+								{formatCurrency($form.salePrice - estimatedCost)}
 							</span>
 						</div>
 					</div>
 				</div>
 
 				<div class="flex items-center justify-end gap-3 border-t border-border bg-muted/20 px-6 py-4">
-					<Button type="button" variant="outline" onclick={handleClose}>
+					<Button type="button" variant="outline" onclick={handleClose} disabled={$submitting}>
 						Cancelar
 					</Button>
-					<Button type="submit">Guardar Cambios</Button>
+					<Button type="submit" disabled={$submitting}>
+						{$submitting ? 'Guardando...' : 'Guardar Cambios'}
+					</Button>
 				</div>
 			</form>
 		</div>

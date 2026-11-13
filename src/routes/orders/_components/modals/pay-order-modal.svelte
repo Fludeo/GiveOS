@@ -1,5 +1,7 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { superForm } from 'sveltekit-superforms';
+	import type { SuperValidated, Infer } from 'sveltekit-superforms';
+	import type { UpdatePaymentSchema } from '#lib/schemas/order.schema';
 	import type { OrderWithItems, PaymentStatus } from '#lib/features/orders/domain/order.entity';
 	import { Button } from '#lib/components/ui/button';
 	import { Input } from '#lib/components/ui/input';
@@ -9,20 +11,31 @@
 	import { formatCurrency } from '../utils';
 
 	interface Props {
+		formData: SuperValidated<Infer<UpdatePaymentSchema>>;
 		order: OrderWithItems | null;
 		businessId: string;
 		onClose: () => void;
 	}
 
-	let { order, businessId, onClose }: Props = $props();
+	let { formData, order, businessId, onClose }: Props = $props();
 
-	let payModalAmount = $state(0);
-	let payModalStatus = $state<PaymentStatus>('paid');
+	// svelte-ignore state_referenced_locally
+	const { form, errors, enhance, submitting, reset } = superForm(formData, {
+		onResult({ result }) {
+			if (result.type === 'success') {
+				onClose();
+			}
+		}
+	});
 
 	$effect(() => {
 		if (order) {
-			payModalAmount = order.totalAmount;
-			payModalStatus = 'paid';
+			reset();
+			$form.businessId = businessId;
+			$form.orderId = order.id;
+			$form.paidAmount = order.totalAmount;
+			$form.paymentStatus = 'paid';
+			$form.transactionId = order.transactionId ?? '';
 		}
 	});
 </script>
@@ -65,36 +78,21 @@
 			<form
 				method="POST"
 				action="?/updatePayment"
-				use:enhance={({ action }) => {
-					if (typeof window !== 'undefined') {
-						const currentUrl = new URL(window.location.href);
-						for (const [k, v] of currentUrl.searchParams.entries()) {
-							if (!action.searchParams.has(k)) {
-								action.searchParams.set(k, v);
-							}
-						}
-					}
-					return async ({ result, update }) => {
-						await update({ reset: false });
-						if (result.type === 'success') {
-							onClose();
-						}
-					};
-				}}
+				use:enhance
 			>
 				<div class="space-y-4 p-6">
-					<input type="hidden" name="businessId" value={businessId} />
-					<input type="hidden" name="orderId" value={order.id} />
+					<input type="hidden" name="businessId" value={$form.businessId} />
+					<input type="hidden" name="orderId" value={$form.orderId} />
 
 					<div class="space-y-2">
 						<Label for="pay-status">Estado de Pago</Label>
 						<select
 							id="pay-status"
 							name="paymentStatus"
-							bind:value={payModalStatus}
+							bind:value={$form.paymentStatus}
 							onchange={() => {
-								if (payModalStatus === 'paid') payModalAmount = order.totalAmount;
-								else if (payModalStatus === 'pending') payModalAmount = 0;
+								if ($form.paymentStatus === 'paid') $form.paidAmount = order.totalAmount;
+								else if ($form.paymentStatus === 'pending') $form.paidAmount = 0;
 							}}
 							class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs"
 						>
@@ -102,6 +100,9 @@
 							<option value="partially_paid">Pago Parcial</option>
 							<option value="pending">Sin Pagar ($ 0,00)</option>
 						</select>
+						{#if $errors.paymentStatus}
+							<p class="text-xs text-destructive">{$errors.paymentStatus}</p>
+						{/if}
 					</div>
 
 					<div class="space-y-2">
@@ -113,22 +114,25 @@
 							step="any"
 							min="0"
 							max={order.totalAmount}
-							bind:value={payModalAmount}
+							bind:value={$form.paidAmount}
 							class="h-10 font-mono"
 							required
 						/>
+						{#if $errors.paidAmount}
+							<p class="text-xs text-destructive">{$errors.paidAmount}</p>
+						{/if}
 					</div>
 				</div>
 
 				<div
 					class="flex items-center justify-end gap-3 border-t border-border bg-muted/20 px-6 py-4"
 				>
-					<Button type="button" variant="outline" onclick={onClose}>
+					<Button type="button" variant="outline" onclick={onClose} disabled={$submitting}>
 						Cancelar
 					</Button>
-					<Button type="submit">
+					<Button type="submit" disabled={$submitting}>
 						<Check class="size-4" />
-						<span>Guardar Pago</span>
+						<span>{$submitting ? 'Guardando...' : 'Guardar Pago'}</span>
 					</Button>
 				</div>
 			</form>

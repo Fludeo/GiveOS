@@ -1,11 +1,34 @@
 import { and, asc, eq } from 'drizzle-orm';
 import type { AppDb } from '#lib/server/db/index';
 import * as schema from '#lib/server/db/schema';
-import type { CreateItemInput, Item, ItemType, UpdateItemInput } from '../domain/item.entity';
+import {
+	calculateRecipeOperationalSummary,
+	isRecipeDivisible,
+	type CreateItemInput,
+	type Item,
+	type ItemType,
+	type UpdateItemInput
+} from '../domain/item.entity';
 import type { IItemRepository } from '../domain/item.repository';
 
 export class DrizzleItemRepository implements IItemRepository {
 	constructor(private readonly db: AppDb) {}
+
+	private mapRow(row: typeof schema.items.$inferSelect): Item {
+		const opSummary = calculateRecipeOperationalSummary(
+			row.recipeConfig,
+			0,
+			0,
+			Boolean(row.recipeConfig?.isScalable),
+			row.yieldQuantity
+		);
+		return {
+			...row,
+			prepTimeMinutes: opSummary.activeMinutes,
+			passiveTimeMinutes: opSummary.passiveMinutes,
+			isPrepTimeScalable: isRecipeDivisible(row)
+		};
+	}
 
 	async findAllByBusiness(
 		businessId: string,
@@ -17,19 +40,21 @@ export class DrizzleItemRepository implements IItemRepository {
 			.where(eq(schema.items.businessId, businessId))
 			.orderBy(asc(schema.items.type), asc(schema.items.code));
 
-		return rows.filter((row) => {
-			if (filter?.type && row.type !== filter.type) return false;
-			if (filter?.search) {
-				const q = filter.search.toLowerCase().trim();
-				if (
-					!row.name.toLowerCase().includes(q) &&
-					!row.code.toLowerCase().includes(q)
-				) {
-					return false;
+		return rows
+			.filter((row) => {
+				if (filter?.type && row.type !== filter.type) return false;
+				if (filter?.search) {
+					const q = filter.search.toLowerCase().trim();
+					if (
+						!row.name.toLowerCase().includes(q) &&
+						!row.code.toLowerCase().includes(q)
+					) {
+						return false;
+					}
 				}
-			}
-			return true;
-		});
+				return true;
+			})
+			.map((row) => this.mapRow(row));
 	}
 
 	async findById(id: string, businessId: string): Promise<Item | null> {
@@ -38,7 +63,7 @@ export class DrizzleItemRepository implements IItemRepository {
 			.from(schema.items)
 			.where(and(eq(schema.items.id, id), eq(schema.items.businessId, businessId)))
 			.limit(1);
-		return row ?? null;
+		return row ? this.mapRow(row) : null;
 	}
 
 	async findByCode(code: string, businessId: string): Promise<Item | null> {
@@ -47,7 +72,7 @@ export class DrizzleItemRepository implements IItemRepository {
 			.from(schema.items)
 			.where(and(eq(schema.items.code, code), eq(schema.items.businessId, businessId)))
 			.limit(1);
-		return row ?? null;
+		return row ? this.mapRow(row) : null;
 	}
 
 	async create(input: CreateItemInput & { code: string }): Promise<Item> {
@@ -70,7 +95,7 @@ export class DrizzleItemRepository implements IItemRepository {
 			})
 			.returning();
 
-		return created;
+		return this.mapRow(created);
 	}
 
 	async update(id: string, businessId: string, input: UpdateItemInput): Promise<Item | null> {
@@ -106,7 +131,7 @@ export class DrizzleItemRepository implements IItemRepository {
 			.where(and(eq(schema.items.id, id), eq(schema.items.businessId, businessId)))
 			.returning();
 
-		return updated ?? null;
+		return updated ? this.mapRow(updated) : null;
 	}
 
 	async delete(id: string, businessId: string): Promise<boolean> {

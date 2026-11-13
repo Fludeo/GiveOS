@@ -1,5 +1,7 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { superForm } from 'sveltekit-superforms';
+	import type { SuperValidated, Infer } from 'sveltekit-superforms';
+	import type { CreateItemSchema } from '#lib/schemas/item.schema';
 	import {
 		generateNextItemCode,
 		UNITS_OF_MEASURE,
@@ -21,6 +23,7 @@
 
 	interface Props {
 		open: boolean;
+		formData: SuperValidated<Infer<CreateItemSchema>>;
 		businessId: string;
 		existingCodes: string[];
 		initialType?: ItemType;
@@ -30,6 +33,7 @@
 
 	let {
 		open = $bindable(),
+		formData,
 		businessId,
 		existingCodes,
 		initialType = 'raw_material',
@@ -37,36 +41,45 @@
 		onSuccess
 	}: Props = $props();
 
+	// svelte-ignore state_referenced_locally
+	const { form, errors, enhance, delayed, message, reset } = superForm(formData, {
+		resetForm: true,
+		onResult: ({ result }) => {
+			if (result.type === 'success') {
+				const createdId = (result.data as any)?.created?.id;
+				handleClose();
+				if (onSuccess) {
+					onSuccess(createdId);
+				}
+			}
+		}
+	});
+
 	let newItemStep = $state<1 | 2 | 3>(1);
-	let newItemType = $state<ItemType>('raw_material');
 	let newItemInitialType = $state<ItemType>('raw_material');
-	let newItemName = $state('');
-	let newItemBaseUnit = $state<UnitOfMeasure>('g');
-	let newItemMinStock = $state<number | ''>('');
-	let newItemPrepTime = $state<number | ''>(0);
-	let newItemPassiveTime = $state<number | ''>(0);
-	let newItemNotes = $state('');
 
 	$effect(() => {
 		if (open) {
 			newItemInitialType = initialType;
-			newItemType = initialType;
+			$form.businessId = businessId;
+			$form.type = initialType;
+			$form.name = '';
+			$form.baseUnit = initialType === 'raw_material' ? 'g' : 'unit';
+			$form.minStock = 0;
+			$form.prepTimeMinutes = 0;
+			$form.passiveTimeMinutes = 0;
+			$form.notes = '';
 			newItemStep = initialType === 'prepared' ? 2 : 1;
-			newItemName = '';
-			newItemBaseUnit = initialType === 'raw_material' ? 'g' : 'unit';
-			newItemMinStock = '';
-			newItemPrepTime = 0;
-			newItemPassiveTime = 0;
-			newItemNotes = '';
 		}
 	});
 
 	function handleClose() {
 		open = false;
+		reset();
 		onClose();
 	}
 
-	const nextAutoCode = $derived(generateNextItemCode(newItemType, existingCodes));
+	const nextAutoCode = $derived(generateNextItemCode($form.type as ItemType, existingCodes));
 </script>
 
 {#if open}
@@ -74,168 +87,142 @@
 		class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-foreground/40 p-0 sm:p-4 backdrop-blur-[1px]"
 		role="dialog"
 		aria-modal="true"
-		aria-labelledby="inv-new-item-title"
+		aria-labelledby="new-item-modal-title"
 	>
-		<div class="w-full max-w-full sm:max-w-lg max-h-[92vh] sm:max-h-[90vh] flex flex-col overflow-hidden rounded-t-2xl sm:rounded-2xl border-t sm:border border-border bg-card shadow-xl">
-			<!-- Header con Barra de Progreso y Paso -->
-			<div class="border-b border-border p-5">
-				<div class="flex items-center justify-between">
+		<div class="flex max-h-[92vh] sm:max-h-[90vh] w-full max-w-full sm:max-w-lg flex-col overflow-hidden rounded-t-2xl sm:rounded-2xl border-t sm:border border-border bg-card shadow-xl">
+			<!-- Header -->
+			<div class="flex items-start justify-between gap-4 border-b border-border p-5 pb-4">
+				<div class="space-y-1">
 					<div class="flex items-center gap-2">
-						<span class="rounded-full {newItemStep === 1 ? 'bg-muted text-muted-foreground' : newItemType === 'prepared' ? 'bg-secondary/15 text-secondary' : 'bg-tertiary/25 text-yellow-900 dark:text-yellow-300'} px-2.5 py-0.5 text-xs font-bold">
-							{#if newItemInitialType === 'prepared'}
-								Paso {newItemStep === 2 ? 1 : 2} de 2 · Elaboración
-							{:else if newItemStep === 1}
-								Paso 1 de 3
-							{:else}
-								Paso {newItemStep} de 3 · {newItemType === 'prepared' ? 'Elaboración' : 'Insumo'}
-							{/if}
+						<span class="rounded bg-muted px-2 py-0.5 font-mono text-xs font-semibold">
+							Paso {newItemStep} de 3
 						</span>
-						{#if newItemStep > 1}
-							<span class="rounded-md px-2 py-0.5 text-xs font-mono font-semibold {newItemType === 'prepared' ? 'bg-secondary/15 text-secondary border border-secondary/30' : 'bg-tertiary/20 text-yellow-900 dark:text-yellow-300 border border-tertiary/40'}">
-								{nextAutoCode}
-							</span>
-						{/if}
+						<span class="text-xs text-muted-foreground font-mono">
+							Código: {nextAutoCode}
+						</span>
 					</div>
-					<Button
-						type="button"
-						size="icon"
-						variant="ghost"
-						class="size-8 text-muted-foreground hover:text-foreground"
-						onclick={handleClose}
-					>
-						<X class="size-4" />
-					</Button>
+					<h2 id="new-item-modal-title" class="text-lg font-bold text-foreground">
+						{#if newItemStep === 1}
+							¿Qué deseas registrar?
+						{:else if newItemStep === 2}
+							Nombre y Unidad Base
+						{:else}
+							Parámetros y Alertas
+						{/if}
+					</h2>
 				</div>
-
-				<h2 id="inv-new-item-title" class="mt-3 text-lg font-bold text-foreground">
-					{#if newItemStep === 1}
-						¿Qué tipo de ítem vas a registrar?
-					{:else if newItemStep === 2}
-						{newItemInitialType === 'prepared' ? 'Nueva Elaboración: Nombre y unidad' : 'Nombre y unidad de medida'}
-					{:else}
-						Alerta de stock y notas
-					{/if}
-				</h2>
-
-				<!-- Barra de progreso visual -->
-				<div class="mt-3 flex gap-1.5">
-					{#if newItemInitialType === 'prepared'}
-						<div class="h-1 flex-1 rounded-full {newItemStep >= 2 ? 'bg-secondary' : 'bg-muted'}"></div>
-						<div class="h-1 flex-1 rounded-full {newItemStep >= 3 ? 'bg-secondary' : 'bg-muted'}"></div>
-					{:else}
-						<div class="h-1 flex-1 rounded-full {newItemStep >= 1 ? 'bg-primary' : 'bg-muted'}"></div>
-						<div class="h-1 flex-1 rounded-full {newItemStep >= 2 ? 'bg-primary' : 'bg-muted'}"></div>
-						<div class="h-1 flex-1 rounded-full {newItemStep >= 3 ? 'bg-primary' : 'bg-muted'}"></div>
-					{/if}
-				</div>
+				<Button
+					type="button"
+					size="icon"
+					variant="ghost"
+					class="size-8 text-muted-foreground hover:text-foreground"
+					onclick={handleClose}
+				>
+					<X class="size-4" />
+				</Button>
 			</div>
 
+			<!-- Formulario -->
 			<form
 				method="POST"
 				action="?/createItem"
-				use:enhance={() => {
-					return async ({ result, update }) => {
-						await update();
-						if (result.type === 'success') {
-							handleClose();
-							const createdId = (result.data as { createdItemId?: string } | undefined)?.createdItemId;
-							if (onSuccess) onSuccess(createdId);
-						}
-					};
-				}}
+				use:enhance
+				class="flex flex-1 flex-col overflow-hidden"
 			>
-				<input type="hidden" name="businessId" value={businessId} />
-				<input type="hidden" name="type" value={newItemType} />
-				<input type="hidden" name="name" value={newItemName} />
-				<input type="hidden" name="baseUnit" value={newItemBaseUnit} />
-				<input type="hidden" name="currentStock" value="0" />
-				<input type="hidden" name="minStock" value={newItemMinStock} />
-				<input type="hidden" name="referenceCost" value="0" />
-				<input type="hidden" name="purchaseQuantity" value="1" />
-				<input type="hidden" name="yieldQuantity" value="1" />
-				<input type="hidden" name="prepTimeMinutes" value={newItemPrepTime} />
-				<input type="hidden" name="notes" value={newItemNotes} />
+				<input type="hidden" name="businessId" bind:value={$form.businessId} />
+				<input type="hidden" name="type" bind:value={$form.type} />
+				<input type="hidden" name="baseUnit" bind:value={$form.baseUnit} />
 
-				<div class="p-6">
+				{#if $message}
+					<div class="m-5 mb-0 flex items-center gap-3 rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-destructive">
+						<AlertTriangle class="size-4 shrink-0" />
+						<p class="text-xs font-semibold">{$message}</p>
+					</div>
+				{/if}
+
+				<div class="flex-1 overflow-y-auto p-5 sm:p-6 space-y-5">
 					{#if newItemStep === 1}
-						<!-- PASO 1: Selección de Tipo de Ítem -->
-						<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+						<!-- PASO 1: Elegir Tipo -->
+						<div class="grid grid-cols-1 gap-3">
 							<button
 								type="button"
 								onclick={() => {
-									newItemType = 'raw_material';
-									newItemBaseUnit = 'g';
+									$form.type = 'raw_material';
+									$form.baseUnit = 'g';
 									newItemStep = 2;
 								}}
-								class="group flex flex-col items-center justify-center rounded-2xl border-2 border-tertiary/60 bg-card p-6 text-center transition-all cursor-pointer hover:border-tertiary hover:bg-tertiary/10 hover:shadow-xs"
+								class="flex items-start gap-3.5 rounded-xl border-2 p-4 text-left transition-all hover:bg-muted/30 {$form.type === 'raw_material' ? 'border-primary bg-primary/5 shadow-xs' : 'border-border'}"
 							>
-								<div
-									class="mb-3 flex size-14 items-center justify-center rounded-full bg-tertiary/20 text-yellow-900 dark:text-yellow-300 transition-transform group-hover:scale-105"
-								>
-									<Wheat class="size-7" />
+								<div class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+									<Wheat class="size-5" />
 								</div>
-								<div class="flex items-center gap-1.5">
-									<span class="text-base font-bold text-foreground">Insumo</span>
-									<span class="rounded-md border border-tertiary/40 bg-tertiary/20 px-1.5 py-0.2 font-mono text-[10px] font-bold text-yellow-900 dark:text-yellow-300">INS</span>
+								<div class="space-y-0.5">
+									<p class="text-sm font-bold text-foreground">Materia Prima / Ingrediente</p>
+									<p class="text-xs text-muted-foreground leading-relaxed">
+										Insumo que compras a proveedores para tus recetas (harina, huevos, manteca, etc.).
+									</p>
 								</div>
-								<span class="mt-1 text-xs text-muted-foreground">Materia prima que compras (harina, huevos, azúcar...)</span>
 							</button>
 
 							<button
 								type="button"
 								onclick={() => {
-									newItemType = 'prepared';
-									newItemBaseUnit = 'unit';
+									$form.type = 'prepared';
+									$form.baseUnit = 'unit';
 									newItemStep = 2;
 								}}
-								class="group flex flex-col items-center justify-center rounded-2xl border-2 border-secondary/60 bg-card p-6 text-center transition-all cursor-pointer hover:border-secondary hover:bg-secondary/10 hover:shadow-xs"
+								class="flex items-start gap-3.5 rounded-xl border-2 p-4 text-left transition-all hover:bg-muted/30 {$form.type === 'prepared' ? 'border-secondary bg-secondary/5 shadow-xs' : 'border-border'}"
 							>
-								<div
-									class="mb-3 flex size-14 items-center justify-center rounded-full bg-secondary/15 text-secondary transition-transform group-hover:scale-105"
-								>
-									<GraphHub class="size-7" />
+								<div class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-secondary/10 text-secondary">
+									<GraphHub class="size-5" />
 								</div>
-								<div class="flex items-center gap-1.5">
-									<span class="text-base font-bold text-foreground">Elaboración</span>
-									<span class="rounded-md border border-secondary/30 bg-secondary/15 px-1.5 py-0.2 font-mono text-[10px] font-bold text-secondary">ELB</span>
+								<div class="space-y-0.5">
+									<p class="text-sm font-bold text-foreground">Elaboración / Receta</p>
+									<p class="text-xs text-muted-foreground leading-relaxed">
+										Sub-ensamble o producto final que cocinas a partir de otros ingredientes o recetas.
+									</p>
 								</div>
-								<span class="mt-1 text-xs text-muted-foreground">Insumo o producto elaborado con insumos u otras elaboraciones.</span>
 							</button>
 						</div>
 					{:else if newItemStep === 2}
-						<!-- PASO 2: Nombre y Unidad -->
+						<!-- PASO 2: Nombre y Unidad Base -->
 						<div class="space-y-4">
-							<div class="space-y-2">
-								<Label for="inv-step-name">Nombre del Ítem</Label>
+							<div class="space-y-1.5">
+								<Label for="inv-step-name" class="font-semibold text-foreground">
+									Nombre de {$form.type === 'prepared' ? 'la Elaboración' : 'la Materia Prima'}
+								</Label>
 								<Input
 									id="inv-step-name"
-									bind:value={newItemName}
-									placeholder={newItemType === 'raw_material'
-										? 'Ej. Harina 0000'
-										: 'Ej. Bizcochuelo de Vainilla o Torta Selva Negra'}
+									name="name"
+									bind:value={$form.name}
+									placeholder={$form.type === 'prepared' ? 'Ej. Bizcochuelo de Vainilla 20cm' : 'Ej. Harina 0000'}
 									class="h-11 text-base font-medium"
-									required
 									autofocus
+									required
 								/>
+								{#if $errors.name}
+									<p class="text-xs text-destructive">{$errors.name}</p>
+								{/if}
 							</div>
 
-							<div class="space-y-2">
-								<Label for="inv-step-unit">Unidad de Medida</Label>
-								<select
-									id="inv-step-unit"
-									bind:value={newItemBaseUnit}
-									class="flex h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs"
-								>
+							<div class="space-y-1.5">
+								<Label class="font-semibold text-foreground">Unidad de Almacenamiento Principal</Label>
+								<div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
 									{#each UNITS_OF_MEASURE as u}
-										<option value={u}>{UNIT_LABELS[u]}</option>
+										<button
+											type="button"
+											onclick={() => ($form.baseUnit = u)}
+											class="flex flex-col items-center justify-center rounded-xl border p-3 text-center transition-all hover:bg-muted/30 {$form.baseUnit === u ? 'border-primary bg-primary/10 font-bold text-primary shadow-xs' : 'border-border text-foreground'}"
+										>
+											<span class="text-base font-mono font-bold uppercase">{u === 'unit' ? 'un' : u}</span>
+											<span class="text-[11px] text-muted-foreground">{UNIT_LABELS[u]}</span>
+										</button>
 									{/each}
-								</select>
+								</div>
 							</div>
-
-							
 						</div>
 					{:else}
-						<!-- PASO 3: Alerta y Notas -->
+						<!-- PASO 3: Parámetros del Ítem -->
 						<div class="space-y-4">
 							<div class="space-y-1.5">
 								<Label for="inv-step-min" class="flex items-center gap-1.5 font-semibold text-foreground">
@@ -244,15 +231,19 @@
 								</Label>
 								<Input
 									id="inv-step-min"
+									name="minStock"
 									type="number"
 									step="any"
 									min="0"
-									bind:value={newItemMinStock}
+									bind:value={$form.minStock}
 									class="h-11 font-mono text-base"
 									placeholder="0 (alerta al bajar de esta cantidad)"
 								/>
+								{#if $errors.minStock}
+									<p class="text-xs text-destructive">{$errors.minStock}</p>
+								{/if}
 								<p class="text-[11px] text-muted-foreground">
-									{#if newItemType === 'raw_material'}
+									{#if $form.type === 'raw_material'}
 										Recibirás una alerta cuando las existencias desciendan por debajo de este valor. Podrás cargar stock y su costo en cualquier momento con el botón "Cargar Stock".
 									{:else}
 										El stock de esta elaboración aumentará automáticamente al cocinar lotes de su receta.
@@ -264,7 +255,8 @@
 								<Label for="inv-step-notes">Notas (opcional)</Label>
 								<Input
 									id="inv-step-notes"
-									bind:value={newItemNotes}
+									name="notes"
+									bind:value={$form.notes}
 									placeholder="Proveedor, marca o detalle"
 									class="h-9 text-xs"
 								/>
@@ -298,9 +290,9 @@
 						</Button>
 						<Button
 							type="button"
-							disabled={!newItemName.trim()}
+							disabled={!$form.name?.trim()}
 							onclick={() => (newItemStep = 3)}
-							variant={newItemType === 'prepared' ? 'secondary' : 'default'}
+							variant={$form.type === 'prepared' ? 'secondary' : 'default'}
 						>
 							Siguiente →
 						</Button>
@@ -310,10 +302,11 @@
 						</Button>
 						<Button
 							type="submit"
-							variant={newItemType === 'prepared' ? 'secondary' : 'default'}
+							disabled={$delayed}
+							variant={$form.type === 'prepared' ? 'secondary' : 'default'}
 						>
 							<Check class="size-4" />
-							<span>{newItemType === 'prepared' ? 'Guardar Elaboración' : 'Guardar Ítem'}</span>
+							<span>{$delayed ? 'Guardando...' : ($form.type === 'prepared' ? 'Guardar Elaboración' : 'Guardar Ítem')}</span>
 						</Button>
 					{/if}
 				</div>

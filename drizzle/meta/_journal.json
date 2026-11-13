@@ -64,6 +64,13 @@
       "when": 1793059081776,
       "tag": "0008_bouncy_obadiah_stane",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793308202241,
+      "tag": "0009_big_bill_hollister",
+      "breakpoints": true
     }
   ]
 }

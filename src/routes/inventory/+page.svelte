@@ -242,6 +242,7 @@
 	<!-- Modales de Stock e Inventario -->
 	<NewItemModal
 		bind:open={showNewItemModal}
+		formData={data.createItemForm}
 		businessId={data.activeBusiness.id}
 		existingCodes={existingItemCodes}
 		initialType={newItemInitialType}
@@ -255,6 +256,7 @@
 
 	<AddStockModal
 		bind:open={showAddStockModal}
+		formData={data.addStockBatchForm}
 		item={selectedStockItem}
 		businessId={data.activeBusiness.id}
 		allItems={data.items}
@@ -271,6 +273,7 @@
 
 	<AdjustItemModal
 		bind:open={showAdjustItemModal}
+		formData={data.adjustItemForm}
 		item={adjustingItem}
 		businessId={data.activeBusiness.id}
 		onClose={() => {
@@ -304,6 +307,7 @@
 	<!-- Modales de Recetas -->
 	<AddRecipeLineModal
 		bind:open={showAddRecipeLineModal}
+		formData={data.addRecipeLineForm}
 		parentItem={selectedRoot}
 		businessId={data.activeBusiness.id}
 		availableComponents={availableComponentsForSelected}
@@ -312,6 +316,7 @@
 
 	<EditRecipeItemModal
 		bind:open={showEditRecipeItemModal}
+		formData={data.editRecipeItemForm}
 		item={selectedRoot}
 		businessId={data.activeBusiness.id}
 		onClose={() => {}}
@@ -323,6 +328,7 @@
 
 	<EditRecipeCostsModal
 		bind:open={showEditRecipeCostsModal}
+		formData={data.recipeCostsForm}
 		item={selectedRoot}
 		businessSettings={data.activeBusiness.settings}
 		businessId={data.activeBusiness.id}
@@ -332,6 +338,7 @@
 	<!-- Modales de Productos de Venta -->
 	<NewSalesProductModal
 		bind:open={showNewSalesProductModal}
+		formData={data.newSalesProductForm}
 		businessId={data.activeBusiness.id}
 		linkableItems={linkableItems}
 		recipeSummaries={data.recipeSummaries}
@@ -342,6 +349,7 @@
 
 	<EditSalesProductModal
 		bind:open={showEditSalesProductModal}
+		formData={data.editSalesProductForm}
 		product={editingSalesProduct}
 		businessId={data.activeBusiness.id}
 		linkableItems={linkableItems}

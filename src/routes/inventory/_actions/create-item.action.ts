@@ -1,70 +1,50 @@
 import { fail, redirect, type RequestEvent } from '@sveltejs/kit';
+import { superValidate } from 'sveltekit-superforms';
+import { zod4 } from 'sveltekit-superforms/adapters';
 import { getServices } from '#lib/server/container';
-import {
-	ITEM_TYPES,
-	UNITS_OF_MEASURE,
-	type ItemType,
-	type UnitOfMeasure
-} from '#lib/features/items/domain/item.entity';
 import { resolveBusinessOrRedirect } from '#lib/server/business-resolver';
+import { createItemSchema } from '#lib/schemas/item.schema';
 
 export async function createItemAction({ request, locals, url }: RequestEvent) {
 	if (!locals.user) throw redirect(302, '/login');
-	const formData = await request.formData();
+
+	const form = await superValidate(request, zod4(createItemSchema));
+	if (!form.valid) {
+		return fail(400, { form });
+	}
+
 	const businessIdParam =
-		String(formData.get('businessId') ?? '') || url.searchParams.get('business');
+		form.data.businessId || url.searchParams.get('business');
 	const { activeBusiness } = await resolveBusinessOrRedirect(locals.user.id, businessIdParam);
 
 	const { itemService } = getServices();
-	const name = String(formData.get('name') ?? '').trim();
-	const type = String(formData.get('type') ?? 'raw_material') as ItemType;
-	const baseUnit = String(formData.get('baseUnit') ?? 'g') as UnitOfMeasure;
-	const referenceCost = Number(formData.get('referenceCost') ?? 0);
-	const purchaseQuantity = Number(formData.get('purchaseQuantity') ?? 1);
-	const yieldQuantity = Number(formData.get('yieldQuantity') ?? 1);
-	const isPrepTimeScalable = formData.get('isPrepTimeScalable') === 'true' || formData.get('isPrepTimeScalable') === 'on';
-	const prepTimeMinutes = formData.has('prepTimeMinutes')
-		? Number(formData.get('prepTimeMinutes') ?? 0)
-		: 0;
-	const passiveTimeMinutes = formData.has('passiveTimeMinutes')
-		? Number(formData.get('passiveTimeMinutes') ?? 0)
-		: 0;
-	const currentStock = Number(formData.get('currentStock') ?? 0);
-	const minStock = Number(formData.get('minStock') ?? 0);
-	const notes = String(formData.get('notes') ?? '').trim() || null;
-
-	if (!ITEM_TYPES.includes(type)) {
-		return fail(400, { error: 'Tipo de ítem inválido.' });
-	}
-	if (!UNITS_OF_MEASURE.includes(baseUnit)) {
-		return fail(400, { error: 'Unidad de medida inválida.' });
-	}
 
 	try {
 		const created = await itemService.createItem({
 			businessId: activeBusiness.id,
-			name,
-			type,
-			baseUnit,
-			referenceCost: Number.isFinite(referenceCost) ? referenceCost : 0,
-			purchaseQuantity:
-				Number.isFinite(purchaseQuantity) && purchaseQuantity > 0 ? purchaseQuantity : 1,
-			yieldQuantity: Number.isFinite(yieldQuantity) && yieldQuantity > 0 ? yieldQuantity : 1,
-			prepTimeMinutes:
-				Number.isFinite(prepTimeMinutes) && prepTimeMinutes >= 0 ? Math.round(prepTimeMinutes) : 0,
-			passiveTimeMinutes:
-				Number.isFinite(passiveTimeMinutes) && passiveTimeMinutes >= 0 ? Math.round(passiveTimeMinutes) : 0,
-			isPrepTimeScalable: Boolean(isPrepTimeScalable),
-			currentStock: Number.isFinite(currentStock) && currentStock >= 0 ? currentStock : 0,
-			minStock: Number.isFinite(minStock) && minStock >= 0 ? minStock : 0,
-			notes
+			name: form.data.name.trim(),
+			type: form.data.type as any,
+			baseUnit: form.data.baseUnit as any,
+			referenceCost: form.data.referenceCost,
+			purchaseQuantity: form.data.purchaseQuantity,
+			yieldQuantity: form.data.yieldQuantity,
+			prepTimeMinutes: Math.round(form.data.prepTimeMinutes),
+			passiveTimeMinutes: Math.round(form.data.passiveTimeMinutes),
+			isPrepTimeScalable: form.data.isPrepTimeScalable,
+			currentStock: form.data.currentStock,
+			minStock: form.data.minStock,
+			notes: form.data.notes?.trim() || null
 		});
+
 		return {
+			form,
 			success: true,
-			message: `Ítem "${created.name}" (${created.code}) registrado en inventario.`,
-			createdItemId: created.id
+			message: `Ítem "${created.name}" creado correctamente.`
 		};
 	} catch (e) {
-		return fail(400, { error: e instanceof Error ? e.message : 'Error al registrar el ítem.' });
+		return fail(400, {
+			form,
+			error: e instanceof Error ? e.message : 'Error al crear el ítem.'
+		});
 	}
 }
