@@ -5,8 +5,21 @@ import { getServices } from '#lib/server/container';
 import { getDb } from '#lib/server/db';
 import { businesses } from '#lib/server/db/schema';
 
-export function generateMcpApiKey(): string {
-	return `gvos_mcp_${randomBytes(20).toString('hex')}`;
+/**
+ * Formato del token Multi-Tenant:
+ * gvos_mcp_<businessId>_<secretHex>
+ * Permite buscar el negocio en O(1) por su Primary Key (businessId) y validar el secreto criptográfico.
+ */
+export function generateMcpApiKey(businessId: string): string {
+	return `gvos_mcp_${businessId}_${randomBytes(16).toString('hex')}`;
+}
+
+function parseBusinessIdFromMcpKey(key: string): string | null {
+	if (!key.startsWith('gvos_mcp_')) return null;
+	const rest = key.slice('gvos_mcp_'.length);
+	const lastUnderscore = rest.lastIndexOf('_');
+	if (lastUnderscore <= 0) return null;
+	return rest.slice(0, lastUnderscore);
 }
 
 function safeCompareKeys(a: string, b: string): boolean {
@@ -17,7 +30,7 @@ function safeCompareKeys(a: string, b: string): boolean {
 }
 
 /**
- * Garantiza que un negocio (tenant) tenga su propia API Key de MCP generada en settings.integrations.mcp
+ * Garantiza que un negocio (tenant) tenga su propia llave MCP generada en settings.integrations.mcp
  */
 export async function ensureBusinessMcpApiKey(businessId: string): Promise<string> {
 	const db = getDb();
@@ -30,11 +43,11 @@ export async function ensureBusinessMcpApiKey(businessId: string): Promise<strin
 	}
 
 	const existingKey = business.settings?.integrations?.mcp?.apiKey;
-	if (existingKey && existingKey.startsWith('gvos_mcp_')) {
+	if (existingKey && parseBusinessIdFromMcpKey(existingKey) === businessId) {
 		return existingKey;
 	}
 
-	const newKey = generateMcpApiKey();
+	const newKey = generateMcpApiKey(businessId);
 	const nextSettings = {
 		...(business.settings ?? {}),
 		integrations: {
@@ -56,7 +69,7 @@ export async function ensureBusinessMcpApiKey(businessId: string): Promise<strin
 }
 
 /**
- * Regenera/rota la API Key de MCP de un negocio (invalidando la anterior)
+ * Regenera/rota la llave MCP de un negocio (invalidando la anterior)
  */
 export async function rotateBusinessMcpApiKey(businessId: string): Promise<string> {
 	const db = getDb();
@@ -68,7 +81,7 @@ export async function rotateBusinessMcpApiKey(businessId: string): Promise<strin
 		throw new Error('Negocio no encontrado.');
 	}
 
-	const newKey = generateMcpApiKey();
+	const newKey = generateMcpApiKey(businessId);
 	const nextSettings = {
 		...(business.settings ?? {}),
 		integrations: {
@@ -90,9 +103,8 @@ export async function rotateBusinessMcpApiKey(businessId: string): Promise<strin
 }
 
 /**
- * Resuelve el negocio (tenant) autenticado a partir de la petición MCP:
- * 1. Por API Key de Tenant (Header Authorization: Bearer gvos_mcp_..., x-mcp-api-key, o query ?apiKey=gvos_mcp_...)
- * 2. O por sesión autenticada de usuario verificando membresía en el negocio
+ * Resuelve el negocio (tenant) autenticado en O(1) por Primary Key a partir de la llave:
+ * gvos_mcp_<businessId>_<secret>
  */
 export async function resolveTenantFromMcpRequest(
 	request: Request,
@@ -110,20 +122,23 @@ export async function resolveTenantFromMcpRequest(
 
 	if (providedKey) {
 		const db = getDb();
-		const allBusinesses = await db.select().from(businesses);
-		const matched = allBusinesses.find((b) => {
-			const tenantKey = b.settings?.integrations?.mcp?.apiKey;
-			const isEnabled = b.settings?.integrations?.mcp?.enabled !== false;
-			return isEnabled && tenantKey && safeCompareKeys(tenantKey, providedKey);
-		});
+		const extractedBusinessId = parseBusinessIdFromMcpKey(providedKey);
 
-		if (!matched) {
-			throw new Error(
-				'MCP API Key inválida o revocada. Copia la clave vigente desde la sección Asistente & MCP del negocio.'
-			);
+		if (extractedBusinessId) {
+			const business = await db.query.businesses.findFirst({
+				where: eq(businesses.id, extractedBusinessId)
+			});
+			const storedKey = business?.settings?.integrations?.mcp?.apiKey;
+			const isEnabled = business?.settings?.integrations?.mcp?.enabled !== false;
+
+			if (business && isEnabled && storedKey && safeCompareKeys(storedKey, providedKey)) {
+				return business;
+			}
 		}
 
-		return matched;
+		throw new Error(
+			'Llave MCP inválida o revocada. Copia la clave vigente desde la sección Asistente & MCP del negocio.'
+		);
 	}
 
 	// Si hay sesión web activa del usuario, verificar membresía multi-tenant
@@ -151,6 +166,6 @@ export async function resolveTenantFromMcpRequest(
 	}
 
 	throw new Error(
-		'Autenticación multi-tenant requerida: proporciona la API Key del negocio vía "?apiKey=gvos_mcp_..." en la URL o en el header "Authorization: Bearer gvos_mcp_...".'
+		'Autenticación multi-tenant requerida: proporciona la llave del negocio vía "?apiKey=gvos_mcp_..." en la URL.'
 	);
 }
