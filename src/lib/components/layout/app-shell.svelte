@@ -29,6 +29,7 @@
 	import X from '@lucide/svelte/icons/x';
 	import PanelLeftClose from '@lucide/svelte/icons/panel-left-close';
 	import PanelLeftOpen from '@lucide/svelte/icons/panel-left-open';
+	import Sparkles from '@lucide/svelte/icons/sparkles';
 	import ThemeToggle from '#lib/components/theme-toggle.svelte';
 	import { draftOrderStore } from '#lib/features/orders/ui/draft-order.svelte';
 
@@ -52,6 +53,7 @@
 			| 'orders'
 			| 'recipes'
 			| 'inventory'
+			| 'assistant'
 			| 'settings'
 			| 'integrations'
 			| 'messages';
@@ -131,6 +133,13 @@
 			icon: Package
 		},
 		{
+			id: 'assistant' as const,
+			label: 'Asistente & MCP',
+			mobileLabel: 'Asistente',
+			href: '/assistant',
+			icon: Sparkles
+		},
+		{
 			id: 'settings' as const,
 			label: 'Configuración',
 			mobileLabel: 'Ajustes',
@@ -140,7 +149,7 @@
 	]);
 
 	const leftDockItems = $derived(navItems.slice(0, 2));
-	const rightDockItems = $derived([navItems[2], navItems[4]]);
+	const rightDockItems = $derived([navItems[2], navItems[navItems.length - 1]]);
 </script>
 
 <div class="flex h-screen h-dvh w-full overflow-hidden bg-muted/20">

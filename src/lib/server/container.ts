@@ -13,6 +13,8 @@ import { DrizzleBusinessRepository } from '#lib/features/businesses/infrastructu
 import { BusinessService } from '#lib/features/businesses/application/business.service';
 import { DrizzleOrderRepository } from '#lib/features/orders/infrastructure/drizzle-order.repository';
 import { OrderService } from '#lib/features/orders/application/order.service';
+import { DrizzleDraftRepository } from '#lib/features/drafts/infrastructure/drizzle-draft.repository';
+import { DraftService } from '#lib/features/drafts/application/draft.service';
 import { getWhatsAppSessionManager } from '#lib/features/integrations/whatsapp/application/whatsapp-session-manager';
 import { getChatService } from '#lib/features/messaging/application/chat.service';
 
@@ -32,6 +34,7 @@ export function getServices() {
 	const recipeRepository = new DrizzleRecipeRepository(db);
 	const businessRepository = new DrizzleBusinessRepository(db);
 	const orderRepository = new DrizzleOrderRepository(db);
+	const draftRepository = new DrizzleDraftRepository(db);
 
 	if (!globalForServices._betterAuth) {
 		globalForServices._betterAuth = createBetterAuthInstance(db);
@@ -43,6 +46,7 @@ export function getServices() {
 	const authService = new AuthService(authRepository);
 	const businessService = new BusinessService(businessRepository);
 	const orderService = new OrderService(orderRepository, itemRepository, recipeService);
+	const draftService = new DraftService(draftRepository, itemService, recipeService, orderService);
 	const whatsAppSessionManager = getWhatsAppSessionManager();
 	const chatService = getChatService();
 
@@ -52,6 +56,7 @@ export function getServices() {
 		authService,
 		businessService,
 		orderService,
+		draftService,
 		whatsAppSessionManager,
 		chatService,
 		betterAuth: globalForServices._betterAuth

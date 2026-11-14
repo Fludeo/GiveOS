@@ -78,6 +78,19 @@ export async function runMigrations() {
 						CREATE INDEX IF NOT EXISTS "chat_messages_session_idx" ON "chat_messages" ("session_id");
 						CREATE INDEX IF NOT EXISTS "chat_messages_business_idx" ON "chat_messages" ("business_id");
 						CREATE INDEX IF NOT EXISTS "chat_messages_timestamp_idx" ON "chat_messages" ("timestamp");
+
+						CREATE TABLE IF NOT EXISTS "drafts" (
+							"id" text PRIMARY KEY NOT NULL,
+							"business_id" text NOT NULL REFERENCES "businesses"("id") ON DELETE CASCADE,
+							"session_id" text,
+							"title" text DEFAULT 'Borrador activo' NOT NULL,
+							"status" text DEFAULT 'active' NOT NULL,
+							"payload" jsonb DEFAULT '{"entries":[]}'::jsonb NOT NULL,
+							"created_at" timestamp DEFAULT now() NOT NULL,
+							"updated_at" timestamp DEFAULT now() NOT NULL
+						);
+						CREATE INDEX IF NOT EXISTS "drafts_business_idx" ON "drafts" ("business_id");
+						CREATE INDEX IF NOT EXISTS "drafts_business_status_idx" ON "drafts" ("business_id", "status");
 					`)
 					.catch(() => {});
 			}

@@ -1,4 +1,5 @@
 import type { BusinessSettings } from '#lib/features/businesses/domain/business.entity';
+import type { DraftPayload, DraftStatus } from '#lib/features/drafts/domain/draft.entity';
 // GiveOS PostgreSQL Schema - Drizzle ORM
 import { v7 as uuidv7 } from 'uuid';
 import {
@@ -377,5 +378,38 @@ export const chatMessages = pgTable(
 		index('chat_messages_session_idx').on(table.sessionId),
 		index('chat_messages_business_idx').on(table.businessId),
 		index('chat_messages_timestamp_idx').on(table.timestamp)
+	]
+);
+
+// ==========================================
+// Domain Schema: Dynamic Drafts (JSONB Staging)
+// ==========================================
+
+export const drafts = pgTable(
+	'drafts',
+	{
+		id: text('id')
+			.primaryKey()
+			.$defaultFn(() => uuidv7()),
+		businessId: text('business_id')
+			.notNull()
+			.references(() => businesses.id, { onDelete: 'cascade' }),
+		sessionId: text('session_id'),
+		title: text('title').notNull().default('Borrador activo'),
+		status: text('status').$type<DraftStatus>().notNull().default('active'),
+		payload: jsonb('payload')
+			.$type<DraftPayload>()
+			.notNull()
+			.$defaultFn(() => ({ entries: [] })),
+		createdAt: timestamp('created_at', { mode: 'date' })
+			.notNull()
+			.$defaultFn(() => new Date()),
+		updatedAt: timestamp('updated_at', { mode: 'date' })
+			.notNull()
+			.$defaultFn(() => new Date())
+	},
+	(table) => [
+		index('drafts_business_idx').on(table.businessId),
+		index('drafts_business_status_idx').on(table.businessId, table.status)
 	]
 );
