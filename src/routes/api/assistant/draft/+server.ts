@@ -1,5 +1,8 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
-import { rotateBusinessMcpApiKey } from '#lib/features/mcp/application/mcp-tenant-auth';
+import {
+	createBusinessMcpApiKey,
+	revokeBusinessMcpApiKey
+} from '#lib/features/mcp/application/mcp-tenant-auth';
 import { resolveBusinessOrRedirect } from '#lib/server/business-resolver';
 import { getServices } from '#lib/server/container';
 
@@ -26,17 +29,30 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	}
 
 	const body = await request.json().catch(() => ({}));
-	const { businessId, action, entryId, entries, entry } = body;
+	const { businessId, action, entryId, entries, entry, durationDays } = body;
 
 	const { activeBusiness } = await resolveBusinessOrRedirect(locals.user.id, businessId);
 	const { draftService } = getServices();
 
 	try {
-		if (action === 'rotate_mcp_key') {
-			const newApiKey = await rotateBusinessMcpApiKey(activeBusiness.id);
+		if (action === 'generate_mcp_key' || action === 'rotate_mcp_key') {
+			const parsedDuration =
+				durationDays !== undefined && durationDays !== null && Number(durationDays) > 0
+					? Number(durationDays)
+					: null;
+			const generated = await createBusinessMcpApiKey(activeBusiness.id, parsedDuration);
 			return json({
 				success: true,
-				mcpApiKey: newApiKey
+				rawApiKey: generated.rawApiKey,
+				mcpKeyStatus: generated.status
+			});
+		}
+
+		if (action === 'revoke_mcp_key') {
+			const status = await revokeBusinessMcpApiKey(activeBusiness.id);
+			return json({
+				success: true,
+				mcpKeyStatus: status
 			});
 		}
 

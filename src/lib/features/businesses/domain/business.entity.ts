@@ -35,8 +35,10 @@ export interface BusinessSettings {
 		};
 		mcp?: {
 			enabled: boolean;
-			apiKey?: string;
-			updatedAt?: string;
+			keyHash?: string | null;
+			keyHint?: string | null;
+			createdAt?: string | null;
+			expiresAt?: string | null;
 		};
 	};
 }

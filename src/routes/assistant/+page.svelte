@@ -11,6 +11,7 @@
 		DRAFT_ENTITY_LABELS,
 		type DraftSummaryStatus
 	} from '#lib/features/drafts/domain/draft.entity';
+	import type { McpKeyStatus } from '#lib/features/mcp/application/mcp-tenant-auth';
 	import Bot from '@lucide/svelte/icons/bot';
 	import Sparkles from '@lucide/svelte/icons/sparkles';
 	import Send from '@lucide/svelte/icons/send';
@@ -37,9 +38,11 @@
 	}
 
 	let localDraftOverride = $state<DraftSummaryStatus | null>(null);
-	let localMcpKeyOverride = $state<string | null>(null);
+	let localMcpStatusOverride = $state<McpKeyStatus | null>(null);
+	let newlyGeneratedRawKey = $state<string | null>(null);
+	let selectedDurationDays = $state<number>(7);
 	const draftSummary = $derived<DraftSummaryStatus>(localDraftOverride ?? data.initialDraftSummary);
-	const currentMcpApiKey = $derived<string>(localMcpKeyOverride ?? data.mcpApiKey);
+	const mcpKeyStatus = $derived<McpKeyStatus>(localMcpStatusOverride ?? data.mcpKeyStatus);
 	let messages = $state<ChatMessage[]>([
 		{
 			id: 'welcome',
@@ -59,11 +62,12 @@
 	$effect(() => {
 		if (data.initialDraftSummary) {
 			localDraftOverride = null;
-			localMcpKeyOverride = null;
+			localMcpStatusOverride = null;
+			newlyGeneratedRawKey = null;
 		}
 	});
 
-	async function handleRotateMcpKey() {
+	async function handleGenerateMcpKey() {
 		isMutatingDraft = true;
 		try {
 			const res = await fetch('/api/assistant/draft', {
@@ -71,27 +75,59 @@
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
 					businessId: data.activeBusiness.id,
-					action: 'rotate_mcp_key'
+					action: 'generate_mcp_key',
+					durationDays: selectedDurationDays > 0 ? selectedDurationDays : null
 				})
 			});
 			const json = await res.json();
 			if (!res.ok) throw new Error(json.error);
-			localMcpKeyOverride = json.mcpApiKey;
-			toast.success('Nueva API Key MCP generada para este negocio.');
+			localMcpStatusOverride = json.mcpKeyStatus;
+			newlyGeneratedRawKey = json.rawApiKey;
+			toast.success(
+				'Llave MCP generada. Cópiala ahora: por seguridad solo se muestra una vez y en la base de datos solo se guarda su hash SHA-256.'
+			);
 		} catch (e: any) {
-			toast.error(e.message || 'Error al rotar la API Key');
+			toast.error(e.message || 'Error al generar la llave MCP');
+		} finally {
+			isMutatingDraft = false;
+		}
+	}
+
+	async function handleRevokeMcpKey() {
+		isMutatingDraft = true;
+		try {
+			const res = await fetch('/api/assistant/draft', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					businessId: data.activeBusiness.id,
+					action: 'revoke_mcp_key'
+				})
+			});
+			const json = await res.json();
+			if (!res.ok) throw new Error(json.error);
+			localMcpStatusOverride = json.mcpKeyStatus;
+			newlyGeneratedRawKey = null;
+			toast.success('Llave MCP revocada y acceso externo desactivado.');
+		} catch (e: any) {
+			toast.error(e.message || 'Error al revocar la llave MCP');
 		} finally {
 			isMutatingDraft = false;
 		}
 	}
 
 	async function copyMcpConfig() {
+		if (!newlyGeneratedRawKey) return;
 		const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173';
+		const serverKey = `giveos-${data.activeBusiness.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
 		const snippet = JSON.stringify(
 			{
 				mcpServers: {
-					[`giveos-${data.activeBusiness.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`]: {
-						url: `${origin}/api/mcp?apiKey=${currentMcpApiKey}`
+					[serverKey]: {
+						url: `${origin}/api/mcp`,
+						headers: {
+							Authorization: `Bearer ${newlyGeneratedRawKey}`
+						}
 					}
 				}
 			},
@@ -352,44 +388,102 @@
 			<Card class="border-secondary/40 bg-secondary/5">
 				<CardHeader class="pb-2">
 					<div class="flex flex-wrap items-center justify-between gap-2">
-						<CardTitle class="flex items-center gap-2 text-sm font-semibold">
-							<Terminal class="size-4 text-secondary" />
-							Servidor MCP Multi-Tenant para "{data.activeBusiness.name}"
-						</CardTitle>
 						<div class="flex items-center gap-2">
-							<Button variant="outline" size="sm" onclick={copyMcpConfig} class="h-7 text-xs">
-								Copiar JSON
-							</Button>
-							<Button
-								variant="outline"
-								size="sm"
-								onclick={handleRotateMcpKey}
-								disabled={isMutatingDraft}
-								class="h-7 text-xs"
+							<CardTitle class="flex items-center gap-2 text-sm font-semibold">
+								<Terminal class="size-4 text-secondary" />
+								Servidor MCP Multi-Tenant para "{data.activeBusiness.name}"
+							</CardTitle>
+							{#if mcpKeyStatus.enabled}
+								<Badge variant="outline" class="border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 text-[11px]">
+									Activa ({mcpKeyStatus.keyHint})
+								</Badge>
+							{:else if mcpKeyStatus.isExpired}
+								<Badge variant="outline" class="border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300 text-[11px]">
+									Expirada
+								</Badge>
+							{:else}
+								<Badge variant="outline" class="text-[11px]">
+									Desactivada / Sin llave
+								</Badge>
+							{/if}
+						</div>
+
+						<div class="flex flex-wrap items-center gap-2">
+							<select
+								bind:value={selectedDurationDays}
+								class="h-8 rounded-lg border border-border bg-background px-2 text-xs text-foreground"
 							>
-								Rotar API Key
+								<option value={1}>Duración: 24 horas</option>
+								<option value={7}>Duración: 7 días</option>
+								<option value={30}>Duración: 30 días</option>
+								<option value={90}>Duración: 90 días</option>
+								<option value={0}>Sin vencimiento</option>
+							</select>
+
+							<Button
+								variant="default"
+								size="sm"
+								onclick={handleGenerateMcpKey}
+								disabled={isMutatingDraft}
+								class="h-8 text-xs"
+							>
+								{mcpKeyStatus.hasKey ? 'Regenerar llave MCP' : 'Generar llave MCP'}
 							</Button>
+
+							{#if mcpKeyStatus.hasKey}
+								<Button
+									variant="outline"
+									size="sm"
+									onclick={handleRevokeMcpKey}
+									disabled={isMutatingDraft}
+									class="h-8 text-xs text-destructive hover:text-destructive"
+								>
+									Revocar acceso
+								</Button>
+							{/if}
 						</div>
 					</div>
 				</CardHeader>
-				<CardContent class="space-y-2 text-xs text-muted-foreground">
+				<CardContent class="space-y-3 text-xs text-muted-foreground">
 					<p>
-						Cada negocio en GiveOS tiene su propia <strong>API Key aislada (Multi-Tenant)</strong>. Al
-						conectarse con esta clave, el agente opera exclusivamente sobre el catálogo, inventario y
-						borradores de <strong>{data.activeBusiness.name}</strong>:
+						Por seguridad, GiveOS almacena únicamente el <strong>hash SHA-256</strong> de la llave. La
+						llave completa se muestra <strong>una sola vez</strong> al momento de generarla.
+						{#if mcpKeyStatus.expiresAt}
+							<span>
+								• Vence: <strong>{new Date(mcpKeyStatus.expiresAt).toLocaleString()}</strong>
+							</span>
+						{/if}
 					</p>
-					<pre
-						class="overflow-x-auto rounded-lg border border-border bg-background p-3 font-mono text-xs text-foreground">{JSON.stringify(
-							{
-								mcpServers: {
-									[`giveos-${data.activeBusiness.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`]: {
-										url: `${typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173'}/api/mcp?apiKey=${currentMcpApiKey}`
-									}
-								}
-							},
-							null,
-							2
-						)}</pre>
+
+					{#if newlyGeneratedRawKey}
+						<div class="space-y-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-3">
+							<div class="flex items-center justify-between gap-2">
+								<p class="font-semibold text-emerald-900 dark:text-emerald-200">
+									🔑 Copia esta configuración ahora (no volverá a mostrarse al salir):
+								</p>
+								<Button variant="outline" size="sm" onclick={copyMcpConfig} class="h-7 text-xs">
+									Copiar JSON
+								</Button>
+							</div>
+							<pre
+								class="overflow-x-auto rounded-lg border border-border bg-background p-3 font-mono text-xs text-foreground">{JSON.stringify(
+									{
+										mcpServers: {
+											[`giveos-${data.activeBusiness.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`]:
+												{
+													url: `${typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173'}/api/mcp`,
+													headers: {
+														Authorization: `Bearer ${newlyGeneratedRawKey}`
+													}
+												}
+										}
+									},
+									null,
+									2
+								)}</pre>
+						</div>
+					{/if}
+
 					<div class="flex flex-wrap gap-1.5 pt-1">
 						{#each data.mcpTools as tool (tool.name)}
 							<Badge variant="outline" class="font-mono text-[11px]">{tool.name}</Badge>
