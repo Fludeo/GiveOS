@@ -37,7 +37,9 @@
 	}
 
 	let localDraftOverride = $state<DraftSummaryStatus | null>(null);
+	let localMcpKeyOverride = $state<string | null>(null);
 	const draftSummary = $derived<DraftSummaryStatus>(localDraftOverride ?? data.initialDraftSummary);
+	const currentMcpApiKey = $derived<string>(localMcpKeyOverride ?? data.mcpApiKey);
 	let messages = $state<ChatMessage[]>([
 		{
 			id: 'welcome',
@@ -57,8 +59,50 @@
 	$effect(() => {
 		if (data.initialDraftSummary) {
 			localDraftOverride = null;
+			localMcpKeyOverride = null;
 		}
 	});
+
+	async function handleRotateMcpKey() {
+		isMutatingDraft = true;
+		try {
+			const res = await fetch('/api/assistant/draft', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					businessId: data.activeBusiness.id,
+					action: 'rotate_mcp_key'
+				})
+			});
+			const json = await res.json();
+			if (!res.ok) throw new Error(json.error);
+			localMcpKeyOverride = json.mcpApiKey;
+			toast.success('Nueva API Key MCP generada para este negocio.');
+		} catch (e: any) {
+			toast.error(e.message || 'Error al rotar la API Key');
+		} finally {
+			isMutatingDraft = false;
+		}
+	}
+
+	async function copyMcpConfig() {
+		const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173';
+		const snippet = JSON.stringify(
+			{
+				mcpServers: {
+					[`giveos-${data.activeBusiness.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`]: {
+						url: `${origin}/api/mcp?apiKey=${currentMcpApiKey}`
+					}
+				}
+			},
+			null,
+			2
+		);
+		if (typeof navigator !== 'undefined' && navigator.clipboard) {
+			await navigator.clipboard.writeText(snippet);
+			toast.success('Configuración MCP copiada al portapapeles');
+		}
+	}
 
 	function scrollToBottom() {
 		setTimeout(() => {
@@ -307,22 +351,39 @@
 		{#if showMcpInfo}
 			<Card class="border-secondary/40 bg-secondary/5">
 				<CardHeader class="pb-2">
-					<CardTitle class="flex items-center gap-2 text-sm font-semibold">
-						<Terminal class="size-4 text-secondary" />
-						Servidor MCP de GiveOS activo en <code>/api/mcp</code>
-					</CardTitle>
+					<div class="flex flex-wrap items-center justify-between gap-2">
+						<CardTitle class="flex items-center gap-2 text-sm font-semibold">
+							<Terminal class="size-4 text-secondary" />
+							Servidor MCP Multi-Tenant para "{data.activeBusiness.name}"
+						</CardTitle>
+						<div class="flex items-center gap-2">
+							<Button variant="outline" size="sm" onclick={copyMcpConfig} class="h-7 text-xs">
+								Copiar JSON
+							</Button>
+							<Button
+								variant="outline"
+								size="sm"
+								onclick={handleRotateMcpKey}
+								disabled={isMutatingDraft}
+								class="h-7 text-xs"
+							>
+								Rotar API Key
+							</Button>
+						</div>
+					</div>
 				</CardHeader>
 				<CardContent class="space-y-2 text-xs text-muted-foreground">
 					<p>
-						Puedes conectar cualquier agente externo (Antigravity, Claude Code, Cursor, etc.) a este
-						mismo borrador usando el endpoint JSON-RPC HTTP:
+						Cada negocio en GiveOS tiene su propia <strong>API Key aislada (Multi-Tenant)</strong>. Al
+						conectarse con esta clave, el agente opera exclusivamente sobre el catálogo, inventario y
+						borradores de <strong>{data.activeBusiness.name}</strong>:
 					</p>
 					<pre
 						class="overflow-x-auto rounded-lg border border-border bg-background p-3 font-mono text-xs text-foreground">{JSON.stringify(
 							{
 								mcpServers: {
-									giveos: {
-										url: `http://localhost:5173/api/mcp?businessId=${data.activeBusiness.id}`
+									[`giveos-${data.activeBusiness.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`]: {
+										url: `${typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173'}/api/mcp?apiKey=${currentMcpApiKey}`
 									}
 								}
 							},

@@ -1,63 +1,27 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
 import { getMcpRegistry } from '#lib/features/mcp/application/mcp-registry.service';
-import { getServices } from '#lib/server/container';
-import { getDb } from '#lib/server/db';
-import { businesses } from '#lib/server/db/schema';
-
-async function resolveMcpBusinessId(request: Request, url: URL, locals: App.Locals): Promise<string> {
-	const explicitId =
-		request.headers.get('x-business-id') ||
-		url.searchParams.get('businessId') ||
-		url.searchParams.get('business');
-
-	if (explicitId?.trim()) {
-		return explicitId.trim();
-	}
-
-	if (locals.user) {
-		const { businessService } = getServices();
-		const userBusinesses = await businessService.listUserBusinesses(locals.user.id);
-		if (userBusinesses.length > 0) {
-			return userBusinesses[0].business.id;
-		}
-	}
-
-	// En desarrollo local o si se provee MCP_API_KEY válida, tomar el primer negocio disponible
-	const isDev = process.env.NODE_ENV !== 'production';
-	const configuredKey = process.env.MCP_API_KEY;
-	const authHeader = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '').trim();
-
-	if (isDev || (configuredKey && authHeader === configuredKey)) {
-		const db = getDb();
-		const firstBusiness = await db.query.businesses.findFirst();
-		if (firstBusiness) {
-			return firstBusiness.id;
-		}
-	}
-
-	throw new Error(
-		'No se pudo determinar el businessId. Envía el header "x-business-id" o el parámetro "?businessId=..." en la URL del servidor MCP.'
-	);
-}
+import { resolveTenantFromMcpRequest } from '#lib/features/mcp/application/mcp-tenant-auth';
 
 /**
  * GET /api/mcp
- * Devuelve metadatos del servidor MCP y las herramientas disponibles para inspección rápida.
+ * Devuelve metadatos del servidor MCP multi-tenant y las herramientas disponibles.
  */
 export const GET: RequestHandler = async ({ url }) => {
 	const registry = getMcpRegistry();
 	return json({
 		name: 'giveos-mcp-server',
 		version: '1.0.0',
-		protocol: 'Model Context Protocol (JSON-RPC 2.0 over HTTP)',
+		multiTenant: true,
+		protocol: 'Model Context Protocol (JSON-RPC 2.0 over Streamable HTTP)',
 		endpoint: `${url.origin}/api/mcp`,
+		auth: 'Provide tenant key via ?apiKey=gvos_mcp_... or Authorization: Bearer gvos_mcp_...',
 		tools: registry.getMcpProtocolToolsList()
 	});
 };
 
 /**
  * POST /api/mcp
- * Endpoint estándar JSON-RPC 2.0 para clientes MCP (Streamable HTTP)
+ * Endpoint estándar JSON-RPC 2.0 Multi-Tenant para clientes MCP (Streamable HTTP)
  */
 export const POST: RequestHandler = async ({ request, url, locals }) => {
 	const registry = getMcpRegistry();
@@ -121,14 +85,14 @@ export const POST: RequestHandler = async ({ request, url, locals }) => {
 		if (method === 'tools/call') {
 			const toolName = params?.name;
 			const toolArgs = params?.arguments ?? {};
-			const businessId = await resolveMcpBusinessId(request, url, locals);
+			const tenantBusiness = await resolveTenantFromMcpRequest(request, url, locals);
 			const sessionId =
 				request.headers.get('x-session-id') || url.searchParams.get('sessionId') || null;
 
 			const output = await registry.executeTool(
 				toolName,
 				{
-					businessId,
+					businessId: tenantBusiness.id,
 					sessionId,
 					userId: locals.user?.id ?? null
 				},

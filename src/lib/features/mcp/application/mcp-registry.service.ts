@@ -1,5 +1,8 @@
 import { z } from 'zod';
+import { eq } from 'drizzle-orm';
 import { getServices } from '#lib/server/container';
+import { getDb } from '#lib/server/db';
+import { businesses } from '#lib/server/db/schema';
 import { getAllDraftEntityJsonSchemas } from '#lib/features/drafts/domain/draft-schema-registry';
 import {
 	DRAFT_ACTIONS,
@@ -47,6 +50,29 @@ const singleEntryInputSchema = z.object({
 
 export class McpRegistryService {
 	private readonly tools: McpToolDefinition<any>[] = [
+		{
+			name: 'get_tenant_info',
+			description:
+				'Devuelve la información del negocio (tenant) al que está conectado actualmente el agente MCP: ID, nombre comercial, descripción, moneda y horarios.',
+			schema: z.object({}),
+			execute: async (ctx) => {
+				const db = getDb();
+				const business = await db.query.businesses.findFirst({
+					where: eq(businesses.id, ctx.businessId)
+				});
+				if (!business) {
+					throw new Error('Negocio no encontrado.');
+				}
+				return {
+					businessId: business.id,
+					name: business.name,
+					description: business.description,
+					whatsapp: business.whatsapp,
+					currencySymbol: business.settings?.currencySymbol || '$',
+					openingHours: business.openingHours
+				};
+			}
+		},
 		{
 			name: 'get_entity_schemas',
 			description:

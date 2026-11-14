@@ -1,4 +1,5 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
+import { rotateBusinessMcpApiKey } from '#lib/features/mcp/application/mcp-tenant-auth';
 import { resolveBusinessOrRedirect } from '#lib/server/business-resolver';
 import { getServices } from '#lib/server/container';
 
@@ -31,6 +32,14 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	const { draftService } = getServices();
 
 	try {
+		if (action === 'rotate_mcp_key') {
+			const newApiKey = await rotateBusinessMcpApiKey(activeBusiness.id);
+			return json({
+				success: true,
+				mcpApiKey: newApiKey
+			});
+		}
+
 		if (action === 'commit') {
 			const commitResult = await draftService.commitDraft(activeBusiness.id);
 			const nextSummary = await draftService.getOrCreateActiveDraft(activeBusiness.id);

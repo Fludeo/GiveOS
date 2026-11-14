@@ -33,6 +33,11 @@ export interface BusinessSettings {
 			systemPrompt?: string;
 			updatedAt?: string;
 		};
+		mcp?: {
+			enabled: boolean;
+			apiKey?: string;
+			updatedAt?: string;
+		};
 	};
 }
 
